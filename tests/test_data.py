@@ -9,10 +9,9 @@ import numpy as np
 import pytest
 import yaml
 
-from liulian.data.base import BaseDataset, DataSplit
+from liulian.data.base import DataSplit
 from liulian.data.manifest import load_manifest, validate_manifest
 from liulian.data.spec import FieldSpec, TopologySpec
-
 
 # ---------------------------------------------------------------------------
 # FieldSpec
@@ -125,9 +124,7 @@ class TestManifest:
         assert any("name" in e for e in errors)
 
     def test_load_manifest(self, valid_manifest_dict: dict) -> None:
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".yaml", delete=False
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as tmp:
             yaml.dump(valid_manifest_dict, tmp)
             tmp_path = tmp.name
 
@@ -142,9 +139,7 @@ class TestManifest:
             load_manifest("/nonexistent/path.yaml")
 
     def test_load_manifest_invalid(self) -> None:
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".yaml", delete=False
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as tmp:
             yaml.dump({"bad": "manifest"}, tmp)
             tmp_path = tmp.name
 

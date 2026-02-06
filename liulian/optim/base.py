@@ -35,9 +35,7 @@ class BaseOptimizer(ABC):
     """
 
     @abstractmethod
-    def run(
-        self, spec: Any, search_space: Dict[str, Any]
-    ) -> OptimizationResult:
+    def run(self, spec: Any, search_space: Dict[str, Any]) -> OptimizationResult:
         """Execute a hyperparameter search.
 
         Args:

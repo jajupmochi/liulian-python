@@ -12,10 +12,10 @@ from typing import Any, Dict, List, NamedTuple
 
 import numpy as np
 
-
 # ---------------------------------------------------------------------------
 # PredictionRegime — lightweight config for forecasting tasks
 # ---------------------------------------------------------------------------
+
 
 class PredictionRegime(NamedTuple):
     """Parameters that fully describe a deterministic forecasting regime.
@@ -36,6 +36,7 @@ class PredictionRegime(NamedTuple):
 # ---------------------------------------------------------------------------
 # BaseTask — abstract interface every task must implement
 # ---------------------------------------------------------------------------
+
 
 class BaseTask(ABC):
     """Abstract base class for all tasks.
@@ -95,6 +96,7 @@ class BaseTask(ABC):
 # ---------------------------------------------------------------------------
 # PredictionTask — deterministic time-series forecasting
 # ---------------------------------------------------------------------------
+
 
 class PredictionTask(BaseTask):
     """Deterministic forecasting task (MSE loss, MSE/MAE/RMSE metrics).

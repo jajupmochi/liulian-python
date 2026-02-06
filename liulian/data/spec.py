@@ -76,6 +76,4 @@ class TopologySpec:
         }
 
     def __repr__(self) -> str:
-        return (
-            f"TopologySpec(nodes={self.num_nodes}, edges={self.num_edges})"
-        )
+        return f"TopologySpec(nodes={self.num_nodes}, edges={self.num_edges})"

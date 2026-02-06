@@ -43,7 +43,9 @@ class LocalFileLogger(LoggerInterface):
         with open(self._metrics_path, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(record) + "\n")
 
-    def log_artifact(self, path: str, metadata: Optional[Dict[str, Any]] = None) -> None:
+    def log_artifact(
+        self, path: str, metadata: Optional[Dict[str, Any]] = None
+    ) -> None:
         """Copy an artifact file into the run directory.
 
         Args:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from liulian.optim.base import BaseOptimizer, OptimizationResult
+from liulian.optim.base import OptimizationResult
 from liulian.optim.ray_optimizer import RayOptimizer
 
 
@@ -71,7 +71,5 @@ class TestRayOptimizer:
         opt = RayOptimizer(config={"num_samples": 2, "mode": "max"})
         opt._ray_available = False
 
-        result = opt.run(
-            spec=None, search_space={"x": [1, 2]}
-        )
+        result = opt.run(spec=None, search_space={"x": [1, 2]})
         assert isinstance(result.best_value, float)

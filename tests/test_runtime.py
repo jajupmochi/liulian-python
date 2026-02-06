@@ -6,11 +6,9 @@ import os
 import tempfile
 
 import pytest
-import yaml
 
 from liulian.runtime.spec import ExperimentSpec
 from liulian.runtime.state_machine import ExecutionMode, LifecycleState, StateMachine
-
 
 # ---------------------------------------------------------------------------
 # StateMachine
@@ -100,9 +98,7 @@ class TestExperimentSpec:
         assert d["task"]["class"] == "PredictionTask"
 
     def test_yaml_roundtrip(self, spec: ExperimentSpec) -> None:
-        with tempfile.NamedTemporaryFile(
-            suffix=".yaml", delete=False, mode="w"
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=".yaml", delete=False, mode="w") as tmp:
             tmp_path = tmp.name
 
         try:

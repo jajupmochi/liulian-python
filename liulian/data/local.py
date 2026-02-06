@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import csv
 import os
-from typing import Any, Dict, List, Tuple
+from typing import List, Tuple
 
 import numpy as np
 
@@ -85,7 +85,6 @@ def list_data_files(
     files = [
         os.path.join(directory, f)
         for f in sorted(os.listdir(directory))
-        if os.path.isfile(os.path.join(directory, f))
-        and f.lower().endswith(extensions)
+        if os.path.isfile(os.path.join(directory, f)) and f.lower().endswith(extensions)
     ]
     return files

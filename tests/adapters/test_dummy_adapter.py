@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import tempfile
 
@@ -16,9 +15,7 @@ from liulian.tasks.base import PredictionRegime, PredictionTask
 class TestDummyModel:
     @pytest.fixture
     def model(self) -> DummyModel:
-        task = PredictionTask(
-            regime=PredictionRegime(horizon=6, context_length=18)
-        )
+        task = PredictionTask(regime=PredictionRegime(horizon=6, context_length=18))
         m = DummyModel()
         m.configure(task, {})
         return m
@@ -47,9 +44,7 @@ class TestDummyModel:
         assert caps["probabilistic"] is False
 
     def test_save_load(self, model: DummyModel) -> None:
-        with tempfile.NamedTemporaryFile(
-            suffix=".json", delete=False, mode="w"
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as tmp:
             tmp_path = tmp.name
 
         try:

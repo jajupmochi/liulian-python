@@ -6,8 +6,6 @@ Full implementation deferred to v1+.
 
 from __future__ import annotations
 
-from typing import Any, Dict
-
 import numpy as np
 
 from liulian.data.base import BaseDataset, DataSplit
@@ -51,9 +49,9 @@ class TrafficDatasetAdapter(BaseDataset):
         n_timesteps = 48
         n_sensors = 4
 
-        X = rng.normal(loc=60.0, scale=15.0, size=(n_samples, n_timesteps, n_sensors)).astype(
-            np.float32
-        )
+        X = rng.normal(
+            loc=60.0, scale=15.0, size=(n_samples, n_timesteps, n_sensors)
+        ).astype(np.float32)
         horizon = 12
         y = X[:, -horizon:, :]
         X_context = X[:, :-horizon, :]

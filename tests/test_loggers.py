@@ -41,9 +41,7 @@ class TestLocalFileLogger:
         logger = LocalFileLogger(run_dir=log_dir)
 
         # Create a temp file to log as artifact
-        with tempfile.NamedTemporaryFile(
-            delete=False, suffix=".json", mode="w"
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode="w") as tmp:
             json.dump({"key": "value"}, tmp)
             src_path = tmp.name
 

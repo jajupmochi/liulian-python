@@ -11,7 +11,6 @@ from typing import Any, Dict, List
 
 import yaml
 
-
 # Required top-level keys in a valid manifest
 _REQUIRED_KEYS: List[str] = ["name", "version", "fields", "splits"]
 
@@ -74,8 +73,6 @@ def load_manifest(path: str) -> Dict[str, Any]:
 
     errors = validate_manifest(manifest)
     if errors:
-        raise ValueError(
-            f"Invalid manifest '{path}':\n  " + "\n  ".join(errors)
-        )
+        raise ValueError(f"Invalid manifest '{path}':\n  " + "\n  ".join(errors))
 
     return manifest

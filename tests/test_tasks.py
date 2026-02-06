@@ -5,9 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from liulian.tasks.base import BaseTask, PredictionRegime, PredictionTask
+from liulian.tasks.base import PredictionRegime, PredictionTask
 from liulian.tasks.utils import TaskSuggester
-
 
 # ---------------------------------------------------------------------------
 # PredictionRegime
@@ -23,7 +22,9 @@ class TestPredictionRegime:
         assert r.multivariate is True
 
     def test_custom_values(self) -> None:
-        r = PredictionRegime(horizon=24, context_length=72, stride=2, multivariate=False)
+        r = PredictionRegime(
+            horizon=24, context_length=72, stride=2, multivariate=False
+        )
         assert r.horizon == 24
         assert r.context_length == 72
 
@@ -60,9 +61,7 @@ class TestPredictionTask:
     def test_build_loss(self, prediction_task: PredictionTask) -> None:
         preds = np.ones((4, 12, 3))
         targets = np.zeros((4, 12, 3))
-        loss = prediction_task.build_loss(
-            {"predictions": preds}, {"y": targets}
-        )
+        loss = prediction_task.build_loss({"predictions": preds}, {"y": targets})
         assert loss == pytest.approx(1.0)
 
     def test_compute_metrics(self, prediction_task: PredictionTask) -> None:

@@ -26,7 +26,9 @@ class LoggerInterface(ABC):
         """
 
     @abstractmethod
-    def log_artifact(self, path: str, metadata: Optional[Dict[str, Any]] = None) -> None:
+    def log_artifact(
+        self, path: str, metadata: Optional[Dict[str, Any]] = None
+    ) -> None:
         """Log an artifact file (checkpoint, config snapshot, etc.).
 
         Args:

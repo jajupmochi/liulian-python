@@ -209,15 +209,17 @@ class RayOptimizer(BaseOptimizer):
             # Without a real training loop we use a deterministic hash-based
             # proxy metric.  In production code the caller should supply a
             # ``trainable`` and use the Ray path instead.
-            proxy = sum(abs(hash(str(v))) % 1000 for v in combo) / max(len(combo), 1) / 1000.0
+            proxy = (
+                sum(abs(hash(str(v))) % 1000 for v in combo)
+                / max(len(combo), 1)
+                / 1000.0
+            )
             trial_metrics = {metric: proxy}
             trials_summary.append(
                 {"trial_id": i, "config": config, "metrics": trial_metrics}
             )
 
-            is_better = (
-                proxy < best_value if mode == "min" else proxy > best_value
-            )
+            is_better = proxy < best_value if mode == "min" else proxy > best_value
             if is_better:
                 best_value = proxy
                 best_config = config

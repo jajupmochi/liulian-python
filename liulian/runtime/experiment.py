@@ -11,8 +11,6 @@ import logging
 import os
 from typing import Any, Callable, Dict, List, Optional
 
-import yaml
-
 from liulian.data.base import BaseDataset
 from liulian.loggers.interface import LoggerInterface
 from liulian.models.base import ExecutableModel

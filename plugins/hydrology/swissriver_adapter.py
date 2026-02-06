@@ -10,7 +10,7 @@ with synthetic data for testing.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import numpy as np
 
@@ -53,8 +53,12 @@ class SwissRiverDatasetAdapter(BaseDataset):
                 "name": "swissriver-synthetic",
                 "version": "0.0.1",
                 "fields": [
-                    {"name": "discharge", "dtype": "float32", "unit": "m3/s",
-                     "semantic_tags": ["target"]},
+                    {
+                        "name": "discharge",
+                        "dtype": "float32",
+                        "unit": "m3/s",
+                        "semantic_tags": ["target"],
+                    },
                 ],
                 "splits": {
                     "train": {"start": "2010-01-01", "end": "2018-12-31"},

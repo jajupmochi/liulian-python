@@ -30,8 +30,8 @@ class ExecutionMode(Enum):
     """
 
     OFFLINE = "offline"
-    ONLINE = "online"          # streaming / real-time (v1+)
-    HITL = "hitl"              # human-in-the-loop (v1+)
+    ONLINE = "online"  # streaming / real-time (v1+)
+    HITL = "hitl"  # human-in-the-loop (v1+)
     AGENT_ASSIST = "agent_assist"  # LLM-assisted (v1+)
 
 

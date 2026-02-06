@@ -41,10 +41,7 @@ class TaskSuggester:
         # deterministic but structured so that new branches can be added
         # when more task types are introduced (e.g., ClassificationTask).
         if n_timesteps > 1:
-            reason = (
-                "Dataset has temporal dimension "
-                f"(n_timesteps={n_timesteps})"
-            )
+            reason = "Dataset has temporal dimension " f"(n_timesteps={n_timesteps})"
             if has_graph:
                 reason += " with graph topology — spatiotemporal prediction recommended"
             else:
