@@ -1,0 +1,54 @@
+name: swissriver-v1
+source: https://doi.org/10.5281/zenodo.example
+version: "1.0"
+hash: "sha256:placeholder"
+description: >
+  Swiss river network discharge dataset. Contains hourly discharge
+  measurements from 5 stations in a chain topology.
+
+preprocessing:
+  - name: resample
+    params:
+      freq: "1H"
+  - name: fillna
+    params:
+      method: linear
+
+splits:
+  train:
+    start: "2010-01-01"
+    end: "2018-12-31"
+  val:
+    start: "2019-01-01"
+    end: "2019-12-31"
+  test:
+    start: "2020-01-01"
+    end: "2020-12-31"
+
+topology:
+  node_ids: ["S1", "S2", "S3", "S4", "S5"]
+  edges:
+    - ["S1", "S2"]
+    - ["S2", "S3"]
+    - ["S3", "S4"]
+    - ["S4", "S5"]
+  coordinates:
+    S1: [46.95, 7.45]
+    S2: [46.80, 7.50]
+    S3: [46.65, 7.55]
+    S4: [46.50, 7.60]
+    S5: [46.35, 7.65]
+
+fields:
+  - name: discharge
+    dtype: float32
+    unit: m3/s
+    semantic_tags: [target]
+  - name: precipitation
+    dtype: float32
+    unit: mm/h
+    semantic_tags: [feature]
+  - name: temperature
+    dtype: float32
+    unit: degC
+    semantic_tags: [feature]

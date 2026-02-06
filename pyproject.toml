@@ -1,0 +1,66 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "liulian"
+version = "0.0.1"
+description = "Research OS for spatiotemporal model experimentation — time-series, graph, and spatiotemporal model training, evaluation, and inference."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "jajupmochi"},
+]
+keywords = ["machine-learning", "spatiotemporal", "time-series", "graph", "research"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "numpy>=1.24.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+logging = ["wandb>=0.15.0"]
+hpo = ["ray[tune]>=2.0.0"]
+docs = ["mkdocs>=1.5", "mkdocs-material>=9.0"]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "isort>=5.12",
+    "flake8>=6.0",
+    "mypy>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/jajupmochi/liulian-python"
+Documentation = "https://jajupmochi.github.io/liulian-python"
+Repository = "https://github.com/jajupmochi/liulian-python"
+Issues = "https://github.com/jajupmochi/liulian-python/issues"
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+
+[tool.isort]
+profile = "black"
+known_first_party = ["liulian"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v"

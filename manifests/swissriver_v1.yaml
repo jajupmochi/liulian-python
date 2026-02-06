@@ -1,0 +1,24 @@
+name: swissriver-v1
+source: https://doi.org/10.5281/zenodo.example
+version: "1.0"
+hash: "sha256:placeholder"
+description: >
+  Swiss river network discharge dataset (top-level reference copy).
+  See plugins/hydrology/manifests/swissriver_v1.yaml for the canonical version.
+
+splits:
+  train:
+    start: "2010-01-01"
+    end: "2018-12-31"
+  val:
+    start: "2019-01-01"
+    end: "2019-12-31"
+  test:
+    start: "2020-01-01"
+    end: "2020-12-31"
+
+fields:
+  - name: discharge
+    dtype: float32
+    unit: m3/s
+    semantic_tags: [target]
