@@ -19,6 +19,7 @@ from .embed import (
     DataEmbedding_inverted,
     DataEmbedding_wo_pos,
 )
+from .fourier_correlation import FourierBlock, get_frequency_modes
 
 __all__ = [
     # Embedding
@@ -33,4 +34,7 @@ __all__ = [
     # AutoCorrelation
     'AutoCorrelation',
     'AutoCorrelationLayer',
+    # Fourier
+    'FourierBlock',
+    'get_frequency_modes',
 ]
