@@ -1,6 +1,6 @@
 # Acceptance Criteria Reference
 
-Full validation checklist for each adapted change. All 11 criteria must pass before proceeding.
+Full validation checklist for each adapted change. All 13 criteria must pass before proceeding.
 
 ## 1. Functional Correctness
 
@@ -268,6 +268,92 @@ View full diff? (yes/no)
 Confirm apply this change? (yes/no/edit/skip)
 ```
 
+## 12. Traceability
+
+**Requirement:** Source mapping documented with clickable links to reference code.
+
+**Validation:**
+- Check traceability file exists in `artifacts/adaptations/<run-id>/traceability/`
+- Verify all code segments have source links
+- Confirm links point to correct line ranges
+
+**Acceptance:**
+- ✅ Traceability file created for this step
+- ✅ Every code segment has status (COPIED/ADAPTED/REVISED/NEW)
+- ✅ Source links included for all non-NEW segments
+- ✅ Links use correct format: `refer_projects/project/file.py#LX-LY`
+- ✅ Line ranges are accurate
+- ✅ Changes and rationale documented
+
+**Required traceability file sections:**
+1. Header with run ID and timestamp
+2. Target file information
+3. Source mapping for each code segment
+4. Preservation analysis with percentages
+5. Dependencies changed
+6. Testing evidence
+
+**Example traceability entry:**
+```markdown
+### Lines 54-89: load_data method
+
+**Status**: COPIED (formatting only)
+**Source**: C_r1/data/swiss_adapter.py#L50-L85
+**Link**: [View source](refer_projects/agent-lfd/data/swiss_adapter.py#L50-L85)
+
+**Changes**:
+- Formatting: Applied Black formatter
+- No logic changes
+
+**Rationale**: Target project uses Black for formatting consistency.
+```
+
+**See:** `references/traceability_format.md` for complete format specification.
+
+## 13. Copy-Paste Compliance
+
+**Requirement:** Code that can be directly copied is preserved; only naming, formatting, and interface changes applied.
+
+**Validation:**
+- Review traceability file preservation analysis
+- Check marked COPIED segments have no logic changes
+- Verify adaptation percentage is reasonable
+
+**Acceptance:**
+- ✅ COPIED segments have no logic changes
+- ✅ ADAPTED segments limited to interface compatibility
+- ✅ Overall copy-paste ratio >50% (recommended: >60%)
+- ✅ All logic changes justified in traceability
+- ✅ Core algorithms preserved from reference
+
+**Status categories:**
+- **COPIED (no changes)**: Exact copy, no modifications
+- **COPIED (naming only)**: Only identifiers renamed
+- **COPIED (formatting only)**: Only whitespace/formatting changed
+- **COPIED (comments only)**: Only comments/docstrings modified
+- **ADAPTED**: Logic preserved, interface/types changed
+- **REVISED**: Significant logic changes
+- **NEW**: Written specifically for target
+
+**Red flags:**
+- ❌ Copy-paste ratio <50%
+- ❌ Core algorithms rewritten instead of copied
+- ❌ Logic changes not justified in traceability
+- ❌ "Improvements" applied to reference code
+
+**Example preservation analysis:**
+```
+| Category | Lines | Percentage |
+|----------|-------|------------|
+| Copied unchanged | 30 | 16.0% |
+| Copied with naming/formatting | 68 | 36.4% |
+| Adapted logic | 59 | 31.6% |
+| New implementation | 30 | 16.0% |
+| **Total** | **187** | **100%** |
+
+**Copy-Paste Compliance**: 52.4%
+```
+
 ## Validation Workflow
 
 For each atomic change:
@@ -279,9 +365,11 @@ For each atomic change:
 5. Check docstrings → Check criterion #5
 6. Run mypy (if configured) → Check criterion #6
 7. Review dependencies → Check criterion #8
-8. Create commit → Check criterion #9
-9. Save artifacts → Check criterion #10
-10. Get user approval → Check criterion #11
+8. Generate traceability file → Check criterion #12
+9. Verify copy-paste compliance → Check criterion #13
+10. Create commit → Check criterion #9
+11. Save artifacts → Check criterion #10
+12. Get user approval → Check criterion #11
 
 **All must pass** before step is considered complete.
 
@@ -332,6 +420,8 @@ Acceptance Criteria Checklist
 [ ] 9. Proper commit
 [ ] 10. Artifacts saved
 [ ] 11. User approved
+[ ] 12. Traceability documented
+[ ] 13. Copy-paste compliance
 
-Status: ___ / 11 passed
+Status: ___ / 13 passed
 ```

@@ -5,7 +5,15 @@ description: Cross-project component adaptation in an incremental, auditable, mi
 
 # Project Adaptor
 
-Cross-project component adaptation with human-in-the-loop, minimal changes, and full auditability.
+Cross-project component adaptation with human-in-the-loop, minimal changes, full auditability, and source traceability.
+
+## Key Principles
+
+1. **Preserve Reference Implementation**: When code can be directly copied from reference projects, preserve the original implementation except for naming, comments, type hints, and formatting
+2. **Full Source Traceability**: Every adapted code segment is mapped to its source with clickable links for easy verification
+3. **Human-in-the-Loop**: Explicit approval required at each phase
+4. **Minimal Changes**: Surgical modifications only, no gratuitous refactoring
+5. **Comprehensive Auditability**: Complete artifact trail for every adaptation decision
 
 ## Core Workflow
 
@@ -272,6 +280,16 @@ Source files mapping:
   C_r1/data/manifest_swiss.yaml → P_t/manifests/swissriver.yaml [NEW]
   C_r1/tests/test_swiss.py → P_t/tests/test_swissriver_adapter.py [NEW]
 
+Adaptation strategy:
+  - Core algorithms: COPY (preserve implementation)
+  - Class/function names: ADAPT (rename to match conventions)
+  - Data types: ADAPT (torch.Tensor → np.ndarray)
+  - Interfaces: ADAPT (Dataset → BaseAdapter)
+  - Helper methods: COPY (preserve as-is)
+  
+Expected preservation ratio: ~70% direct copy
+Changes limited to: naming, type hints, interface compatibility
+
 Dependencies: pandas>=1.3 (add to optional-dependencies[datasets])
 Estimated risk: MEDIUM
 Risk factors:
@@ -340,6 +358,10 @@ git checkout -b feat/adapt-<run-id>
 1. **Generate Change**
    - Create patch or new file content
    - Apply minimal changes only (no gratuitous refactoring)
+   - When copying code from reference projects:
+     - Preserve original logic and implementation details
+     - Only modify: naming, comments, type hints, formatting, imports
+     - Document which parts are direct copies vs. adaptations
 
 2. **Present Change**
 
@@ -421,6 +443,76 @@ Options:
 Your choice:
 ```
 
+5. **Generate Traceability File** (after change applied)
+
+Create/update traceability document for this step following the format in `references/traceability_format.md`:
+
+```
+TRACEABILITY: Step 1.3 - SwissRiver Adapter Class
+════════════════════════════════════════════════════════
+
+Target File: liulian/adapters/swissriver/adapter.py
+
+SOURCE MAPPING:
+
+Lines 1-15: Package imports
+  Status: ADAPTED
+  Source: C_r1/data/swiss_adapter.py#L1-L10
+  Changes: Updated imports to match target project structure
+  Link: refer_projects/agent-lfd/data/swiss_adapter.py#L1-L10
+
+Lines 17-35: SwissRiverAdapter class definition
+  Status: COPIED (naming only)
+  Source: C_r1/data/swiss_adapter.py#L15-L33
+  Changes: Renamed SwissRiverDataset → SwissRiverAdapter
+  Link: refer_projects/agent-lfd/data/swiss_adapter.py#L15-L33
+
+Lines 37-52: __init__ method
+  Status: ADAPTED
+  Source: C_r1/data/swiss_adapter.py#L35-L48
+  Changes: 
+    - Updated parent class: torch.utils.data.Dataset → BaseAdapter
+    - Changed data type: torch.Tensor → np.ndarray
+  Link: refer_projects/agent-lfd/data/swiss_adapter.py#L35-L48
+
+Lines 54-89: load_data method
+  Status: COPIED (formatting only)
+  Source: C_r1/data/swiss_adapter.py#L50-L85
+  Changes: Reformatted with Black
+  Link: refer_projects/agent-lfd/data/swiss_adapter.py#L50-L85
+
+Lines 91-120: preprocess method
+  Status: COPIED (no changes)
+  Source: C_r1/data/swiss_adapter.py#L87-L116
+  Changes: None - direct copy
+  Link: refer_projects/agent-lfd/data/swiss_adapter.py#L87-L116
+
+Lines 122-145: batch_iter method
+  Status: REVISED
+  Source: C_r1/data/swiss_adapter.py#L118-L138
+  Changes: Significant logic changes for BaseAdapter interface
+  Link: refer_projects/agent-lfd/data/swiss_adapter.py#L118-L138
+
+Lines 147-187: Helper methods
+  Status: NEW
+  Source: None (target-specific implementation)
+  Changes: New methods for BaseAdapter protocol
+
+SUMMARY:
+  Total lines: 187
+  Copied unchanged: 30 (16%)
+  Copied with naming/formatting: 68 (36%)
+  Adapted logic: 59 (32%)
+  New implementation: 30 (16%)
+  
+PRESERVATION COMPLIANCE:
+  ✓ Core algorithms copied without modification
+  ✓ Only naming/formatting changed where needed
+  ✓ Adaptations limited to interface compatibility
+```
+
+Save to: `artifacts/adaptations/<run-id>/traceability/step_<id>.md`
+
 6. **Commit Change** (if tests pass)
 
 Use standard commit message format:
@@ -435,6 +527,7 @@ Adapted SwissRiverDataset to SwissRiverAdapter.
 - Adaptation step: 3 of 4
 - Tests: 3/3 passed
 - Conflicts resolved: naming (Model→Adapter)
+- Traceability: artifacts/adaptations/adapt_20260209_143022/traceability/step_3.md
 
 Artifact ID: adapt_20260209_143022
 ```
@@ -498,6 +591,7 @@ COMPLETED ADAPTATIONS:
    Files created: 4
    Files modified: 0
    Tests: 3/3 passed
+   Traceability files: 4
    Commits: 4
    Conflicts resolved: 1 (naming)
 
@@ -520,12 +614,31 @@ SUMMARY:
 
 ARTIFACTS LOCATION:
   artifacts/adaptations/adapt_20260209_143022/
+  
+TRACEABILITY FILES:
+  artifacts/adaptations/adapt_20260209_143022/traceability/
+    - step_1.md (directory structure)
+    - step_2.md (manifest parser)
+    - step_3.md (adapter class)
+    - step_4.md (tests)
+  
+CODE PRESERVATION ANALYSIS:
+  Total adapted lines: 487
+  Copied unchanged: 125 (25.7%)
+  Copied with naming/formatting: 201 (41.3%)
+  Adapted logic: 98 (20.1%)
+  New implementation: 63 (12.9%)
+  
+  ✓ Copy-paste principle compliance: 67.0%
+  ✓ Core algorithms preserved from reference
+  ✓ Only interface adaptations performed
 
 SUGGESTED NEXT STEPS:
-  1. Review feature branch: feat/adapt-swissriver-informer
-  2. Run full test suite: pytest
-  3. Update documentation
-  4. Merge to main
+  1. Review traceability files to verify source mapping
+  2. Review feature branch: feat/adapt-swissriver-informer
+  3. Run full test suite: pytest
+  4. Update documentation
+  5. Merge to main
 
 View detailed report? (yes/no)
 ```
@@ -632,16 +745,23 @@ Halt at 100% and ask user to increase budget or simplify scope.
 3. **Minimal Surface Area** - Limit to fewest files possible
 4. **No Gratuitous Refactoring** - Resist improving unrelated code
 5. **Modularity** - Adapted components should be self-contained
+6. **Copy-Paste Preservation** - When code can be directly copied from reference projects, preserve original implementation except for:
+   - Naming (class names, function names, variable names to match target conventions)
+   - Comments and docstrings (to match target documentation style)
+   - Variable type hints (to match target type annotation patterns)
+   - Code formatting (to match target formatter like Black/Ruff)
+   - Import statements (to match target project structure)
 
 **Prefer:**
 - Creating new modules over modifying existing files
 - Adapter/bridge patterns over modification
 - Dependency injection over hard-coding
 - Extension over replacement
+- Direct copy-paste over reimplementation (with naming/formatting adjustments)
 
 ## Acceptance Criteria
 
-Each change validated against 11 criteria:
+Each change validated against 13 criteria:
 
 - [ ] Functional Correctness - Tests pass
 - [ ] Style Compliance - Black formatted
@@ -654,6 +774,8 @@ Each change validated against 11 criteria:
 - [ ] Version Control - Proper commit message
 - [ ] Artifacts - Recorded in artifacts/
 - [ ] User Approval - Explicitly confirmed
+- [ ] Traceability - Source mapping documented with links
+- [ ] Copy-Paste Compliance - Direct copies preserved, only naming/formatting/interface changes
 
 If any criterion fails, offer: revert, fix, or skip.
 
@@ -678,6 +800,7 @@ Detailed documentation (see `references/`):
 - `dependency_patterns.md` - Heavy dependency handling
 - `token_strategies.md` - Detailed token-saving techniques
 - `acceptance_criteria.md` - Full validation checklist
+- `traceability_format.md` - Detailed format and requirements for traceability files
 
 Load references when needed for specific scenarios.
 
