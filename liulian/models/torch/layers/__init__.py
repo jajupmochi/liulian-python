@@ -47,6 +47,10 @@ from .autocorrelation import (
     AutoCorrelationLayer,
 )
 
+from .standard_norm import (
+    Normalize,
+)
+
 __all__ = [
     # Embeddings
     "PositionalEmbedding",
@@ -78,5 +82,7 @@ __all__ = [
     # AutoCorrelation
     "AutoCorrelation",
     "AutoCorrelationLayer",
+    # Normalization
+    "Normalize",
 ]
 
