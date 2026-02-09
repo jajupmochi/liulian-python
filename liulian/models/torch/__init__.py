@@ -45,6 +45,8 @@ from .base_adapter import TorchModelAdapter
 from .dlinear_adapter import DLinearAdapter
 from .patchtst_adapter import PatchTSTAdapter
 from .autoformer_adapter import AutoformerAdapter
+from .informer_adapter import InformerAdapter
+from .itransformer_adapter import ITransformerAdapter
 
 # Version info
 __version__ = "0.0.1"
@@ -55,4 +57,6 @@ __all__ = [
     "DLinearAdapter",
     "PatchTSTAdapter",
     "AutoformerAdapter",
+    "InformerAdapter",
+    "ITransformerAdapter",
 ]

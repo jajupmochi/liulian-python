@@ -26,8 +26,10 @@ from .decomposition import (
 from .attention import (
     FullAttention,
     AttentionLayer,
+    ProbAttention,
 )
 from .transformer_blocks import (
+    ConvLayer,
     EncoderLayer,
     Encoder,
     DecoderLayer,
@@ -63,7 +65,9 @@ __all__ = [
     # Attention
     "FullAttention",
     "AttentionLayer",
+    "ProbAttention",
     # Transformer blocks
+    "ConvLayer",
     "EncoderLayer",
     "Encoder",
     "DecoderLayer",
