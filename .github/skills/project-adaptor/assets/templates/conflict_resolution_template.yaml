@@ -1,0 +1,46 @@
+---
+# Conflict Resolution Record Template
+# Records how conflicts were resolved during adaptation
+
+run_id: "{{ run_id }}"
+timestamp: "{{ timestamp }}"
+
+conflicts:
+{% for conflict in conflicts %}
+  - conflict_id: {{ conflict.id }}
+    severity: "{{ conflict.severity }}"
+    type: "{{ conflict.type }}"
+    description: "{{ conflict.description }}"
+    
+    affected_projects:
+{% for proj in conflict.affected_projects %}
+      - "{{ proj }}"
+{% endfor %}
+    
+    affected_items:
+{% for item in conflict.affected_items %}
+      - "{{ item }}"
+{% endfor %}
+    
+    resolution:
+      option_selected: "{{ conflict.resolution.option }}"
+      description: "{{ conflict.resolution.description }}"
+      applied_to_files:
+{% for file in conflict.resolution.files %}
+        - "{{ file }}"
+{% endfor %}
+      
+    resolution_details: |
+{{ conflict.resolution.details | indent(6) }}
+    
+    resolved_by: "user"
+    resolved_at: "{{ conflict.resolution.timestamp }}"
+    
+{% endfor %}
+
+summary:
+  total_conflicts: {{ conflicts | length }}
+  critical_resolved: {{ conflicts | selectattr('severity', 'equalto', 'CRITICAL') | list | length }}
+  high_resolved: {{ conflicts | selectattr('severity', 'equalto', 'HIGH') | list | length }}
+  medium_resolved: {{ conflicts | selectattr('severity', 'equalto', 'MEDIUM') | list | length }}
+  low_resolved: {{ conflicts | selectattr('severity', 'equalto', 'LOW') | list | length }}
