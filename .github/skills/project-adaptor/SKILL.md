@@ -14,6 +14,7 @@ Cross-project component adaptation with human-in-the-loop, minimal changes, full
 3. **Human-in-the-Loop**: Explicit approval required at each phase
 4. **Minimal Changes**: Surgical modifications only, no gratuitous refactoring
 5. **Comprehensive Auditability**: Complete artifact trail for every adaptation decision
+6. **English-Only Production Code**: All formal code (docstrings, comments, error messages) must be in English; only internal artifacts and localized READMEs may use other languages
 
 ## Core Workflow
 
@@ -759,9 +760,60 @@ Halt at 100% and ask user to increase budget or simplify scope.
 - Extension over replacement
 - Direct copy-paste over reimplementation (with naming/formatting adjustments)
 
+## Language Policy
+
+**CRITICAL:** All production code must use English exclusively.
+
+### English Required For:
+
+- All Python/code docstrings (module, class, function, method)
+- All inline code comments
+- All function, class, variable, and constant names
+- Error messages and exceptions
+- Log messages
+- Type hints and annotations
+- API documentation
+- User-facing documentation (docs/ directory)
+- Code examples in documentation
+- Primary README.md
+- Commit messages
+- Git branch names
+
+### Other Languages Permitted For:
+
+- Internal artifacts (artifacts/ directory)
+- Localized READMEs (README.zh.md, README.fr.md, etc.)
+- Internal project management documents
+- Traceability documents in artifacts/adaptations/
+- Conflict reports in artifacts/ (for team communication)
+
+### Implementation During Adaptation:
+
+1. **When copying from reference projects:**
+   - Translate all comments and docstrings to English
+   - Keep original English if already present
+   - Document translation in traceability files
+   
+2. **When reference code contains non-English:**
+   - Translate comments during copy
+   - Preserve algorithm logic exactly
+   - Note translation in traceability: "Comments translated: Chinese → English"
+
+3. **Quality checks:**
+   - Before committing: scan for non-English in production code
+   - Use regex to detect common patterns: `[\u4e00-\u9fff]` (Chinese)
+   - Alert if non-English detected in .py files outside artifacts/
+
+4. **Rationale:**
+   - English is programming lingua franca
+   - Enables international collaboration
+   - Better IDE and tool support
+   - Industry standard for open-source
+   - Easier maintenance and code review
+
 ## Acceptance Criteria
 
-Each change validated against 13 criteria:
+Each change validated against 14 criteria:
 
 - [ ] Functional Correctness - Tests pass
 - [ ] Style Compliance - Black formatted
@@ -776,6 +828,7 @@ Each change validated against 13 criteria:
 - [ ] User Approval - Explicitly confirmed
 - [ ] Traceability - Source mapping documented with links
 - [ ] Copy-Paste Compliance - Direct copies preserved, only naming/formatting/interface changes
+- [ ] Language Compliance - English-only in production code
 
 If any criterion fails, offer: revert, fix, or skip.
 

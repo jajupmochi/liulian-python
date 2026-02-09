@@ -40,6 +40,19 @@ dev = [
     "flake8>=6.0",
     "mypy>=1.0",
 ]
+torch-models = [
+    "torch>=2.0.0",
+    "einops>=0.7.0",
+    "transformers>=4.31.0",
+    "accelerate>=0.28.0",
+    "sentencepiece>=0.2.0",
+]
+torch-models-full = [
+    "liulian[torch-models]",
+    "mamba-ssm>=1.0.0",
+    "reformer-pytorch>=1.4.0",
+    "local-attention>=1.11.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/jajupmochi/liulian-python"
