@@ -1,8 +1,11 @@
 """
-AutoCorrelation mechanism for Autoformer model.
+AutoCorrelation Mechanism for Autoformer
 
 Adapted from Time-Series-Library:
 https://github.com/thuml/Time-Series-Library/blob/main/layers/AutoCorrelation.py
+
+Paper: Autoformer: Decomposition Transformers with Auto-Correlation for Long-Term Series Forecasting
+https://openreview.net/pdf?id=I55UqU-M11y
 """
 
 import torch
@@ -13,30 +16,12 @@ import math
 class AutoCorrelation(nn.Module):
     """
     AutoCorrelation Mechanism with the following two phases:
-    (1) period-based dependencies discovery using FFT
+    (1) period-based dependencies discovery
     (2) time delay aggregation
-    
-    This block can replace the self-attention mechanism in transformers.
+    This block can replace the self-attention family mechanism seamlessly.
     """
 
-    def __init__(
-        self,
-        mask_flag: bool = True,
-        factor: int = 1,
-        scale: float = None,
-        attention_dropout: float = 0.1,
-        output_attention: bool = False
-    ):
-        """
-        Initialize AutoCorrelation.
-
-        Args:
-            mask_flag: Whether to apply mask (not used in current implementation)
-            factor: Factor for selecting top-k delays
-            scale: Scale factor (not used in autocorrelation)
-            attention_dropout: Dropout rate
-            output_attention: Whether to return correlation weights
-        """
+    def __init__(self, mask_flag=True, factor=1, scale=None, attention_dropout=0.1, output_attention=False):
         super(AutoCorrelation, self).__init__()
         self.factor = factor
         self.scale = scale
@@ -46,30 +31,20 @@ class AutoCorrelation(nn.Module):
 
     def time_delay_agg_training(self, values, corr):
         """
-        SpeedUp version of Autocorrelation for training phase.
-        Uses batch-normalization style aggregation.
-
-        Args:
-            values: Value tensor [batch, head, channel, length]
-            corr: Correlation tensor [batch, head, channel, length]
-
-        Returns:
-            Aggregated values [batch, head, channel, length]
+        SpeedUp version of Autocorrelation (a batch-normalization style design)
+        This is for the training phase.
         """
         head = values.shape[1]
         channel = values.shape[2]
         length = values.shape[3]
-        
-        # Find top k delays
+        # find top k
         top_k = int(self.factor * math.log(length))
         mean_value = torch.mean(torch.mean(corr, dim=1), dim=1)
         index = torch.topk(torch.mean(mean_value, dim=0), top_k, dim=-1)[1]
         weights = torch.stack([mean_value[:, index[i]] for i in range(top_k)], dim=-1)
-        
-        # Update correlation weights
+        # update corr
         tmp_corr = torch.softmax(weights, dim=-1)
-        
-        # Aggregate with time delays
+        # aggregation
         tmp_values = values
         delays_agg = torch.zeros_like(values).float()
         for i in range(top_k):
@@ -80,62 +55,58 @@ class AutoCorrelation(nn.Module):
 
     def time_delay_agg_inference(self, values, corr):
         """
-        SpeedUp version of Autocorrelation for inference phase.
-
-        Args:
-            values: Value tensor [batch, head, channel, length]
-            corr: Correlation tensor [batch, head, channel, length]
-
-        Returns:
-            Aggregated values [batch, head, channel, length]
+        SpeedUp version of Autocorrelation (a batch-normalization style design)
+        This is for the inference phase.
         """
         batch = values.shape[0]
         head = values.shape[1]
         channel = values.shape[2]
         length = values.shape[3]
-        
-        # Index initialization
-        init_index = torch.arange(length).unsqueeze(0).unsqueeze(0).unsqueeze(0)\
-            .repeat(batch, head, channel, 1).to(values.device)
-        
-        # Find top k delays
+        # index init
+        init_index = torch.arange(length).unsqueeze(0).unsqueeze(0).unsqueeze(0).repeat(batch, head, channel, 1).to(values.device)
+        # find top k
         top_k = int(self.factor * math.log(length))
         mean_value = torch.mean(torch.mean(corr, dim=1), dim=1)
         weights, delay = torch.topk(mean_value, top_k, dim=-1)
-        
-        # Update correlation weights
+        # update corr
         tmp_corr = torch.softmax(weights, dim=-1)
-        
-        # Aggregate with time delays
+        # aggregation
         tmp_values = values.repeat(1, 1, 1, 2)
         delays_agg = torch.zeros_like(values).float()
         for i in range(top_k):
-            tmp_delay = init_index + delay[:, i].unsqueeze(1).unsqueeze(1).unsqueeze(1)\
-                .repeat(1, head, channel, length)
+            tmp_delay = init_index + delay[:, i].unsqueeze(1).unsqueeze(1).unsqueeze(1).repeat(1, head, channel, length)
             pattern = torch.gather(tmp_values, dim=-1, index=tmp_delay)
             delays_agg = delays_agg + pattern * \
                          (tmp_corr[:, i].unsqueeze(1).unsqueeze(1).unsqueeze(1).repeat(1, head, channel, length))
         return delays_agg
 
+    def time_delay_agg_full(self, values, corr):
+        """
+        Standard version of Autocorrelation
+        """
+        batch = values.shape[0]
+        head = values.shape[1]
+        channel = values.shape[2]
+        length = values.shape[3]
+        # index init
+        init_index = torch.arange(length).unsqueeze(0).unsqueeze(0).unsqueeze(0).repeat(batch, head, channel, 1).to(values.device)
+        # find top k
+        top_k = int(self.factor * math.log(length))
+        weights, delay = torch.topk(corr, top_k, dim=-1)
+        # update corr
+        tmp_corr = torch.softmax(weights, dim=-1)
+        # aggregation
+        tmp_values = values.repeat(1, 1, 1, 2)
+        delays_agg = torch.zeros_like(values).float()
+        for i in range(top_k):
+            tmp_delay = init_index + delay[..., i].unsqueeze(-1)
+            pattern = torch.gather(tmp_values, dim=-1, index=tmp_delay)
+            delays_agg = delays_agg + pattern * (tmp_corr[..., i].unsqueeze(-1))
+        return delays_agg
+
     def forward(self, queries, keys, values, attn_mask):
-        """
-        Forward pass of AutoCorrelation.
-
-        Args:
-            queries: Query tensor [batch, L, head, dim]
-            keys: Key tensor [batch, S, head, dim]
-            values: Value tensor [batch, S, head, dim]
-            attn_mask: Attention mask (not used)
-
-        Returns:
-            Tuple of (output, correlation_weights)
-            - output: [batch, L, head, dim]
-            - correlation_weights: [batch, head, dim, L] or None
-        """
         B, L, H, E = queries.shape
         _, S, _, D = values.shape
-        
-        # Pad or truncate to match query length
         if L > S:
             zeros = torch.zeros_like(queries[:, :(L - S), :]).float()
             values = torch.cat([values, zeros], dim=1)
@@ -144,21 +115,17 @@ class AutoCorrelation(nn.Module):
             values = values[:, :L, :, :]
             keys = keys[:, :L, :, :]
 
-        # Period-based dependencies discovery using FFT
+        # period-based dependencies
         q_fft = torch.fft.rfft(queries.permute(0, 2, 3, 1).contiguous(), dim=-1)
         k_fft = torch.fft.rfft(keys.permute(0, 2, 3, 1).contiguous(), dim=-1)
         res = q_fft * torch.conj(k_fft)
         corr = torch.fft.irfft(res, dim=-1)
 
-        # Time delay aggregation
+        # time delay agg
         if self.training:
-            V = self.time_delay_agg_training(
-                values.permute(0, 2, 3, 1).contiguous(), corr
-            ).permute(0, 3, 1, 2)
+            V = self.time_delay_agg_training(values.permute(0, 2, 3, 1).contiguous(), corr).permute(0, 3, 1, 2)
         else:
-            V = self.time_delay_agg_inference(
-                values.permute(0, 2, 3, 1).contiguous(), corr
-            ).permute(0, 3, 1, 2)
+            V = self.time_delay_agg_inference(values.permute(0, 2, 3, 1).contiguous(), corr).permute(0, 3, 1, 2)
 
         if self.output_attention:
             return (V.contiguous(), corr.permute(0, 3, 1, 2))
@@ -167,30 +134,10 @@ class AutoCorrelation(nn.Module):
 
 
 class AutoCorrelationLayer(nn.Module):
-    """
-    AutoCorrelation layer with projections.
+    """Multi-head AutoCorrelation layer"""
     
-    Similar to AttentionLayer but wraps AutoCorrelation mechanism.
-    """
-
-    def __init__(
-        self,
-        correlation,
-        d_model: int,
-        n_heads: int,
-        d_keys: int = None,
-        d_values: int = None
-    ):
-        """
-        Initialize AutoCorrelation layer.
-
-        Args:
-            correlation: AutoCorrelation mechanism
-            d_model: Model dimension
-            n_heads: Number of heads
-            d_keys: Dimension of keys (default: d_model // n_heads)
-            d_values: Dimension of values (default: d_model // n_heads)
-        """
+    def __init__(self, correlation, d_model, n_heads, d_keys=None,
+                 d_values=None):
         super(AutoCorrelationLayer, self).__init__()
 
         d_keys = d_keys or (d_model // n_heads)
@@ -204,37 +151,20 @@ class AutoCorrelationLayer(nn.Module):
         self.n_heads = n_heads
 
     def forward(self, queries, keys, values, attn_mask):
-        """
-        Forward pass through AutoCorrelation layer.
-
-        Args:
-            queries: Query tensor [batch, L, d_model]
-            keys: Key tensor [batch, S, d_model]
-            values: Value tensor [batch, S, d_model]
-            attn_mask: Attention mask
-
-        Returns:
-            Tuple of (output, correlation_weights)
-            - output: [batch, L, d_model]
-            - correlation_weights: Correlation weights or None
-        """
         B, L, _ = queries.shape
         _, S, _ = keys.shape
         H = self.n_heads
 
-        # Project and reshape to multi-head format
         queries = self.query_projection(queries).view(B, L, H, -1)
         keys = self.key_projection(keys).view(B, S, H, -1)
         values = self.value_projection(values).view(B, S, H, -1)
 
-        # Apply autocorrelation
         out, attn = self.inner_correlation(
             queries,
             keys,
             values,
             attn_mask
         )
-        
-        # Reshape and project output
         out = out.view(B, L, -1)
+
         return self.out_projection(out), attn

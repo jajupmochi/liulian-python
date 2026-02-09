@@ -746,19 +746,32 @@ Halt at 100% and ask user to increase budget or simplify scope.
 3. **Minimal Surface Area** - Limit to fewest files possible
 4. **No Gratuitous Refactoring** - Resist improving unrelated code
 5. **Modularity** - Adapted components should be self-contained
-6. **Copy-Paste Preservation** - When code can be directly copied from reference projects, preserve original implementation except for:
-   - Naming (class names, function names, variable names to match target conventions)
-   - Comments and docstrings (to match target documentation style)
-   - Variable type hints (to match target type annotation patterns)
-   - Code formatting (to match target formatter like Black/Ruff)
-   - Import statements (to match target project structure)
+6. **Copy-Paste Preservation** - When code can be directly copied from reference projects, preserve original implementation with these modifications ONLY:
+   - Comments and docstrings: Translate to English, preserve content and paper links
+   - Type hints: Add or enhance type annotations
+   - Code formatting: Apply target formatter (Black/Ruff)
+   - Import statements: Update to target project structure
+   
+   **KEEP UNCHANGED:**
+   - Original class names (e.g., `Model`, `Encoder`, etc.)
+   - Original file names (e.g., `Autoformer.py` → `autoformer.py`)
+   - Original method names and signatures
+   - Original code logic and algorithms
+   - Paper citations and technical details in comments
+   
+   **Adapter Pattern Implementation:**
+   - Copy entire reference class as-is into target file
+   - Wrap with adapter class (e.g., `AutoformerAdapter(TorchModelAdapter)`)
+   - Adapter handles interface conversion, original class handles logic
+   - One file per model, containing both original class + adapter
 
 **Prefer:**
 - Creating new modules over modifying existing files
-- Adapter/bridge patterns over modification
-- Dependency injection over hard-coding
+- Copying entire classes/functions over selective extraction
+- Adapter/bridge patterns over direct modification
+- Preserving original structure and naming
 - Extension over replacement
-- Direct copy-paste over reimplementation (with naming/formatting adjustments)
+- Maximum code reuse with minimal changes
 
 ## Language Policy
 
