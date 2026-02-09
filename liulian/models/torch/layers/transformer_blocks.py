@@ -1,0 +1,261 @@
+"""
+Transformer encoder and decoder blocks for time series models.
+
+Adapted from Time-Series-Library:
+https://github.com/thuml/Time-Series-Library/blob/main/layers/Transformer_EncDec.py
+"""
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class EncoderLayer(nn.Module):
+    """
+    Standard Transformer encoder layer with self-attention and feed-forward network.
+    """
+
+    def __init__(
+        self,
+        attention,
+        d_model: int,
+        d_ff: int = None,
+        dropout: float = 0.1,
+        activation: str = "relu"
+    ):
+        """
+        Initialize encoder layer.
+
+        Args:
+            attention: Attention layer
+            d_model: Model dimension
+            d_ff: Feed-forward dimension (default: 4 * d_model)
+            dropout: Dropout rate
+            activation: Activation function ("relu" or "gelu")
+        """
+        super(EncoderLayer, self).__init__()
+        d_ff = d_ff or 4 * d_model
+        self.attention = attention
+        self.conv1 = nn.Conv1d(in_channels=d_model, out_channels=d_ff, kernel_size=1)
+        self.conv2 = nn.Conv1d(in_channels=d_ff, out_channels=d_model, kernel_size=1)
+        self.norm1 = nn.LayerNorm(d_model)
+        self.norm2 = nn.LayerNorm(d_model)
+        self.dropout = nn.Dropout(dropout)
+        self.activation = F.relu if activation == "relu" else F.gelu
+
+    def forward(self, x, attn_mask=None, tau=None, delta=None):
+        """
+        Forward pass through encoder layer.
+
+        Args:
+            x: Input tensor [batch_size, seq_len, d_model]
+            attn_mask: Optional attention mask
+            tau: Optional de-stationary factor
+            delta: Optional de-stationary bias
+
+        Returns:
+            Tuple of (output, attention_weights)
+            - output: [batch_size, seq_len, d_model]
+            - attention_weights: Attention weights
+        """
+        # Self-attention with residual connection
+        new_x, attn = self.attention(
+            x, x, x,
+            attn_mask=attn_mask,
+            tau=tau, delta=delta
+        )
+        x = x + self.dropout(new_x)
+
+        # Layer norm
+        y = x = self.norm1(x)
+        
+        # Feed-forward network with residual connection
+        y = self.dropout(self.activation(self.conv1(y.transpose(-1, 1))))
+        y = self.dropout(self.conv2(y).transpose(-1, 1))
+
+        return self.norm2(x + y), attn
+
+
+class Encoder(nn.Module):
+    """
+    Transformer encoder stack.
+    """
+
+    def __init__(self, attn_layers, conv_layers=None, norm_layer=None):
+        """
+        Initialize encoder.
+
+        Args:
+            attn_layers: List of encoder layers
+            conv_layers: Optional list of convolutional layers for downsampling
+            norm_layer: Optional final normalization layer
+        """
+        super(Encoder, self).__init__()
+        self.attn_layers = nn.ModuleList(attn_layers)
+        self.conv_layers = nn.ModuleList(conv_layers) if conv_layers is not None else None
+        self.norm = norm_layer
+
+    def forward(self, x, attn_mask=None, tau=None, delta=None):
+        """
+        Forward pass through encoder stack.
+
+        Args:
+            x: Input tensor [batch_size, seq_len, d_model]
+            attn_mask: Optional attention mask
+            tau: Optional de-stationary factor
+            delta: Optional de-stationary bias
+
+        Returns:
+            Tuple of (output, attention_weights_list)
+            - output: [batch_size, seq_len, d_model]
+            - attention_weights_list: List of attention weights from each layer
+        """
+        attns = []
+        
+        if self.conv_layers is not None:
+            # Alternate between attention and conv layers
+            for i, (attn_layer, conv_layer) in enumerate(zip(self.attn_layers, self.conv_layers)):
+                delta = delta if i == 0 else None
+                x, attn = attn_layer(x, attn_mask=attn_mask, tau=tau, delta=delta)
+                x = conv_layer(x)
+                attns.append(attn)
+            # Process final attention layer without conv
+            x, attn = self.attn_layers[-1](x, tau=tau, delta=None)
+            attns.append(attn)
+        else:
+            # Only attention layers
+            for attn_layer in self.attn_layers:
+                x, attn = attn_layer(x, attn_mask=attn_mask, tau=tau, delta=delta)
+                attns.append(attn)
+
+        # Apply final normalization if provided
+        if self.norm is not None:
+            x = self.norm(x)
+
+        return x, attns
+
+
+class DecoderLayer(nn.Module):
+    """
+    Standard Transformer decoder layer with self-attention, cross-attention, and feed-forward.
+    """
+
+    def __init__(
+        self,
+        self_attention,
+        cross_attention,
+        d_model: int,
+        d_ff: int = None,
+        dropout: float = 0.1,
+        activation: str = "relu"
+    ):
+        """
+        Initialize decoder layer.
+
+        Args:
+            self_attention: Self-attention layer
+            cross_attention: Cross-attention layer
+            d_model: Model dimension
+            d_ff: Feed-forward dimension (default: 4 * d_model)
+            dropout: Dropout rate
+            activation: Activation function ("relu" or "gelu")
+        """
+        super(DecoderLayer, self).__init__()
+        d_ff = d_ff or 4 * d_model
+        self.self_attention = self_attention
+        self.cross_attention = cross_attention
+        self.conv1 = nn.Conv1d(in_channels=d_model, out_channels=d_ff, kernel_size=1)
+        self.conv2 = nn.Conv1d(in_channels=d_ff, out_channels=d_model, kernel_size=1)
+        self.norm1 = nn.LayerNorm(d_model)
+        self.norm2 = nn.LayerNorm(d_model)
+        self.norm3 = nn.LayerNorm(d_model)
+        self.dropout = nn.Dropout(dropout)
+        self.activation = F.relu if activation == "relu" else F.gelu
+
+    def forward(self, x, cross, x_mask=None, cross_mask=None, tau=None, delta=None):
+        """
+        Forward pass through decoder layer.
+
+        Args:
+            x: Decoder input [batch_size, target_len, d_model]
+            cross: Encoder output [batch_size, source_len, d_model]
+            x_mask: Optional self-attention mask
+            cross_mask: Optional cross-attention mask
+            tau: Optional de-stationary factor
+            delta: Optional de-stationary bias
+
+        Returns:
+            Tuple of (output, attention_weights)
+            - output: [batch_size, target_len, d_model]
+            - attention_weights: Self-attention weights
+        """
+        # Self-attention with residual
+        x = x + self.dropout(self.self_attention(
+            x, x, x,
+            attn_mask=x_mask,
+            tau=tau, delta=None
+        )[0])
+        x = self.norm1(x)
+
+        # Cross-attention with residual
+        x = x + self.dropout(self.cross_attention(
+            x, cross, cross,
+            attn_mask=cross_mask,
+            tau=tau, delta=delta
+        )[0])
+        x = self.norm2(x)
+
+        # Feed-forward with residual
+        y = x
+        y = self.dropout(self.activation(self.conv1(y.transpose(-1, 1))))
+        y = self.dropout(self.conv2(y).transpose(-1, 1))
+
+        return self.norm3(x + y), None
+
+
+class Decoder(nn.Module):
+    """
+    Transformer decoder stack.
+    """
+
+    def __init__(self, layers, norm_layer=None, projection=None):
+        """
+        Initialize decoder.
+
+        Args:
+            layers: List of decoder layers
+            norm_layer: Optional final normalization layer
+            projection: Optional output projection layer
+        """
+        super(Decoder, self).__init__()
+        self.layers = nn.ModuleList(layers)
+        self.norm = norm_layer
+        self.projection = projection
+
+    def forward(self, x, cross, x_mask=None, cross_mask=None, tau=None, delta=None):
+        """
+        Forward pass through decoder stack.
+
+        Args:
+            x: Decoder input [batch_size, target_len, d_model]
+            cross: Encoder output [batch_size, source_len, d_model]
+            x_mask: Optional self-attention mask
+            cross_mask: Optional cross-attention mask
+            tau: Optional de-stationary factor
+            delta: Optional de-stationary bias
+
+        Returns:
+            output: [batch_size, target_len, output_dim]
+        """
+        for layer in self.layers:
+            x, _ = layer(x, cross, x_mask=x_mask, cross_mask=cross_mask, tau=tau, delta=delta)
+
+        # Apply final normalization
+        if self.norm is not None:
+            x = self.norm(x)
+
+        # Apply projection
+        if self.projection is not None:
+            x = self.projection(x)
+            
+        return x

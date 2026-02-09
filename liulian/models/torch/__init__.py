@@ -41,10 +41,18 @@ except ImportError as e:
 # Export base class
 from .base_adapter import TorchModelAdapter
 
+# Export model adapters
+from .dlinear_adapter import DLinearAdapter
+from .patchtst_adapter import PatchTSTAdapter
+from .autoformer_adapter import AutoformerAdapter
+
 # Version info
 __version__ = "0.0.1"
 
 # Export list (specific models will be added in subsequent steps)
 __all__ = [
     "TorchModelAdapter",
+    "DLinearAdapter",
+    "PatchTSTAdapter",
+    "AutoformerAdapter",
 ]
