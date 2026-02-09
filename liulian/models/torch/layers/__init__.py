@@ -46,6 +46,9 @@ from .autoformer_blocks import (
     AutoformerDecoderLayer,
     AutoformerDecoder,
 )
+from .normalization import (
+    Normalize,
+)
 
 __all__ = [
     # Embeddings
@@ -81,4 +84,6 @@ __all__ = [
     "AutoformerEncoder",
     "AutoformerDecoderLayer",
     "AutoformerDecoder",
+    # Normalization
+    "Normalize",
 ]

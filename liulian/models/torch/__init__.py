@@ -47,6 +47,7 @@ from .patchtst_adapter import PatchTSTAdapter
 from .autoformer_adapter import AutoformerAdapter
 from .informer_adapter import InformerAdapter
 from .itransformer_adapter import ITransformerAdapter
+from .timellm_adapter import TimeLLMAdapter
 
 # Version info
 __version__ = "0.0.1"
@@ -59,4 +60,5 @@ __all__ = [
     "AutoformerAdapter",
     "InformerAdapter",
     "ITransformerAdapter",
+    "TimeLLMAdapter",
 ]
