@@ -8,6 +8,7 @@ All layers follow PyTorch conventions and are compatible with standard
 nn.Module patterns.
 """
 
+from .autocorrelation import AutoCorrelation, AutoCorrelationLayer
 from .embed import (
     PositionalEmbedding,
     TokenEmbedding,
@@ -20,6 +21,7 @@ from .embed import (
 )
 
 __all__ = [
+    # Embedding
     'PositionalEmbedding',
     'TokenEmbedding',
     'FixedEmbedding',
@@ -28,4 +30,7 @@ __all__ = [
     'DataEmbedding',
     'DataEmbedding_inverted',
     'DataEmbedding_wo_pos',
+    # AutoCorrelation
+    'AutoCorrelation',
+    'AutoCorrelationLayer',
 ]
