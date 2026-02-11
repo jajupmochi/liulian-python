@@ -22,7 +22,7 @@ class LocalFileLogger(LoggerInterface):
         run_dir: Directory where logs and artifacts are stored.
     """
 
-    def __init__(self, run_dir: str = "artifacts/logs") -> None:
+    def __init__(self, run_dir: str = 'artifacts/logs') -> None:
         """Initialise the logger, creating *run_dir* if needed.
 
         Args:
@@ -30,7 +30,7 @@ class LocalFileLogger(LoggerInterface):
         """
         os.makedirs(run_dir, exist_ok=True)
         self.run_dir = run_dir
-        self._metrics_path = os.path.join(run_dir, "metrics.json")
+        self._metrics_path = os.path.join(run_dir, 'metrics.json')
 
     def log_metrics(self, step: int, metrics: Dict[str, float]) -> None:
         """Append a metrics record as a JSON line.
@@ -39,9 +39,9 @@ class LocalFileLogger(LoggerInterface):
             step: Global step counter.
             metrics: Metric name → scalar value mapping.
         """
-        record = {"step": step, **metrics}
-        with open(self._metrics_path, "a", encoding="utf-8") as fh:
-            fh.write(json.dumps(record) + "\n")
+        record = {'step': step, **metrics}
+        with open(self._metrics_path, 'a', encoding='utf-8') as fh:
+            fh.write(json.dumps(record) + '\n')
 
     def log_artifact(
         self, path: str, metadata: Optional[Dict[str, Any]] = None
@@ -55,6 +55,8 @@ class LocalFileLogger(LoggerInterface):
         if not os.path.isfile(path):
             return  # silently skip missing artifacts
         dest = os.path.join(self.run_dir, os.path.basename(path))
+        if os.path.abspath(path) == os.path.abspath(dest):
+            return  # source already in run directory
         shutil.copy2(path, dest)
 
     def read_metrics(self) -> list[Dict[str, Any]]:
@@ -66,7 +68,7 @@ class LocalFileLogger(LoggerInterface):
         if not os.path.isfile(self._metrics_path):
             return []
         records = []
-        with open(self._metrics_path, "r", encoding="utf-8") as fh:
+        with open(self._metrics_path, 'r', encoding='utf-8') as fh:
             for line in fh:
                 line = line.strip()
                 if line:
