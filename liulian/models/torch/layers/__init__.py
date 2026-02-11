@@ -14,7 +14,7 @@ from .embed import (
     TemporalEmbedding,
     TimeFeatureEmbedding,
     DataEmbedding,
-   DataEmbedding_inverted,
+    DataEmbedding_inverted,
     DataEmbedding_wo_pos,
     PatchEmbedding,
 )
@@ -51,38 +51,55 @@ from .standard_norm import (
     Normalize,
 )
 
+from .conv_blocks import (
+    Inception_Block_V1,
+    Inception_Block_V2,
+)
+
+from .fourier_correlation import (
+    get_frequency_modes,
+    FourierBlock,
+    FourierCrossAttention,
+)
+
 __all__ = [
     # Embeddings
-    "PositionalEmbedding",
-    "TokenEmbedding",
-    "FixedEmbedding",
-    "TemporalEmbedding",
-    "TimeFeatureEmbedding",
-    "DataEmbedding",
-    "DataEmbedding_inverted",
-    "DataEmbedding_wo_pos",
-    "PatchEmbedding",
+    'PositionalEmbedding',
+    'TokenEmbedding',
+    'FixedEmbedding',
+    'TemporalEmbedding',
+    'TimeFeatureEmbedding',
+    'DataEmbedding',
+    'DataEmbedding_inverted',
+    'DataEmbedding_wo_pos',
+    'PatchEmbedding',
     # Decomposition
-    "my_Layernorm",
-    "moving_avg",
-    "series_decomp",
-    "series_decomp_multi",
+    'my_Layernorm',
+    'moving_avg',
+    'series_decomp',
+    'series_decomp_multi',
     # Attention
-    "FullAttention",
-    "ProbAttention",
-    "DSAttention",
-    "AttentionLayer",
-    "TwoStageAttentionLayer",
+    'FullAttention',
+    'ProbAttention',
+    'DSAttention',
+    'AttentionLayer',
+    'TwoStageAttentionLayer',
     # Transformer blocks
-    "ConvLayer",
-    "EncoderLayer",
-    "DecoderLayer",
-    "Encoder",
-    "Decoder",
+    'ConvLayer',
+    'EncoderLayer',
+    'DecoderLayer',
+    'Encoder',
+    'Decoder',
     # AutoCorrelation
-    "AutoCorrelation",
-    "AutoCorrelationLayer",
+    'AutoCorrelation',
+    'AutoCorrelationLayer',
     # Normalization
-    "Normalize",
+    'Normalize',
+    # Convolution blocks
+    'Inception_Block_V1',
+    'Inception_Block_V2',
+    # Fourier correlation
+    'get_frequency_modes',
+    'FourierBlock',
+    'FourierCrossAttention',
 ]
-
