@@ -1,0 +1,1 @@
+The Swiss River water temperature dataset contains daily measurements of water temperature and air temperature at multiple monitoring stations along Swiss rivers. The data is used for environmental monitoring and climate impact analysis on freshwater ecosystems.
