@@ -28,8 +28,13 @@ nav:
   - Home: index.md
   - Architecture: architecture.md
   - Guides:
+      - CLI Usage: cli.md
       - Adapter Guide: adapter_guide.md
       - Manifest Specification: manifest_spec.md
+  - Models:
+      - PyTorch Models: models/torch_models.md
+  - Data:
+      - Data Loaders: data_loaders.md
   - Contributing: contributing.md
 
 markdown_extensions:

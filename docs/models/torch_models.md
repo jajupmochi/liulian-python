@@ -1,6 +1,6 @@
 # PyTorch Time Series Models
 
-This guide documents the 7 state-of-the-art time series forecasting models adapted from [Time-Series-Library](https://github.com/thuml/Time-Series-Library) and [Time-LLM](https://github.com/KimMeen/Time-LLM) into the liulian framework.
+This guide documents the 14 time series forecasting models adapted from [Time-Series-Library](https://github.com/thuml/Time-Series-Library) and [Time-LLM](https://github.com/KimMeen/Time-LLM) into the liulian framework.
 
 ---
 
@@ -12,13 +12,38 @@ All adapted models follow a consistent adapter pattern that bridges PyTorch impl
 
 | Model | Paper | Year | Key Innovation | Complexity | Use Case |
 |-------|-------|------|----------------|------------|----------|
+| **LSTM** | Classic | — | Recurrent baseline | O(L) | Simple baseline |
 | **DLinear** | [AAAI'23](https://arxiv.org/pdf/2205.13504.pdf) | 2023 | Simple linear layers | O(L) | Fast baseline |
 | **Informer** | [AAAI'21](https://ojs.aaai.org/index.php/AAAI/article/view/17325/17132) | 2021 | ProbSparse attention | O(L log L) | Long sequences |
 | **Autoformer** | [NeurIPS'21](https://openreview.net/pdf?id=I55UqU-M11y) | 2021 | AutoCorrelation | O(L log L) | Seasonal data |
+| **Transformer** | Classic | 2017 | Self-attention | O(L²) | General purpose |
+| **FEDformer** | [ICML'22](https://arxiv.org/abs/2201.12740) | 2022 | Frequency enhanced | O(L) | Seasonal data |
 | **PatchTST** | [ICLR'23](https://arxiv.org/pdf/2211.14730.pdf) | 2023 | Patch-based tokens | O(N²), N=patches | State-of-the-art |
 | **iTransformer** | [ICLR'24](https://arxiv.org/abs/2310.06625) | 2024 | Inverted attention | O(V²L), V=variates | Multivariate |
+| **TimesNet** | [ICLR'23](https://arxiv.org/abs/2210.02186) | 2023 | 2D temporal variation | O(L·K) | Multi-task SOTA |
+| **TimeMixer** | [ICLR'24](https://arxiv.org/abs/2405.14616) | 2024 | Multi-scale mixing | O(L) | Efficient mixing |
+| **TimeXer** | [NeurIPS'24](https://arxiv.org/abs/2402.19072) | 2024 | Exogenous variables | O(L²) | Cross-variable |
+| **Mamba** | [2024](https://arxiv.org/abs/2312.00752) | 2024 | Selective SSM | O(L) | Long sequences |
 | **TimeLLM** | [ICLR'24](https://arxiv.org/abs/2310.01728) | 2024 | LLM reprogramming | O(L) + LLM | Novel approach |
 | **TimeMoE** | [2024](https://arxiv.org/abs/2409.16040) | 2024 | Mixture of Experts | O(L log L) | Zero-shot |
+
+### Swiss River Benchmark Results
+
+8 models tested on the Swiss River hydrological dataset (seq_len=30, pred_len=7, quick test: 2 epochs, 20 iters):
+
+| Model | Params | MSE | MAE | RMSE | Time (s) |
+|-------|--------|-----|-----|------|----------|
+| **PatchTST** | 73K | **0.0060** | **0.0633** | **0.0777** | 0.9 |
+| TimeXer | 110K | 0.0078 | 0.0738 | 0.0881 | 0.9 |
+| iTransformer | 73K | 0.0082 | 0.0738 | 0.0905 | 0.8 |
+| DLinear | 1.3K | 0.0082 | 0.0760 | 0.0908 | 0.4 |
+| TimesNet | 9.4M | 0.0233 | 0.1305 | 0.1527 | 107.3 |
+| Transformer | 118K | 0.0558 | 0.2146 | 0.2362 | 1.8 |
+| Informer | 130K | 0.0584 | 0.2056 | 0.2416 | 1.7 |
+| LSTM | 51K | 0.0905 | 0.2728 | 0.3008 | 13.4 |
+
+!!! note "Incompatible Models"
+    **Autoformer**, **FEDformer**, and **TimeMixer** require `label_len > 0` for decoder mark construction, which is incompatible with the Swiss River DataLoader's current format. These models work with other datasets (e.g., ETT).
 
 ---
 
