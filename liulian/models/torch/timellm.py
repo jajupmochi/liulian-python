@@ -215,7 +215,7 @@ class Model(nn.Module):
         self.dropout = nn.Dropout(configs.dropout)
 
         self.patch_embedding = PatchEmbedding(
-            configs.d_model, self.patch_len, self.stride, configs.dropout)
+            configs.d_model, self.patch_len, self.stride, self.stride, configs.dropout)
 
         self.word_embeddings = self.llm_model.get_input_embeddings().weight
         self.vocab_size = self.word_embeddings.shape[0]
@@ -281,10 +281,13 @@ class Model(nn.Module):
         source_embeddings = self.mapping_layer(self.word_embeddings.permute(1, 0)).permute(1, 0)
 
         x_enc = x_enc.permute(0, 2, 1).contiguous()
-        enc_out, n_vars = self.patch_embedding(x_enc.to(torch.bfloat16))
+        enc_out, n_vars = self.patch_embedding(x_enc.float())
         enc_out = self.reprogramming_layer(enc_out, source_embeddings, source_embeddings)
         llama_enc_out = torch.cat([prompt_embeddings, enc_out], dim=1)
-        dec_out = self.llm_model(inputs_embeds=llama_enc_out).last_hidden_state
+        dec_out = self.llm_model(inputs_embeds=llama_enc_out.to(
+            self.llm_model.dtype if hasattr(self.llm_model, 'dtype') else llama_enc_out.dtype
+        )).last_hidden_state
+        dec_out = dec_out.float()
         dec_out = dec_out[:, :, :self.d_ff]
 
         dec_out = torch.reshape(
