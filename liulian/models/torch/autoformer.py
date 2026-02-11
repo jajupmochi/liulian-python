@@ -147,7 +147,12 @@ class Model(nn.Module):
         output = self.act(enc_out)
         output = self.dropout(output)
         # zero-out padding embeddings
-        output = output * x_mark_enc.unsqueeze(-1)
+        # x_mark_enc may be 3D time features [B,L,C] or 2D padding mask [B,L]
+        if x_mark_enc.ndim == 3:
+            padding_mask = x_mark_enc[:, :, 0]
+        else:
+            padding_mask = x_mark_enc
+        output = output * padding_mask.unsqueeze(-1)
         # (batch_size, seq_length * d_model)
         output = output.reshape(output.shape[0], -1)
         output = self.projection(output)  # (batch_size, num_classes)
