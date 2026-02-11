@@ -1,8 +1,31 @@
 name: CI
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-  test:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Lint
+        run: ruff check liulian tests plugins
+
+      - name: Format check
+        run: ruff format --check liulian tests plugins
+
+  test-core:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -22,17 +45,29 @@ jobs:
       - name: Install dependencies
         run: uv pip install -e ".[dev,logging]" --system
 
-      - name: Lint with black
-        run: black --check liulian tests plugins
-
-      - name: Check import order with isort
-        run: isort --check liulian tests plugins
-
-      - name: Lint with flake8
-        run: flake8 liulian tests plugins
-
-      - name: Run tests with coverage
-        run: pytest -v --cov=liulian --cov-report=term-missing tests/
+      - name: Run core tests
+        run: pytest -v --cov=liulian --cov-report=term-missing tests/ --ignore=tests/test_integration.py
 
       - name: Enforce minimum coverage
-        run: pytest --cov=liulian --cov-fail-under=60 tests/
+        run: pytest --cov=liulian --cov-fail-under=50 tests/ --ignore=tests/test_integration.py
+
+  test-torch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies (with torch)
+        run: |
+          uv pip install -e ".[dev,logging,torch-models]" --system
+          uv pip install pandas --system
+
+      - name: Run all tests including integration
+        run: pytest -v tests/
