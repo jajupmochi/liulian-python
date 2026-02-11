@@ -1,0 +1,48 @@
+# Example experiment config for: liulian run examples/experiment_dlinear.yaml
+name: example_dlinear
+model: dlinear
+
+# Architecture
+seq_len: 96
+pred_len: 24
+label_len: 0
+enc_in: 1
+dec_in: 1
+c_out: 1
+d_model: 64
+d_ff: 128
+n_heads: 4
+e_layers: 2
+d_layers: 1
+dropout: 0.1
+embed: timeF
+freq: m
+activation: gelu
+output_attention: false
+moving_avg: 25
+factor: 1
+features: M
+task_name: long_term_forecast
+patch_len: 16
+stride: 8
+top_k: 5
+num_kernels: 6
+distil: true
+
+# Training
+train_epochs: 10
+batch_size: 32
+learning_rate: 0.001
+patience: 3
+lradj: type1
+pct_start: 0.2
+num_workers: 0
+
+# Optional: cap iterations for quick testing
+# max_train_iters: 20
+# max_eval_iters: 10
+
+# Dataset (omit for synthetic data, or specify SwissRiverDataset)
+# dataset:
+#   type: SwissRiverDataset
+#   manifest: manifests/swissriver_v1.yaml

@@ -54,6 +54,9 @@ torch-models-full = [
     "local-attention>=1.11.0",
 ]
 
+[project.scripts]
+liulian = "liulian.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/jajupmochi/liulian-python"
 Documentation = "https://jajupmochi.github.io/liulian-python"
