@@ -1,0 +1,79 @@
+# Conflict Resolutions – adapt_20260209_155126
+# Generated: 2026-02-09T15:51:26
+
+conflicts:
+  - id: 1
+    severity: CRITICAL
+    title: Base Model Interface naming
+    description: >
+      Reference projects use nn.Module subclasses directly with predict/forecast
+      methods. Target project defines ModelBase ABC with train_model/evaluate API.
+    resolution: >
+      Introduced TorchModelAdapter bridge pattern (liulian/models/torch/base_adapter.py)
+      that wraps each nn.Module-based reference model and exposes the ModelBase
+      interface. Forward calls are delegated; lifecycle hooks (save/load/to_device)
+      are handled by the adapter.
+    affected_files:
+      - liulian/models/torch/base_adapter.py
+      - liulian/models/base.py
+    status: RESOLVED
+
+  - id: 2
+    severity: HIGH
+    title: torch not in core dependencies
+    description: >
+      Core liulian package must remain torch-free. Reference models require
+      torch, torchvision, and einops.
+    resolution: >
+      All torch imports use lazy import guards (importlib checks at module
+      level). torch dependencies declared under [torch] optional extra in
+      pyproject.toml. Models are only registered when torch is available.
+    affected_files:
+      - pyproject.toml
+      - liulian/models/torch/__init__.py
+    status: RESOLVED
+
+  - id: 3
+    severity: HIGH
+    title: Training loop location
+    description: >
+      Reference projects embed training loops inside experiment scripts.
+      Target project separates runtime (Experiment) from training logic.
+    resolution: >
+      Created ForecastTrainer (liulian/runtime/trainer.py) encapsulating the
+      torch training loop with early stopping, LR scheduling, and checkpointing.
+      Experiment._run_torch() delegates to ForecastTrainer, keeping the
+      Experiment class orchestration-only.
+    affected_files:
+      - liulian/runtime/trainer.py
+      - liulian/runtime/experiment.py
+    status: RESOLVED
+
+  - id: 4
+    severity: MEDIUM
+    title: String quoting style (double vs single)
+    description: >
+      C_r1 and C_r2 use double quotes throughout. Target project convention
+      is single quotes (enforced by ruff).
+    resolution: >
+      All adapted code converted to single-quote style to match target project
+      conventions. No semantic impact.
+    affected_files: []
+    status: RESOLVED
+
+  - id: 5
+    severity: MEDIUM
+    title: Model-specific feature param quirks (TimeXer / TimeMixer / TimesNet)
+    description: >
+      TimeXer requires enc_in != dec_in when using exogenous variables.
+      TimeMixer has down_sampling_* params absent in other models.
+      TimesNet uses top_k for period detection not present elsewhere.
+    resolution: >
+      Each adapter's default_config() supplies model-specific defaults.
+      TorchModelAdapter.build_model() merges user config with defaults,
+      ensuring required params are always present per adapter.
+    affected_files:
+      - liulian/models/torch/timexer_adapter.py
+      - liulian/models/torch/timemixer_adapter.py
+      - liulian/models/torch/timesnet_adapter.py
+    status: RESOLVED

@@ -182,6 +182,48 @@ Use `scripts/conflict_detector.py` to scan 6 dimensions:
    - Example: pytest vs. unittest
    - Scan: Test file imports
 
+### Step 2.1b: Code Style Convention Detection
+
+Before generating any adapted code, detect and confirm the target project's code style conventions. Present a confirmation prompt to the user, defaulting to the target project's existing style.
+
+**Prompt user:**
+
+```
+CODE STYLE CONVENTIONS
+
+Detected target project (P_t) conventions:
+  - String quoting style: single quotes (')
+  - Formatter: Ruff / Black
+  - Indentation: 4 spaces
+  - Max line length: 88
+
+Detected reference project (C_r) conventions:
+  - String quoting style: double quotes (")
+  - Formatter: Black
+  - Indentation: 4 spaces
+  - Max line length: 79
+
+Which conventions should be used for adapted code?
+  A. Use target project (P_t) conventions (recommended)
+  B. Use reference project (C_r) conventions
+  C. Specify custom conventions
+
+Your choice (default: A):
+```
+
+**CRITICAL:** The selected quoting style applies to **all** adapted code:
+- String literals in Python source files
+- Dictionary keys
+- Import statements (e.g., `from 'module' import ...` is invalid, but `key = 'value'`)
+- Default parameter values
+- f-string delimiters follow the same convention for the outer quotes
+
+**Implementation rules:**
+- When copying code from reference projects, convert string quoting style to match the selected convention
+- Docstrings always use triple double-quotes (`"""..."""`) regardless of quoting convention — this is a Python standard
+- Raw strings, byte strings, and strings containing the selected quote character may use the opposite style to avoid escaping
+- Record the selected convention in `artifacts/adaptations/<run-id>/config.json` under `code_style.quoting`
+
 ### Step 2.2: Conflict Reporting
 
 Generate report using `scripts/conflict_detector.py:format_conflict_report()`:
@@ -842,6 +884,7 @@ Each change validated against 14 criteria:
 - [ ] Traceability - Source mapping documented with links
 - [ ] Copy-Paste Compliance - Direct copies preserved, only naming/formatting/interface changes
 - [ ] Language Compliance - English-only in production code
+- [ ] Code Style Compliance - String quoting and formatting match target project conventions (selected in Step 2.1b)
 
 If any criterion fails, offer: revert, fix, or skip.
 

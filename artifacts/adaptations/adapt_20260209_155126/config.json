@@ -1,0 +1,45 @@
+{
+  "run_id": "adapt_20260209_155126",
+  "timestamp": "2026-02-09T15:51:26",
+  "target_project": {
+    "name": "liulian",
+    "path": "/workspaces/liulian-python",
+    "python_version": "3.12.3",
+    "test_framework": "pytest",
+    "linter": "ruff 0.15.0"
+  },
+  "reference_projects": [
+    {
+      "id": "C_r1",
+      "name": "Time-Series-Library",
+      "source": "https://github.com/thuml/Time-Series-Library.git",
+      "local_path": "refer_projects/Time-Series-Library_20260209_154930",
+      "cloned_at": "2026-02-09T15:49:30"
+    },
+    {
+      "id": "C_r2",
+      "name": "Time-LLM",
+      "source": "https://github.com/KimMeen/Time-LLM.git",
+      "local_path": "(external reference)"
+    }
+  ],
+  "code_style": {
+    "quote_style": "single",
+    "indent": 4,
+    "line_length": 88,
+    "formatter": "ruff format",
+    "conventions": ["from __future__ import annotations", "lazy torch imports"]
+  },
+  "mode": "comprehensive",
+  "batch_size": 10,
+  "auto_test": true,
+  "test_baselines": {
+    "before_adaptation": {"passed": 258, "skipped": 6, "xfailed": 2},
+    "after_round_1": {"passed": 280, "skipped": 6, "xfailed": 2},
+    "after_round_2": {"passed": 304, "skipped": 8, "xfailed": 2},
+    "final": {"passed": 304, "skipped": 8, "xfailed": 2}
+  },
+  "total_items_adapted": 35,
+  "total_lines_added": 14300,
+  "total_files_created": 54
+}

@@ -1,0 +1,307 @@
+# Adaptation Plan – adapt_20260209_155126
+# Generated: 2026-02-09T15:51:26
+
+run_id: adapt_20260209_155126
+created: '2026-02-09T15:51:26'
+status: COMPLETED
+references:
+  C_r1:
+    name: Time-Series-Library
+    path: refer_projects/Time-Series-Library_20260209_154930
+  C_r2:
+    name: Time-LLM
+    path: refer_projects/Time-LLM_20260209_154911
+
+target_project: liulian-python
+
+total_items: 35
+summary:
+  models: 14
+  layers: 9
+  data: 7
+  utils: 5
+
+items:
+  # ── Models (14) ──────────────────────────────────────────────
+  - id: M01
+    name: DLinear
+    category: model
+    source: C_r1
+    target: liulian/models/torch/dlinear_adapter.py
+    lines: 172
+    action: ADAPTED
+
+  - id: M02
+    name: PatchTST
+    category: model
+    source: C_r1
+    target: liulian/models/torch/patchtst_adapter.py
+    lines: 296
+    action: ADAPTED
+
+  - id: M03
+    name: iTransformer
+    category: model
+    source: C_r1
+    target: liulian/models/torch/itransformer_adapter.py
+    lines: 195
+    action: ADAPTED
+
+  - id: M04
+    name: Informer
+    category: model
+    source: C_r1
+    target: liulian/models/torch/informer_adapter.py
+    lines: 245
+    action: ADAPTED
+
+  - id: M05
+    name: Autoformer
+    category: model
+    source: C_r1
+    target: liulian/models/torch/autoformer_adapter.py
+    lines: 252
+    action: ADAPTED
+
+  - id: M06
+    name: TimeLLM
+    category: model
+    source: C_r2
+    target: liulian/models/torch/timellm_adapter.py
+    lines: 371
+    action: ADAPTED
+
+  - id: M07
+    name: TimeMoE
+    category: model
+    source: C_r1
+    target: liulian/models/torch/timemoe_adapter.py
+    lines: 90
+    action: ADAPTED
+
+  - id: M08
+    name: TimesNet
+    category: model
+    source: C_r1
+    target: liulian/models/torch/timesnet_adapter.py
+    lines: 291
+    action: ADAPTED
+
+  - id: M09
+    name: FEDformer
+    category: model
+    source: C_r1
+    target: liulian/models/torch/fedformer_adapter.py
+    lines: 263
+    action: ADAPTED
+
+  - id: M10
+    name: Transformer
+    category: model
+    source: C_r1
+    target: liulian/models/torch/transformer_adapter.py
+    lines: 224
+    action: ADAPTED
+
+  - id: M11
+    name: TimeMixer
+    category: model
+    source: C_r1
+    target: liulian/models/torch/timemixer_adapter.py
+    lines: 603
+    action: ADAPTED
+
+  - id: M12
+    name: TimeXer
+    category: model
+    source: C_r1
+    target: liulian/models/torch/timexer_adapter.py
+    lines: 357
+    action: ADAPTED
+
+  - id: M13
+    name: Mamba
+    category: model
+    source: C_r1
+    target: liulian/models/torch/mamba_adapter.py
+    lines: 115
+    action: ADAPTED
+
+  - id: M14
+    name: LSTM
+    category: model
+    source: original
+    target: liulian/models/torch/lstm_adapter.py
+    lines: 119
+    action: NEW
+
+  # ── Layers (9) ───────────────────────────────────────────────
+  - id: L01
+    name: Embed
+    category: layer
+    source: C_r1
+    target: liulian/models/torch/layers/embed.py
+    lines: 432
+    action: COPIED
+
+  - id: L02
+    name: Attention
+    category: layer
+    source: C_r1
+    target: liulian/models/torch/layers/attention.py
+    lines: 312
+    action: COPIED
+
+  - id: L03
+    name: Decomposition
+    category: layer
+    source: C_r1
+    target: liulian/models/torch/layers/decomposition.py
+    lines: 85
+    action: COPIED
+
+  - id: L04
+    name: AutoCorrelation
+    category: layer
+    source: C_r1
+    target: liulian/models/torch/layers/autocorrelation.py
+    lines: 170
+    action: COPIED
+
+  - id: L05
+    name: StandardNorm
+    category: layer
+    source: C_r2
+    target: liulian/models/torch/layers/standard_norm.py
+    lines: 70
+    action: COPIED
+
+  - id: L06
+    name: TransformerBlocks
+    category: layer
+    source: C_r1
+    target: liulian/models/torch/layers/transformer_blocks.py
+    lines: 154
+    action: COPIED
+
+  - id: L07
+    name: AutoformerBlocks
+    category: layer
+    source: C_r1
+    target: liulian/models/torch/layers/autoformer_blocks.py
+    lines: 140
+    action: COPIED
+
+  - id: L08
+    name: ConvBlocks
+    category: layer
+    source: C_r1
+    target: liulian/models/torch/layers/conv_blocks.py
+    lines: 101
+    action: COPIED
+
+  - id: L09
+    name: FourierCorrelation
+    category: layer
+    source: C_r1
+    target: liulian/models/torch/layers/fourier_correlation.py
+    lines: 245
+    action: COPIED
+
+  # ── Data (7) ─────────────────────────────────────────────────
+  - id: D01
+    name: torch_datasets
+    category: data
+    source: C_r1
+    target: liulian/data/torch_datasets.py
+    lines: 556
+    action: ADAPTED
+
+  - id: D02
+    name: dataset_custom
+    category: data
+    source: C_r1
+    target: liulian/data/dataset_custom.py
+    lines: 211
+    action: ADAPTED
+
+  - id: D03
+    name: data_factory
+    category: data
+    source: C_r1
+    target: liulian/data/data_factory.py
+    lines: 229
+    action: ADAPTED
+
+  - id: D04
+    name: m4_dataset
+    category: data
+    source: C_r1
+    target: liulian/data/m4_dataset.py
+    lines: 294
+    action: ADAPTED
+
+  - id: D05
+    name: prompt_bank
+    category: data
+    source: C_r2
+    target: liulian/data/prompt_bank.py
+    lines: 97
+    action: ADAPTED
+
+  - id: D06
+    name: seq_dataset
+    category: data
+    source: C_r2
+    target: liulian/data/seq_dataset.py
+    lines: 285
+    action: ADAPTED
+
+  - id: D07
+    name: swiss_river
+    category: data
+    source: original
+    target: liulian/data/swiss_river.py
+    lines: 235
+    action: NEW
+
+  # ── Utils (5) ────────────────────────────────────────────────
+  - id: U01
+    name: augmentation
+    category: utils
+    source: C_r1
+    target: liulian/utils/augmentation.py
+    lines: 525
+    action: ADAPTED
+
+  - id: U02
+    name: metrics
+    category: utils
+    source: C_r1
+    target: liulian/utils/metrics.py
+    lines: 220
+    action: ADAPTED
+
+  - id: U03
+    name: timefeatures
+    category: utils
+    source: C_r1
+    target: liulian/utils/timefeatures.py
+    lines: 273
+    action: ADAPTED
+
+  - id: U04
+    name: tools
+    category: utils
+    source: C_r1
+    target: liulian/utils/tools.py
+    lines: 315
+    action: ADAPTED
+
+  - id: U05
+    name: masking
+    category: utils
+    source: C_r1
+    target: liulian/utils/masking.py
+    lines: 50
+    action: ADAPTED

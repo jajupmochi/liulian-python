@@ -1,0 +1,65 @@
+# Swiss River experiment configuration for Time-LLM
+# Source: refer_projects/Time-LLM_20260209_154911/configs/swiss_river.yaml
+
+task_name: long_term_forecast
+is_training: 1
+model_id: swiss_river_timellm
+model_comment: swiss_river_timellm
+model: TimeLLM
+
+# Data
+data: swiss-river-1990
+root_path: dataset/swiss_river/
+data_path: swiss-1990.csv
+features: M
+target: OT
+freq: d
+
+# Sequence lengths
+seq_len: 90
+label_len: 0
+pred_len: 7
+
+# Model architecture
+# Swiss River data has 1 feature per station (air_temperature → water_temperature)
+enc_in: 1
+dec_in: 1
+c_out: 1
+d_model: 16
+d_ff: 32
+n_heads: 8
+e_layers: 2
+d_layers: 1
+patch_len: 16
+stride: 8
+dropout: 0.1
+embed: timeF
+activation: gelu
+output_attention: false
+moving_avg: 25
+factor: 1
+
+# LLM backbone
+llm_model: GPT2
+llm_dim: 768
+llm_layers: 6
+prompt_domain: 0
+
+# Training
+batch_size: 8
+eval_batch_size: 8
+train_epochs: 30
+learning_rate: 0.001
+patience: 10
+loss: MSE
+lradj: type1
+pct_start: 0.2
+use_amp: false
+
+# System
+num_workers: 4
+checkpoints: ./checkpoints/
+itr: 1
+percent: 100
+seed: 2021
+des: swiss_river

@@ -64,6 +64,14 @@ Issues = "https://github.com/jajupmochi/liulian-python/issues"
 line-length = 88
 target-version = ["py310"]
 
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.format]
+quote-style = "single"
+docstring-code-format = true
+
 [tool.isort]
 profile = "black"
 known_first_party = ["liulian"]
@@ -81,3 +89,7 @@ extend-ignore = ["E203", "W503"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v"
+markers = [
+    "slow: marks tests as slow (may involve downloads or heavy computation)",
+    "download: marks tests that require internet connection and download models/data",
+]
