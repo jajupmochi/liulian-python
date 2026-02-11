@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://jajupmochi.github.io/liulian-python/architecture/">
+        <link rel="canonical" href="https://jajupmochi.github.io/liulian-python/cli/">
       
       
-        <link rel="prev" href="..">
+        <link rel="prev" href="../architecture/">
       
       
-        <link rel="next" href="../cli/">
+        <link rel="next" href="../adapter_guide/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Architecture - LIULIAN</title>
+        <title>CLI Usage - LIULIAN</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#architecture" class="md-skip">
+        <a href="#cli-usage" class="md-skip">
           Skip to content
         </a>
       
@@ -112,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Architecture
+              CLI Usage
             
           </span>
         </div>
@@ -240,11 +240,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../architecture/" class="md-tabs__link">
         
   
   
@@ -261,11 +259,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../cli/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
           
   
   
@@ -412,6 +412,90 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
     
   
   
@@ -431,7 +515,7 @@
   <span class="md-ellipsis">
     
   
-    Architecture
+    CLI Usage
   
 
     
@@ -449,7 +533,7 @@
   <span class="md-ellipsis">
     
   
-    Architecture
+    CLI Usage
   
 
     
@@ -475,10 +559,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
+  <a href="#installation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Overview
+        Installation
       
     </span>
   </a>
@@ -486,44 +570,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#architecture-diagram" class="md-nav__link">
+  <a href="#subcommands" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Architecture Diagram
+        Subcommands
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#architecture-decisions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Architecture Decisions
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#module-responsibilities" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Module Responsibilities
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Module Responsibilities">
+    <nav class="md-nav" aria-label="Subcommands">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#task-layer-liuliantasks" class="md-nav__link">
+  <a href="#liulian-info" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Task Layer (liulian/tasks/)
+        liulian info
       
     </span>
   </a>
@@ -531,10 +593,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#data-layer-liuliandata" class="md-nav__link">
+  <a href="#liulian-run-configyaml" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Data Layer (liulian/data/)
+        liulian run &lt;config.yaml&gt;
       
     </span>
   </a>
@@ -542,10 +604,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#model-layer-liulianmodels" class="md-nav__link">
+  <a href="#liulian-eval-configyaml" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Model Layer (liulian/models/)
+        liulian eval &lt;config.yaml&gt;
       
     </span>
   </a>
@@ -553,43 +615,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#adapter-layer-liulianadapters" class="md-nav__link">
+  <a href="#options" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Adapter Layer (liulian/adapters/)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#runtime-layer-liulianruntime" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Runtime Layer (liulian/runtime/)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#optimizer-layer-liulianoptim" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Optimizer Layer (liulian/optim/)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#logger-layer-liulianloggers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Logger Layer (liulian/loggers/)
+        Options
       
     </span>
   </a>
@@ -602,10 +631,49 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#plugin-architecture" class="md-nav__link">
+  <a href="#configuration-file" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Plugin Architecture
+        Configuration File
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration File">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#available-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Available Models
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dataset-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dataset Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#artifacts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Artifacts
       
     </span>
   </a>
@@ -616,85 +684,6 @@
   
 </nav>
       
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
-        
-          
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Guides
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Guides
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../cli/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    CLI Usage
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -991,10 +980,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
+  <a href="#installation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Overview
+        Installation
       
     </span>
   </a>
@@ -1002,44 +991,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#architecture-diagram" class="md-nav__link">
+  <a href="#subcommands" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Architecture Diagram
+        Subcommands
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#architecture-decisions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Architecture Decisions
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#module-responsibilities" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Module Responsibilities
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Module Responsibilities">
+    <nav class="md-nav" aria-label="Subcommands">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#task-layer-liuliantasks" class="md-nav__link">
+  <a href="#liulian-info" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Task Layer (liulian/tasks/)
+        liulian info
       
     </span>
   </a>
@@ -1047,10 +1014,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#data-layer-liuliandata" class="md-nav__link">
+  <a href="#liulian-run-configyaml" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Data Layer (liulian/data/)
+        liulian run &lt;config.yaml&gt;
       
     </span>
   </a>
@@ -1058,10 +1025,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#model-layer-liulianmodels" class="md-nav__link">
+  <a href="#liulian-eval-configyaml" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Model Layer (liulian/models/)
+        liulian eval &lt;config.yaml&gt;
       
     </span>
   </a>
@@ -1069,43 +1036,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#adapter-layer-liulianadapters" class="md-nav__link">
+  <a href="#options" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Adapter Layer (liulian/adapters/)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#runtime-layer-liulianruntime" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Runtime Layer (liulian/runtime/)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#optimizer-layer-liulianoptim" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Optimizer Layer (liulian/optim/)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#logger-layer-liulianloggers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Logger Layer (liulian/loggers/)
+        Options
       
     </span>
   </a>
@@ -1118,10 +1052,49 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#plugin-architecture" class="md-nav__link">
+  <a href="#configuration-file" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Plugin Architecture
+        Configuration File
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration File">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#available-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Available Models
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dataset-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dataset Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#artifacts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Artifacts
       
     </span>
   </a>
@@ -1148,90 +1121,194 @@
   
 
 
-<h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
-<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>LIULIAN follows a <strong>task-driven experiment paradigm</strong> where the Task is a first-class citizen. Every experiment is defined by the combination of a Task, Dataset, Model (Adapter), and Runner.</p>
-<h2 id="architecture-diagram">Architecture Diagram<a class="headerlink" href="#architecture-diagram" title="Permanent link">&para;</a></h2>
-<pre class="mermaid"><code>graph TB
-    User[User / Config]
-    Task[Task Layer&lt;br/&gt;PredictionTask]
-    Data[Data Layer&lt;br/&gt;BaseDataset + Manifest]
-    Model[Model Layer&lt;br/&gt;ExecutableModel]
-    Adapter[Adapter Layer&lt;br/&gt;DummyModel, Informer...]
-    Runner[Runtime&lt;br/&gt;Experiment + StateMachine]
-    Optim[Optimizer&lt;br/&gt;RayOptimizer]
-    Logger[Logger&lt;br/&gt;WandB / LocalFile]
-    Artifacts[Artifacts&lt;br/&gt;spec.yaml, metrics, checkpoints]
-
-    User --&gt; Task
-    User --&gt; Data
-    Task --&gt; Runner
-    Data --&gt; Runner
-    Model --&gt; Adapter
-    Adapter --&gt; Runner
-    Runner --&gt; Optim
-    Runner --&gt; Logger
-    Runner --&gt; Artifacts</code></pre>
-<h2 id="architecture-decisions">Architecture Decisions<a class="headerlink" href="#architecture-decisions" title="Permanent link">&para;</a></h2>
+<h1 id="cli-usage">CLI Usage<a class="headerlink" href="#cli-usage" title="Permanent link">&para;</a></h1>
+<p>liulian provides a command-line interface for running experiments directly from YAML configuration files.</p>
+<h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</code></pre></div>
+<p>This registers the <code>liulian</code> console script.</p>
+<h2 id="subcommands">Subcommands<a class="headerlink" href="#subcommands" title="Permanent link">&para;</a></h2>
+<h3 id="liulian-info"><code>liulian info</code><a class="headerlink" href="#liulian-info" title="Permanent link">&para;</a></h3>
+<p>Print version and project tagline.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>liulian<span class="w"> </span>info
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="c1"># liulian 0.0.1</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># Liquid Intelligence and Unified Logic for Interactive Adaptive Networks</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># &quot;Where Space and Time Converge in Intelligence&quot;</span>
+</code></pre></div>
+<h3 id="liulian-run-configyaml"><code>liulian run &lt;config.yaml&gt;</code><a class="headerlink" href="#liulian-run-configyaml" title="Permanent link">&para;</a></h3>
+<p>Train and evaluate a model from a YAML configuration file.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>liulian<span class="w"> </span>run<span class="w"> </span>examples/experiment_dlinear.yaml
+</code></pre></div>
+<p>Output:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>==================================================
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  Status: ok
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>  Run ID: example_dlinear_20260211_134348
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>  Epochs: 4
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>  Best Val MSE: 1.036761
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>  Test MSE: 1.042607
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>  Test MAE: 0.820369
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>  Artifacts: artifacts/example_dlinear_20260211_134348
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>==================================================
+</code></pre></div>
+<h3 id="liulian-eval-configyaml"><code>liulian eval &lt;config.yaml&gt;</code><a class="headerlink" href="#liulian-eval-configyaml" title="Permanent link">&para;</a></h3>
+<p>Evaluate a pre-trained model without training.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>liulian<span class="w"> </span><span class="nb">eval</span><span class="w"> </span>examples/experiment_dlinear.yaml
+</code></pre></div>
+<h3 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
-<th>Decision</th>
-<th>Choice</th>
-<th>Rationale</th>
+<th>Flag</th>
+<th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Dependency Management</td>
-<td><code>uv</code></td>
-<td>Fast, lock-file first, reproducible</td>
+<td><code>--version</code></td>
+<td>Show version number</td>
 </tr>
 <tr>
-<td>Configuration</td>
-<td>Env vars + YAML manifest</td>
-<td>Stateless for CI/cloud; manifest for data provenance</td>
-</tr>
-<tr>
-<td>Error Handling</td>
-<td>Exceptions</td>
-<td>Simple for MVP; validation errors only</td>
-</tr>
-<tr>
-<td>Logging</td>
-<td>stdlib <code>logging</code> + WandB</td>
-<td>WandB for remote; fallback to local JSON</td>
-</tr>
-<tr>
-<td>Testing</td>
-<td>Unit + integration; 60% min</td>
-<td>Smoke tests for adapters; e2e for runner</td>
+<td><code>-v</code>, <code>--verbose</code></td>
+<td>Enable DEBUG logging</td>
 </tr>
 </tbody>
 </table>
-<h2 id="module-responsibilities">Module Responsibilities<a class="headerlink" href="#module-responsibilities" title="Permanent link">&para;</a></h2>
-<h3 id="task-layer-liuliantasks">Task Layer (<code>liulian/tasks/</code>)<a class="headerlink" href="#task-layer-liuliantasks" title="Permanent link">&para;</a></h3>
-<p>Defines <strong>what</strong> an experiment is trying to achieve — loss functions, evaluation metrics, and batch preparation. Tasks are task-agnostic to any specific model.</p>
-<h3 id="data-layer-liuliandata">Data Layer (<code>liulian/data/</code>)<a class="headerlink" href="#data-layer-liuliandata" title="Permanent link">&para;</a></h3>
-<p>Manages dataset abstractions, YAML manifests for provenance, data splits, and topology specs for spatiotemporal graphs.</p>
-<h3 id="model-layer-liulianmodels">Model Layer (<code>liulian/models/</code>)<a class="headerlink" href="#model-layer-liulianmodels" title="Permanent link">&para;</a></h3>
-<p>Provides the <code>ExecutableModel</code> abstract interface that all adapters must implement — <code>configure()</code>, <code>forward()</code>, <code>save()</code>, <code>load()</code>, <code>capabilities()</code>.</p>
-<h3 id="adapter-layer-liulianadapters">Adapter Layer (<code>liulian/adapters/</code>)<a class="headerlink" href="#adapter-layer-liulianadapters" title="Permanent link">&para;</a></h3>
-<p>One adapter per external library. Each adapter wraps a specific model implementation (e.g., DummyModel, Informer) behind the <code>ExecutableModel</code> interface.</p>
-<p><strong>Contract rules:</strong>
-- Single responsibility (model wrapper only — no training loop, loss, metrics)
-- ≤ 200 LOC per adapter
-- All 3rd-party imports via <code>_vendor.py</code>
-- Must declare <code>capabilities()</code>
-- Must have a unit test</p>
-<h3 id="runtime-layer-liulianruntime">Runtime Layer (<code>liulian/runtime/</code>)<a class="headerlink" href="#runtime-layer-liulianruntime" title="Permanent link">&para;</a></h3>
-<p>Orchestrates the experiment lifecycle through a state machine (INIT → TRAIN → EVAL → INFER → COMPLETED) with support for pause/resume and event callbacks.</p>
-<h3 id="optimizer-layer-liulianoptim">Optimizer Layer (<code>liulian/optim/</code>)<a class="headerlink" href="#optimizer-layer-liulianoptim" title="Permanent link">&para;</a></h3>
-<p>Hyperparameter optimisation via Ray Tune with a fallback grid-sweep when Ray is not installed.</p>
-<h3 id="logger-layer-liulianloggers">Logger Layer (<code>liulian/loggers/</code>)<a class="headerlink" href="#logger-layer-liulianloggers" title="Permanent link">&para;</a></h3>
-<p>Unified logging interface. Full WandB SDK integration with automatic fallback to local JSON logging when WandB is unavailable.</p>
-<h2 id="plugin-architecture">Plugin Architecture<a class="headerlink" href="#plugin-architecture" title="Permanent link">&para;</a></h2>
-<p>Domain-specific code (hydrology, traffic, etc.) lives in <code>plugins/</code>, not in the core package. Plugins inherit from core ABCs and are loaded as regular Python imports.</p>
+<h2 id="configuration-file">Configuration File<a class="headerlink" href="#configuration-file" title="Permanent link">&para;</a></h2>
+<p>Experiment configs are YAML files with model and training parameters:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my_experiment</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dlinear</span><span class="w">          </span><span class="c1"># Model adapter name (see Models page)</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Architecture</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="nt">seq_len</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">96</span><span class="w">             </span><span class="c1"># Input sequence length</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="nt">pred_len</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">24</span><span class="w">            </span><span class="c1"># Prediction horizon</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="nt">label_len</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w">            </span><span class="c1"># Label length (0 for most models)</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="nt">enc_in</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w">               </span><span class="c1"># Encoder input features</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="nt">dec_in</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w">               </span><span class="c1"># Decoder input features</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="nt">c_out</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w">                </span><span class="c1"># Output features</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="nt">d_model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">64</span><span class="w">             </span><span class="c1"># Model dimension</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="nt">d_ff</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">128</span><span class="w">               </span><span class="c1"># Feed-forward dimension</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="nt">n_heads</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span><span class="w">              </span><span class="c1"># Attention heads</span>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="nt">e_layers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span><span class="w">             </span><span class="c1"># Encoder layers</span>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="nt">d_layers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w">             </span><span class="c1"># Decoder layers</span>
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="nt">dropout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.1</span>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="nt">embed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">timeF</span><span class="w">            </span><span class="c1"># Embedding type</span>
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="nt">freq</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">m</span><span class="w">                 </span><span class="c1"># Frequency string</span>
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="c1"># Training</span>
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a><span class="nt">train_epochs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+<a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a><span class="nt">batch_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">32</span>
+<a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a><span class="nt">learning_rate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.001</span>
+<a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a><span class="nt">patience</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">             </span><span class="c1"># Early stopping patience</span>
+<a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a>
+<a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a><span class="c1"># Optional: cap iterations for quick testing</span>
+<a id="__codelineno-5-27" name="__codelineno-5-27" href="#__codelineno-5-27"></a><span class="c1"># max_train_iters: 20</span>
+<a id="__codelineno-5-28" name="__codelineno-5-28" href="#__codelineno-5-28"></a><span class="c1"># max_eval_iters: 10</span>
+<a id="__codelineno-5-29" name="__codelineno-5-29" href="#__codelineno-5-29"></a>
+<a id="__codelineno-5-30" name="__codelineno-5-30" href="#__codelineno-5-30"></a><span class="c1"># Dataset (omit for synthetic data)</span>
+<a id="__codelineno-5-31" name="__codelineno-5-31" href="#__codelineno-5-31"></a><span class="c1"># dataset:</span>
+<a id="__codelineno-5-32" name="__codelineno-5-32" href="#__codelineno-5-32"></a><span class="c1">#   type: SwissRiverDataset</span>
+<a id="__codelineno-5-33" name="__codelineno-5-33" href="#__codelineno-5-33"></a><span class="c1">#   manifest: manifests/swissriver_v1.yaml</span>
+</code></pre></div>
+<h3 id="available-models">Available Models<a class="headerlink" href="#available-models" title="Permanent link">&para;</a></h3>
+<p>Use the <code>model</code> field to select from:</p>
+<table>
+<thead>
+<tr>
+<th>Model Name</th>
+<th><code>model</code> value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DLinear</td>
+<td><code>dlinear</code></td>
+<td>Fast linear baseline</td>
+</tr>
+<tr>
+<td>LSTM</td>
+<td><code>lstm</code></td>
+<td>Classic recurrent</td>
+</tr>
+<tr>
+<td>PatchTST</td>
+<td><code>patchtst</code></td>
+<td>Patch-based Transformer</td>
+</tr>
+<tr>
+<td>iTransformer</td>
+<td><code>itransformer</code></td>
+<td>Inverted attention</td>
+</tr>
+<tr>
+<td>Informer</td>
+<td><code>informer</code></td>
+<td>ProbSparse attention</td>
+</tr>
+<tr>
+<td>Transformer</td>
+<td><code>transformer</code></td>
+<td>Vanilla Transformer</td>
+</tr>
+<tr>
+<td>Autoformer</td>
+<td><code>autoformer</code></td>
+<td>Auto-correlation</td>
+</tr>
+<tr>
+<td>FEDformer</td>
+<td><code>fedformer</code></td>
+<td>Frequency-enhanced</td>
+</tr>
+<tr>
+<td>TimesNet</td>
+<td><code>timesnet</code></td>
+<td>2D temporal variation</td>
+</tr>
+<tr>
+<td>TimeMixer</td>
+<td><code>timemixer</code></td>
+<td>Multi-scale mixing</td>
+</tr>
+<tr>
+<td>TimeXer</td>
+<td><code>timexer</code></td>
+<td>Cross-variable attention</td>
+</tr>
+<tr>
+<td>TimeMoE</td>
+<td><code>timemoe</code></td>
+<td>Mixture of Experts</td>
+</tr>
+<tr>
+<td>TimeLLM</td>
+<td><code>timellm</code></td>
+<td>LLM reprogramming</td>
+</tr>
+<tr>
+<td>Mamba</td>
+<td><code>mamba</code></td>
+<td>State-space model</td>
+</tr>
+</tbody>
+</table>
+<h3 id="dataset-configuration">Dataset Configuration<a class="headerlink" href="#dataset-configuration" title="Permanent link">&para;</a></h3>
+<p><strong>Synthetic data</strong> (default — no dataset section):
+The CLI generates random synthetic data for quick testing.</p>
+<p><strong>Swiss River dataset</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">dataset</span><span class="p">:</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SwissRiverDataset</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="nt">manifest</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">manifests/swissriver_v1.yaml</span>
+</code></pre></div></p>
+<h2 id="artifacts">Artifacts<a class="headerlink" href="#artifacts" title="Permanent link">&para;</a></h2>
+<p>Each run creates an artifacts directory with:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>artifacts/&lt;name&gt;_&lt;timestamp&gt;/
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>├── spec.yaml           # Experiment specification
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>├── metrics.json        # Logged metrics
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>├── checkpoints/
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>│   └── checkpoint      # Best model weights
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>└── ...
+</code></pre></div>
 
 
 

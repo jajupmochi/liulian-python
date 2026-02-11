@@ -1,0 +1,2718 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Research OS for spatiotemporal model experimentation">
+      
+      
+      
+        <link rel="canonical" href="https://jajupmochi.github.io/liulian-python/models/torch_models/">
+      
+      
+        <link rel="prev" href="../../manifest_spec/">
+      
+      
+        <link rel="next" href="../../data_loaders/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>PyTorch Models - LIULIAN</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#pytorch-time-series-models" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="LIULIAN" class="md-header__button md-logo" aria-label="LIULIAN" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            LIULIAN
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              PyTorch Models
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="teal"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="teal"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jajupmochi/liulian-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jajupmochi/liulian-python
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../architecture/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Architecture
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../cli/" class="md-tabs__link">
+          
+  
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  Models
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../data_loaders/" class="md-tabs__link">
+          
+  
+  
+  Data
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../contributing/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Contributing
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="LIULIAN" class="md-nav__button md-logo" aria-label="LIULIAN" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    LIULIAN
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jajupmochi/liulian-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jajupmochi/liulian-python
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../adapter_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adapter Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../manifest_spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manifest Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Models
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Models
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PyTorch Models
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PyTorch Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adapted-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adapted Models
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#swiss-river-benchmark-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Swiss River Benchmark Results
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Installation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-installation-all-models-except-timellmtimemoe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Installation (All Models Except TimeLLM/TimeMoE)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#full-installation-including-timellmtimemoe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Full Installation (Including TimeLLM/TimeMoE)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-forecasting-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Forecasting Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#model-specific-guides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model-Specific Guides
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Model-Specific Guides">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-dlinear-simple-linear-baseline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. DLinear - Simple Linear Baseline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-informer-efficient-long-sequence-forecasting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Informer - Efficient Long Sequence Forecasting
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-autoformer-decomposition-with-autocorrelation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Autoformer - Decomposition with AutoCorrelation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-patchtst-patch-based-transformer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. PatchTST - Patch-Based Transformer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-itransformer-inverted-transformer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. iTransformer - Inverted Transformer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-timellm-llm-based-forecasting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. TimeLLM - LLM-Based Forecasting
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-timemoe-zero-shot-mixture-of-experts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. TimeMoE - Zero-Shot Mixture of Experts
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#input-data-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input Data Format
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Input Data Format">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#forecasting-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Forecasting Task
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#imputation-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Imputation Task
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#anomaly-detection-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Anomaly Detection Task
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#classification-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Classification Task
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#time-features-x_mark_" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Time Features (x_mark_*)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#model-selection-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Selection Guide
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Model Selection Guide">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#by-performance-priority" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        By Performance Priority
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#by-speed-priority" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        By Speed Priority
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#by-resource-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        By Resource Requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#by-data-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        By Data Type
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Usage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced Usage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-persistence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Persistence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gpucpu-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GPU/CPU Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#batch-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Batch Processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#import-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Import Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#download-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download Failures
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#citation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Citation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#support" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Support
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Data
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../data_loaders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Loaders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adapted-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adapted Models
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#swiss-river-benchmark-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Swiss River Benchmark Results
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Installation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-installation-all-models-except-timellmtimemoe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Installation (All Models Except TimeLLM/TimeMoE)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#full-installation-including-timellmtimemoe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Full Installation (Including TimeLLM/TimeMoE)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-forecasting-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Forecasting Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#model-specific-guides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model-Specific Guides
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Model-Specific Guides">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-dlinear-simple-linear-baseline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. DLinear - Simple Linear Baseline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-informer-efficient-long-sequence-forecasting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Informer - Efficient Long Sequence Forecasting
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-autoformer-decomposition-with-autocorrelation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Autoformer - Decomposition with AutoCorrelation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-patchtst-patch-based-transformer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. PatchTST - Patch-Based Transformer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-itransformer-inverted-transformer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. iTransformer - Inverted Transformer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-timellm-llm-based-forecasting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. TimeLLM - LLM-Based Forecasting
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-timemoe-zero-shot-mixture-of-experts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. TimeMoE - Zero-Shot Mixture of Experts
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#input-data-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input Data Format
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Input Data Format">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#forecasting-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Forecasting Task
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#imputation-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Imputation Task
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#anomaly-detection-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Anomaly Detection Task
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#classification-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Classification Task
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#time-features-x_mark_" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Time Features (x_mark_*)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#model-selection-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Selection Guide
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Model Selection Guide">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#by-performance-priority" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        By Performance Priority
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#by-speed-priority" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        By Speed Priority
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#by-resource-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        By Resource Requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#by-data-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        By Data Type
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Usage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced Usage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-persistence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Persistence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gpucpu-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GPU/CPU Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#batch-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Batch Processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#import-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Import Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#download-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download Failures
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#citation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Citation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#support" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Support
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="pytorch-time-series-models">PyTorch Time Series Models<a class="headerlink" href="#pytorch-time-series-models" title="Permanent link">&para;</a></h1>
+<p>This guide documents the 14 time series forecasting models adapted from <a href="https://github.com/thuml/Time-Series-Library">Time-Series-Library</a> and <a href="https://github.com/KimMeen/Time-LLM">Time-LLM</a> into the liulian framework.</p>
+<hr />
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>All adapted models follow a consistent adapter pattern that bridges PyTorch implementations to liulian's <code>ExecutableModel</code> interface. This enables seamless integration while preserving the original model algorithms.</p>
+<h3 id="adapted-models">Adapted Models<a class="headerlink" href="#adapted-models" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Paper</th>
+<th>Year</th>
+<th>Key Innovation</th>
+<th>Complexity</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>LSTM</strong></td>
+<td>Classic</td>
+<td>—</td>
+<td>Recurrent baseline</td>
+<td>O(L)</td>
+<td>Simple baseline</td>
+</tr>
+<tr>
+<td><strong>DLinear</strong></td>
+<td><a href="https://arxiv.org/pdf/2205.13504.pdf">AAAI'23</a></td>
+<td>2023</td>
+<td>Simple linear layers</td>
+<td>O(L)</td>
+<td>Fast baseline</td>
+</tr>
+<tr>
+<td><strong>Informer</strong></td>
+<td><a href="https://ojs.aaai.org/index.php/AAAI/article/view/17325/17132">AAAI'21</a></td>
+<td>2021</td>
+<td>ProbSparse attention</td>
+<td>O(L log L)</td>
+<td>Long sequences</td>
+</tr>
+<tr>
+<td><strong>Autoformer</strong></td>
+<td><a href="https://openreview.net/pdf?id=I55UqU-M11y">NeurIPS'21</a></td>
+<td>2021</td>
+<td>AutoCorrelation</td>
+<td>O(L log L)</td>
+<td>Seasonal data</td>
+</tr>
+<tr>
+<td><strong>Transformer</strong></td>
+<td>Classic</td>
+<td>2017</td>
+<td>Self-attention</td>
+<td>O(L²)</td>
+<td>General purpose</td>
+</tr>
+<tr>
+<td><strong>FEDformer</strong></td>
+<td><a href="https://arxiv.org/abs/2201.12740">ICML'22</a></td>
+<td>2022</td>
+<td>Frequency enhanced</td>
+<td>O(L)</td>
+<td>Seasonal data</td>
+</tr>
+<tr>
+<td><strong>PatchTST</strong></td>
+<td><a href="https://arxiv.org/pdf/2211.14730.pdf">ICLR'23</a></td>
+<td>2023</td>
+<td>Patch-based tokens</td>
+<td>O(N²), N=patches</td>
+<td>State-of-the-art</td>
+</tr>
+<tr>
+<td><strong>iTransformer</strong></td>
+<td><a href="https://arxiv.org/abs/2310.06625">ICLR'24</a></td>
+<td>2024</td>
+<td>Inverted attention</td>
+<td>O(V²L), V=variates</td>
+<td>Multivariate</td>
+</tr>
+<tr>
+<td><strong>TimesNet</strong></td>
+<td><a href="https://arxiv.org/abs/2210.02186">ICLR'23</a></td>
+<td>2023</td>
+<td>2D temporal variation</td>
+<td>O(L·K)</td>
+<td>Multi-task SOTA</td>
+</tr>
+<tr>
+<td><strong>TimeMixer</strong></td>
+<td><a href="https://arxiv.org/abs/2405.14616">ICLR'24</a></td>
+<td>2024</td>
+<td>Multi-scale mixing</td>
+<td>O(L)</td>
+<td>Efficient mixing</td>
+</tr>
+<tr>
+<td><strong>TimeXer</strong></td>
+<td><a href="https://arxiv.org/abs/2402.19072">NeurIPS'24</a></td>
+<td>2024</td>
+<td>Exogenous variables</td>
+<td>O(L²)</td>
+<td>Cross-variable</td>
+</tr>
+<tr>
+<td><strong>Mamba</strong></td>
+<td><a href="https://arxiv.org/abs/2312.00752">2024</a></td>
+<td>2024</td>
+<td>Selective SSM</td>
+<td>O(L)</td>
+<td>Long sequences</td>
+</tr>
+<tr>
+<td><strong>TimeLLM</strong></td>
+<td><a href="https://arxiv.org/abs/2310.01728">ICLR'24</a></td>
+<td>2024</td>
+<td>LLM reprogramming</td>
+<td>O(L) + LLM</td>
+<td>Novel approach</td>
+</tr>
+<tr>
+<td><strong>TimeMoE</strong></td>
+<td><a href="https://arxiv.org/abs/2409.16040">2024</a></td>
+<td>2024</td>
+<td>Mixture of Experts</td>
+<td>O(L log L)</td>
+<td>Zero-shot</td>
+</tr>
+</tbody>
+</table>
+<h3 id="swiss-river-benchmark-results">Swiss River Benchmark Results<a class="headerlink" href="#swiss-river-benchmark-results" title="Permanent link">&para;</a></h3>
+<p>8 models tested on the Swiss River hydrological dataset (seq_len=30, pred_len=7, quick test: 2 epochs, 20 iters):</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Params</th>
+<th>MSE</th>
+<th>MAE</th>
+<th>RMSE</th>
+<th>Time (s)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>PatchTST</strong></td>
+<td>73K</td>
+<td><strong>0.0060</strong></td>
+<td><strong>0.0633</strong></td>
+<td><strong>0.0777</strong></td>
+<td>0.9</td>
+</tr>
+<tr>
+<td>TimeXer</td>
+<td>110K</td>
+<td>0.0078</td>
+<td>0.0738</td>
+<td>0.0881</td>
+<td>0.9</td>
+</tr>
+<tr>
+<td>iTransformer</td>
+<td>73K</td>
+<td>0.0082</td>
+<td>0.0738</td>
+<td>0.0905</td>
+<td>0.8</td>
+</tr>
+<tr>
+<td>DLinear</td>
+<td>1.3K</td>
+<td>0.0082</td>
+<td>0.0760</td>
+<td>0.0908</td>
+<td>0.4</td>
+</tr>
+<tr>
+<td>TimesNet</td>
+<td>9.4M</td>
+<td>0.0233</td>
+<td>0.1305</td>
+<td>0.1527</td>
+<td>107.3</td>
+</tr>
+<tr>
+<td>Transformer</td>
+<td>118K</td>
+<td>0.0558</td>
+<td>0.2146</td>
+<td>0.2362</td>
+<td>1.8</td>
+</tr>
+<tr>
+<td>Informer</td>
+<td>130K</td>
+<td>0.0584</td>
+<td>0.2056</td>
+<td>0.2416</td>
+<td>1.7</td>
+</tr>
+<tr>
+<td>LSTM</td>
+<td>51K</td>
+<td>0.0905</td>
+<td>0.2728</td>
+<td>0.3008</td>
+<td>13.4</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Incompatible Models</p>
+<p><strong>Autoformer</strong>, <strong>FEDformer</strong>, and <strong>TimeMixer</strong> require <code>label_len &gt; 0</code> for decoder mark construction, which is incompatible with the Swiss River DataLoader's current format. These models work with other datasets (e.g., ETT).</p>
+</div>
+<hr />
+<h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
+<h3 id="basic-installation-all-models-except-timellmtimemoe">Basic Installation (All Models Except TimeLLM/TimeMoE)<a class="headerlink" href="#basic-installation-all-models-except-timellmtimemoe" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[torch-models]&quot;</span>
+</code></pre></div>
+<p>This installs:
+- <code>torch &gt;= 2.0.0</code>
+- All layer dependencies</p>
+<h3 id="full-installation-including-timellmtimemoe">Full Installation (Including TimeLLM/TimeMoE)<a class="headerlink" href="#full-installation-including-timellmtimemoe" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[torch-models-full]&quot;</span>
+</code></pre></div>
+<p>Additional dependencies:
+- <code>transformers &gt;= 4.0.0</code> (HuggingFace models)
+- <code>accelerate &gt;= 0.20.0</code> (efficient model loading)
+- <code>einops &gt;= 0.6.0</code> (tensor operations)</p>
+<p><strong>⚠️ Warning:</strong> TimeLLM downloads multi-GB pretrained language models on first use.</p>
+<hr />
+<h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
+<h3 id="basic-forecasting-example">Basic Forecasting Example<a class="headerlink" href="#basic-forecasting-example" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">liulian.models.torch.dlinear</span><span class="w"> </span><span class="kn">import</span> <span class="n">DLinearAdapter</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Configure model</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">config</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="s2">&quot;task_name&quot;</span><span class="p">:</span> <span class="s2">&quot;forecast&quot;</span><span class="p">,</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="s2">&quot;seq_len&quot;</span><span class="p">:</span> <span class="mi">96</span><span class="p">,</span>          <span class="c1"># Input sequence length</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="s2">&quot;pred_len&quot;</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span>         <span class="c1"># Forecast horizon</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="s2">&quot;label_len&quot;</span><span class="p">:</span> <span class="mi">48</span><span class="p">,</span>        <span class="c1"># Label length</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    <span class="s2">&quot;enc_in&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>            <span class="c1"># Number of input features</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    <span class="s2">&quot;dec_in&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>            <span class="c1"># Decoder input features</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    <span class="s2">&quot;c_out&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>             <span class="c1"># Output channels</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>    <span class="s2">&quot;individual&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>    <span class="c1"># Shared linear layers</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="p">}</span>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="c1"># Create model</span>
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="n">model</span> <span class="o">=</span> <span class="n">DLinearAdapter</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="c1"># Prepare input data (NumPy arrays)</span>
+<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="n">inputs</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>    <span class="s2">&quot;x_enc&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">96</span><span class="p">,</span> <span class="mi">7</span><span class="p">),</span>      <span class="c1"># (batch, seq_len, features)</span>
+<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>    <span class="s2">&quot;x_mark_enc&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">96</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="c1"># Time features</span>
+<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a>    <span class="s2">&quot;x_dec&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">72</span><span class="p">,</span> <span class="mi">7</span><span class="p">),</span>      <span class="c1"># Decoder input (label_len + pred_len)</span>
+<a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a>    <span class="s2">&quot;x_mark_dec&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">72</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="c1"># Decoder time features</span>
+<a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a><span class="p">}</span>
+<a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a>
+<a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a><span class="c1"># Run prediction</span>
+<a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a><span class="n">outputs</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+<a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a><span class="n">predictions</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;predictions&quot;</span><span class="p">]</span>  <span class="c1"># Shape: (32, 24, 7)</span>
+</code></pre></div>
+<hr />
+<h2 id="model-specific-guides">Model-Specific Guides<a class="headerlink" href="#model-specific-guides" title="Permanent link">&para;</a></h2>
+<h3 id="1-dlinear-simple-linear-baseline">1. DLinear - Simple Linear Baseline<a class="headerlink" href="#1-dlinear-simple-linear-baseline" title="Permanent link">&para;</a></h3>
+<p><strong>Best for:</strong> Fast prototyping, baselines, resource-constrained environments</p>
+<p><strong>Key Features:</strong>
+- Extremely simple: decomposition + linear layers
+- Very fast training and inference
+- Surprisingly effective despite simplicity
+- Supports all 4 tasks (forecast, imputation, anomaly, classification)</p>
+<p><strong>Configuration:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">config</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="s2">&quot;task_name&quot;</span><span class="p">:</span> <span class="s2">&quot;forecast&quot;</span><span class="p">,</span>    <span class="c1"># or &quot;imputation&quot;, &quot;anomaly_detection&quot;, &quot;classification&quot;</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="s2">&quot;seq_len&quot;</span><span class="p">:</span> <span class="mi">96</span><span class="p">,</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="s2">&quot;pred_len&quot;</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="s2">&quot;label_len&quot;</span><span class="p">:</span> <span class="mi">48</span><span class="p">,</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="s2">&quot;enc_in&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>                <span class="c1"># Number of input features</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="s2">&quot;dec_in&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    <span class="s2">&quot;c_out&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    <span class="s2">&quot;individual&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>        <span class="c1"># False: shared layers, True: per-channel layers</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>Usage Tips:</strong>
+- Start with <code>individual=False</code> for parameter efficiency
+- Try <code>individual=True</code> if channels have very different dynamics
+- Good baseline before trying complex models</p>
+<p><strong>Example:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">liulian.models.torch.dlinear</span><span class="w"> </span><span class="kn">import</span> <span class="n">DLinearAdapter</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">model</span> <span class="o">=</span> <span class="n">DLinearAdapter</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">outputs</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+</code></pre></div>
+<hr />
+<h3 id="2-informer-efficient-long-sequence-forecasting">2. Informer - Efficient Long Sequence Forecasting<a class="headerlink" href="#2-informer-efficient-long-sequence-forecasting" title="Permanent link">&para;</a></h3>
+<p><strong>Best for:</strong> Long sequences (&gt;500 time steps), memory-constrained scenarios</p>
+<p><strong>Key Features:</strong>
+- ProbSparse attention: O(L log L) complexity
+- Distillation: reduces memory footprint
+- Encoder-decoder architecture
+- Efficient for very long sequences</p>
+<p><strong>Configuration:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">config</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>    <span class="s2">&quot;task_name&quot;</span><span class="p">:</span> <span class="s2">&quot;forecast&quot;</span><span class="p">,</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="s2">&quot;seq_len&quot;</span><span class="p">:</span> <span class="mi">512</span><span class="p">,</span>             <span class="c1"># Can handle long sequences</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="s2">&quot;pred_len&quot;</span><span class="p">:</span> <span class="mi">96</span><span class="p">,</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="s2">&quot;label_len&quot;</span><span class="p">:</span> <span class="mi">48</span><span class="p">,</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="s2">&quot;enc_in&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    <span class="s2">&quot;dec_in&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="s2">&quot;c_out&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    <span class="s2">&quot;d_model&quot;</span><span class="p">:</span> <span class="mi">512</span><span class="p">,</span>             <span class="c1"># Model dimension</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>    <span class="s2">&quot;n_heads&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>               <span class="c1"># Attention heads</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>    <span class="s2">&quot;e_layers&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>              <span class="c1"># Encoder layers</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>    <span class="s2">&quot;d_layers&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>              <span class="c1"># Decoder layers</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>    <span class="s2">&quot;d_ff&quot;</span><span class="p">:</span> <span class="mi">2048</span><span class="p">,</span>               <span class="c1"># Feed-forward dimension</span>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>    <span class="s2">&quot;factor&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>                <span class="c1"># ProbSparse sampling factor (higher = more sparse)</span>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>    <span class="s2">&quot;distil&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>             <span class="c1"># Use distillation (recommended)</span>
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>    <span class="s2">&quot;dropout&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>    <span class="s2">&quot;activation&quot;</span><span class="p">:</span> <span class="s2">&quot;gelu&quot;</span><span class="p">,</span>
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>    <span class="s2">&quot;embed&quot;</span><span class="p">:</span> <span class="s2">&quot;timeF&quot;</span><span class="p">,</span>           <span class="c1"># Time feature embedding</span>
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>    <span class="s2">&quot;freq&quot;</span><span class="p">:</span> <span class="s2">&quot;h&quot;</span><span class="p">,</span>                <span class="c1"># &#39;h&#39;=hourly, &#39;d&#39;=daily, etc.</span>
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>Usage Tips:</strong>
+- Use <code>factor=5</code> as default, increase for longer sequences
+- Keep <code>distil=True</code> for memory efficiency
+- Encoder-only version: set <code>d_layers=0</code></p>
+<p><strong>Example:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">liulian.models.torch.informer</span><span class="w"> </span><span class="kn">import</span> <span class="n">InformerAdapter</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">model</span> <span class="o">=</span> <span class="n">InformerAdapter</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">outputs</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+</code></pre></div>
+<hr />
+<h3 id="3-autoformer-decomposition-with-autocorrelation">3. Autoformer - Decomposition with AutoCorrelation<a class="headerlink" href="#3-autoformer-decomposition-with-autocorrelation" title="Permanent link">&para;</a></h3>
+<p><strong>Best for:</strong> Data with clear seasonal patterns, energy/weather forecasting</p>
+<p><strong>Key Features:</strong>
+- AutoCorrelation: discovers period-based dependencies via FFT
+- Progressive decomposition: separates trend and seasonal at each layer
+- O(L log L) complexity
+- Excellent for periodic data</p>
+<p><strong>Configuration:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">config</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    <span class="s2">&quot;task_name&quot;</span><span class="p">:</span> <span class="s2">&quot;forecast&quot;</span><span class="p">,</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="s2">&quot;seq_len&quot;</span><span class="p">:</span> <span class="mi">96</span><span class="p">,</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="s2">&quot;pred_len&quot;</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    <span class="s2">&quot;label_len&quot;</span><span class="p">:</span> <span class="mi">48</span><span class="p">,</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>    <span class="s2">&quot;enc_in&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="s2">&quot;dec_in&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    <span class="s2">&quot;c_out&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>    <span class="s2">&quot;d_model&quot;</span><span class="p">:</span> <span class="mi">512</span><span class="p">,</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>    <span class="s2">&quot;n_heads&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>    <span class="s2">&quot;e_layers&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>    <span class="s2">&quot;d_layers&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>    <span class="s2">&quot;d_ff&quot;</span><span class="p">:</span> <span class="mi">2048</span><span class="p">,</span>
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>    <span class="s2">&quot;moving_avg&quot;</span><span class="p">:</span> <span class="mi">25</span><span class="p">,</span>           <span class="c1"># Decomposition kernel size (match periodicity)</span>
+<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>    <span class="s2">&quot;factor&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>                <span class="c1"># AutoCorrelation factor</span>
+<a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>    <span class="s2">&quot;dropout&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
+<a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a>    <span class="s2">&quot;activation&quot;</span><span class="p">:</span> <span class="s2">&quot;gelu&quot;</span><span class="p">,</span>
+<a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a>    <span class="s2">&quot;embed&quot;</span><span class="p">:</span> <span class="s2">&quot;timeF&quot;</span><span class="p">,</span>
+<a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a>    <span class="s2">&quot;freq&quot;</span><span class="p">:</span> <span class="s2">&quot;h&quot;</span><span class="p">,</span>
+<a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>Usage Tips:</strong>
+- Set <code>moving_avg</code> to match your data's seasonality:
+  - Hourly data: 24-25 (daily period)
+  - Daily data: 7 (weekly) or 30 (monthly)
+  - Monthly data: 12 (yearly)
+- Best for data with clear repeating patterns
+- Visualize decomposition to verify trend/seasonal separation</p>
+<p><strong>Example:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">liulian.models.torch.autoformer</span><span class="w"> </span><span class="kn">import</span> <span class="n">AutoformerAdapter</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="c1"># Hourly electricity data with daily seasonality</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">config</span><span class="p">[</span><span class="s2">&quot;moving_avg&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">24</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="n">model</span> <span class="o">=</span> <span class="n">AutoformerAdapter</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="n">outputs</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+</code></pre></div>
+<hr />
+<h3 id="4-patchtst-patch-based-transformer">4. PatchTST - Patch-Based Transformer<a class="headerlink" href="#4-patchtst-patch-based-transformer" title="Permanent link">&para;</a></h3>
+<p><strong>Best for:</strong> State-of-the-art accuracy, benchmark comparisons</p>
+<p><strong>Key Features:</strong>
+- Treats patches (not points) as tokens
+- Channel-independent processing
+- Reversible instance normalization (RevIN)
+- Often achieves best results on benchmarks</p>
+<p><strong>Configuration:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">config</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>    <span class="s2">&quot;task_name&quot;</span><span class="p">:</span> <span class="s2">&quot;forecast&quot;</span><span class="p">,</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    <span class="s2">&quot;seq_len&quot;</span><span class="p">:</span> <span class="mi">512</span><span class="p">,</span>             <span class="c1"># Should be divisible by stride</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="s2">&quot;pred_len&quot;</span><span class="p">:</span> <span class="mi">96</span><span class="p">,</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>    <span class="s2">&quot;label_len&quot;</span><span class="p">:</span> <span class="mi">48</span><span class="p">,</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>    <span class="s2">&quot;enc_in&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>    <span class="s2">&quot;dec_in&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>    <span class="s2">&quot;c_out&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>    <span class="s2">&quot;d_model&quot;</span><span class="p">:</span> <span class="mi">128</span><span class="p">,</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>    <span class="s2">&quot;n_heads&quot;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>    <span class="s2">&quot;e_layers&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>    <span class="s2">&quot;d_ff&quot;</span><span class="p">:</span> <span class="mi">256</span><span class="p">,</span>
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>    <span class="s2">&quot;dropout&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>    <span class="s2">&quot;activation&quot;</span><span class="p">:</span> <span class="s2">&quot;gelu&quot;</span><span class="p">,</span>
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>    <span class="s2">&quot;patch_len&quot;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span>            <span class="c1"># Length of each patch</span>
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>    <span class="s2">&quot;stride&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>                <span class="c1"># Patch extraction stride</span>
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a>    <span class="s2">&quot;padding_patch&quot;</span><span class="p">:</span> <span class="s2">&quot;end&quot;</span><span class="p">,</span>     <span class="c1"># Padding strategy</span>
+<a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a>    <span class="s2">&quot;revin&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>              <span class="c1"># Use reversible normalization (HIGHLY RECOMMENDED)</span>
+<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a>    <span class="s2">&quot;affine&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a>    <span class="s2">&quot;subtract_last&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a>    <span class="s2">&quot;individual&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>        <span class="c1"># False: shared, True: channel-independent heads</span>
+<a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>Usage Tips:</strong>
+- <strong>Always use <code>revin=True</code></strong> (major performance boost)
+- Patch length selection:
+  - 8-16: Fine-grained patterns
+  - 24-32: Smoother, faster
+  - Rule of thumb: <code>patch_len ~ seasonality / 4</code>
+- Stride selection:
+  - <code>stride = patch_len</code>: Non-overlapping (faster)
+  - <code>stride = patch_len // 2</code>: Overlapping (better)
+- <code>individual=True</code> for heterogeneous channels, <code>False</code> for efficiency</p>
+<p><strong>Example:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">liulian.models.torch.patchtst</span><span class="w"> </span><span class="kn">import</span> <span class="n">PatchTSTAdapter</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="c1"># Typical configuration for daily forecasting</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">config</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="s2">&quot;seq_len&quot;</span><span class="p">:</span> <span class="mi">512</span><span class="p">,</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="s2">&quot;pred_len&quot;</span><span class="p">:</span> <span class="mi">96</span><span class="p">,</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="s2">&quot;patch_len&quot;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>    <span class="s2">&quot;stride&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>    <span class="s2">&quot;revin&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>  <span class="c1"># Critical!</span>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>    <span class="c1"># ... other params</span>
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="p">}</span>
+<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>
+<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="n">model</span> <span class="o">=</span> <span class="n">PatchTSTAdapter</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+<a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a><span class="n">outputs</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+</code></pre></div>
+<hr />
+<h3 id="5-itransformer-inverted-transformer">5. iTransformer - Inverted Transformer<a class="headerlink" href="#5-itransformer-inverted-transformer" title="Permanent link">&para;</a></h3>
+<p><strong>Best for:</strong> Multivariate data with strong inter-variate correlations</p>
+<p><strong>Key Features:</strong>
+- Attention across variates (not time)
+- Inverted architecture
+- Non-stationary normalization
+- Captures variate dependencies effectively</p>
+<p><strong>Configuration:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">config</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>    <span class="s2">&quot;task_name&quot;</span><span class="p">:</span> <span class="s2">&quot;forecast&quot;</span><span class="p">,</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    <span class="s2">&quot;seq_len&quot;</span><span class="p">:</span> <span class="mi">96</span><span class="p">,</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>    <span class="s2">&quot;pred_len&quot;</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>    <span class="s2">&quot;label_len&quot;</span><span class="p">:</span> <span class="mi">48</span><span class="p">,</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>    <span class="s2">&quot;enc_in&quot;</span><span class="p">:</span> <span class="mi">21</span><span class="p">,</span>               <span class="c1"># Works well with many variates</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>    <span class="s2">&quot;dec_in&quot;</span><span class="p">:</span> <span class="mi">21</span><span class="p">,</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>    <span class="s2">&quot;c_out&quot;</span><span class="p">:</span> <span class="mi">21</span><span class="p">,</span>
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>    <span class="s2">&quot;d_model&quot;</span><span class="p">:</span> <span class="mi">512</span><span class="p">,</span>
+<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>    <span class="s2">&quot;n_heads&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+<a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>    <span class="s2">&quot;e_layers&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+<a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>    <span class="s2">&quot;d_ff&quot;</span><span class="p">:</span> <span class="mi">2048</span><span class="p">,</span>
+<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a>    <span class="s2">&quot;dropout&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
+<a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>    <span class="s2">&quot;activation&quot;</span><span class="p">:</span> <span class="s2">&quot;gelu&quot;</span><span class="p">,</span>
+<a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a>    <span class="s2">&quot;use_norm&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>           <span class="c1"># Non-stationary normalization</span>
+<a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>Usage Tips:</strong>
+- Best for datasets with many correlated variables (V &gt; 10)
+- Complexity O(V²L) - scales quadratically with number of variates
+- Keep <code>use_norm=True</code> for non-stationary data
+- May be overkill for univariate forecasting</p>
+<p><strong>Example:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">liulian.models.torch.itransformer</span><span class="w"> </span><span class="kn">import</span> <span class="n">iTransformerAdapter</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="c1"># Multivariate weather forecasting (21 variables)</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="n">model</span> <span class="o">=</span> <span class="n">iTransformerAdapter</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="n">outputs</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+</code></pre></div>
+<hr />
+<h3 id="6-timellm-llm-based-forecasting">6. TimeLLM - LLM-Based Forecasting<a class="headerlink" href="#6-timellm-llm-based-forecasting" title="Permanent link">&para;</a></h3>
+<p><strong>Best for:</strong> Research, exploring LLM capabilities, domain-specific forecasting</p>
+<p><strong>Key Features:</strong>
+- Reprograms frozen language models (LLAMA/GPT2/BERT)
+- Converts time series to text-like embeddings
+- Leverages pre-trained knowledge
+- Novel cross-modal approach</p>
+<p><strong>⚠️ Important Warnings:</strong>
+- <strong>Large downloads:</strong> 500MB (GPT2/BERT) to 7GB (LLAMA)
+- <strong>GPU required:</strong> 8-16GB GPU memory
+- <strong>Forecasting only:</strong> No other tasks supported
+- <strong>Slow inference:</strong> LLM forward pass adds overhead</p>
+<p><strong>Configuration:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">config</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>    <span class="c1"># LLM Configuration</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>    <span class="s2">&quot;llm_model&quot;</span><span class="p">:</span> <span class="s2">&quot;GPT2&quot;</span><span class="p">,</span>        <span class="c1"># &#39;LLAMA&#39;, &#39;GPT2&#39;, or &#39;BERT&#39;</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    <span class="s2">&quot;llm_dim&quot;</span><span class="p">:</span> <span class="mi">768</span><span class="p">,</span>             <span class="c1"># LLAMA:4096, GPT2:768, BERT:768</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>    <span class="s2">&quot;llm_layers&quot;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>            <span class="c1"># Number of LLM layers to use</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>    <span class="c1"># Time Series Configuration</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>    <span class="s2">&quot;seq_len&quot;</span><span class="p">:</span> <span class="mi">512</span><span class="p">,</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>    <span class="s2">&quot;pred_len&quot;</span><span class="p">:</span> <span class="mi">96</span><span class="p">,</span>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>    <span class="s2">&quot;enc_in&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>    <span class="s2">&quot;d_model&quot;</span><span class="p">:</span> <span class="mi">32</span><span class="p">,</span>              <span class="c1"># Patch embedding dimension</span>
+<a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>    <span class="s2">&quot;d_ff&quot;</span><span class="p">:</span> <span class="mi">128</span><span class="p">,</span>
+<a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a>    <span class="s2">&quot;patch_len&quot;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span>
+<a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a>    <span class="s2">&quot;stride&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+<a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a>    <span class="s2">&quot;c_out&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+<a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a>    <span class="s2">&quot;dropout&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
+<a id="__codelineno-13-17" name="__codelineno-13-17" href="#__codelineno-13-17"></a>
+<a id="__codelineno-13-18" name="__codelineno-13-18" href="#__codelineno-13-18"></a>    <span class="c1"># Optional Domain Knowledge</span>
+<a id="__codelineno-13-19" name="__codelineno-13-19" href="#__codelineno-13-19"></a>    <span class="s2">&quot;prompt_domain&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-13-20" name="__codelineno-13-20" href="#__codelineno-13-20"></a>    <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;electricity load&quot;</span><span class="p">,</span>  <span class="c1"># Domain description</span>
+<a id="__codelineno-13-21" name="__codelineno-13-21" href="#__codelineno-13-21"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>LLM Selection Guide:</strong></p>
+<table>
+<thead>
+<tr>
+<th>LLM</th>
+<th>Download Size</th>
+<th>GPU Memory</th>
+<th>Performance</th>
+<th>Speed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BERT</td>
+<td>~500MB</td>
+<td>4-8GB</td>
+<td>⭐⭐⭐</td>
+<td>Fast</td>
+</tr>
+<tr>
+<td>GPT2</td>
+<td>~500MB</td>
+<td>4-8GB</td>
+<td>⭐⭐⭐⭐</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>LLAMA</td>
+<td>~7GB</td>
+<td>8-16GB</td>
+<td>⭐⭐⭐⭐⭐</td>
+<td>Slow</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Usage Tips:</strong>
+- <strong>Start with GPT2</strong> for testing (good balance)
+- Use LLAMA only if you have resources and need max accuracy
+- First run takes 5-30 minutes (model download)
+- Subsequent runs use cached models (<code>~/.cache/huggingface/</code>)
+- Enable <code>prompt_domain</code> with descriptive text for better results</p>
+<p><strong>Example:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">liulian.models.torch.timellm</span><span class="w"> </span><span class="kn">import</span> <span class="n">TimeLLMAdapter</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="c1"># Start with GPT2 for testing</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="n">config</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>    <span class="s2">&quot;llm_model&quot;</span><span class="p">:</span> <span class="s2">&quot;GPT2&quot;</span><span class="p">,</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>    <span class="s2">&quot;llm_dim&quot;</span><span class="p">:</span> <span class="mi">768</span><span class="p">,</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>    <span class="s2">&quot;llm_layers&quot;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>    <span class="s2">&quot;seq_len&quot;</span><span class="p">:</span> <span class="mi">512</span><span class="p">,</span>
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a>    <span class="s2">&quot;pred_len&quot;</span><span class="p">:</span> <span class="mi">96</span><span class="p">,</span>
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a>    <span class="s2">&quot;patch_len&quot;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span>
+<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a>    <span class="s2">&quot;stride&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+<a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a>    <span class="s2">&quot;prompt_domain&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a>    <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;weather&quot;</span><span class="p">,</span>
+<a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a>    <span class="c1"># ... other params</span>
+<a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a><span class="p">}</span>
+<a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a>
+<a id="__codelineno-14-17" name="__codelineno-14-17" href="#__codelineno-14-17"></a><span class="n">model</span> <span class="o">=</span> <span class="n">TimeLLMAdapter</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+<a id="__codelineno-14-18" name="__codelineno-14-18" href="#__codelineno-14-18"></a><span class="c1"># First run: Downloads GPT2 (~500MB)</span>
+<a id="__codelineno-14-19" name="__codelineno-14-19" href="#__codelineno-14-19"></a><span class="c1"># Subsequent runs: Loads from cache</span>
+<a id="__codelineno-14-20" name="__codelineno-14-20" href="#__codelineno-14-20"></a><span class="n">outputs</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+</code></pre></div>
+<hr />
+<h3 id="7-timemoe-zero-shot-mixture-of-experts">7. TimeMoE - Zero-Shot Mixture of Experts<a class="headerlink" href="#7-timemoe-zero-shot-mixture-of-experts" title="Permanent link">&para;</a></h3>
+<p><strong>Best for:</strong> Zero-shot forecasting, quick deployment without training</p>
+<p><strong>Key Features:</strong>
+- Pretrained Mixture of Experts model
+- Zero-shot: no training needed
+- Uses Maple728/TimeMoE-50M from HuggingFace
+- Forecasting only</p>
+<p><strong>⚠️ Important Warnings:</strong>
+- <strong>Download:</strong> ~200MB pretrained model on first use
+- <strong>Forecasting only:</strong> No other tasks supported</p>
+<p><strong>Configuration:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">config</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>    <span class="s2">&quot;model_name&quot;</span><span class="p">:</span> <span class="s2">&quot;Maple728/TimeMoE-50M&quot;</span><span class="p">,</span>  <span class="c1"># Pretrained model ID</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    <span class="s2">&quot;seq_len&quot;</span><span class="p">:</span> <span class="mi">96</span><span class="p">,</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="s2">&quot;pred_len&quot;</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    <span class="s2">&quot;d_ff&quot;</span><span class="p">:</span> <span class="mi">2048</span><span class="p">,</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>    <span class="s2">&quot;d_model&quot;</span><span class="p">:</span> <span class="mi">512</span><span class="p">,</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>    <span class="s2">&quot;top_k&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>                 <span class="c1"># Number of experts to activate</span>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>    <span class="s2">&quot;n_heads&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>    <span class="s2">&quot;enc_in&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>Usage Tips:</strong>
+- No training required - use immediately
+- First run downloads ~200MB model
+- Designed for forecasting at scale
+- Good for quick prototyping</p>
+<p><strong>Example:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">liulian.models.torch.timemoe</span><span class="w"> </span><span class="kn">import</span> <span class="n">TimeMoEAdapter</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="n">model</span> <span class="o">=</span> <span class="n">TimeMoEAdapter</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="c1"># First run: Downloads TimeMoE-50M (~200MB)</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="n">outputs</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>  <span class="c1"># Zero-shot prediction</span>
+</code></pre></div>
+<hr />
+<h2 id="input-data-format">Input Data Format<a class="headerlink" href="#input-data-format" title="Permanent link">&para;</a></h2>
+<p>All models expect NumPy arrays as input. The adapter handles conversion to PyTorch tensors automatically.</p>
+<h3 id="forecasting-task">Forecasting Task<a class="headerlink" href="#forecasting-task" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">inputs</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>    <span class="s2">&quot;x_enc&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>       <span class="c1"># (batch, seq_len, enc_in) - Historical data</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>    <span class="s2">&quot;x_mark_enc&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>  <span class="c1"># (batch, seq_len, 4) - Time features (optional)</span>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>    <span class="s2">&quot;x_dec&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>       <span class="c1"># (batch, label_len+pred_len, dec_in) - Decoder input</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>    <span class="s2">&quot;x_mark_dec&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>  <span class="c1"># (batch, label_len+pred_len, 4) - Decoder time features</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="imputation-task">Imputation Task<a class="headerlink" href="#imputation-task" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">inputs</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>    <span class="s2">&quot;x_enc&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>       <span class="c1"># (batch, seq_len, enc_in) - Data with missing values</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>    <span class="s2">&quot;x_mark_enc&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>  <span class="c1"># (batch, seq_len, 4) - Time features</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>    <span class="s2">&quot;mask&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>        <span class="c1"># (batch, seq_len, enc_in) - Missing value mask</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="anomaly-detection-task">Anomaly Detection Task<a class="headerlink" href="#anomaly-detection-task" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">inputs</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>    <span class="s2">&quot;x_enc&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>       <span class="c1"># (batch, seq_len, enc_in) - Data to check</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="classification-task">Classification Task<a class="headerlink" href="#classification-task" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="n">inputs</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>    <span class="s2">&quot;x_enc&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>       <span class="c1"># (batch, seq_len, enc_in) - Input sequence</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>    <span class="s2">&quot;x_mark_enc&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>  <span class="c1"># (batch, seq_len, 4) - Time features</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="time-features-x_mark_">Time Features (<code>x_mark_*</code>)<a class="headerlink" href="#time-features-x_mark_" title="Permanent link">&para;</a></h3>
+<p>Common time features (4 dimensions):
+- Month of year (normalized)
+- Day of month (normalized)
+- Day of week (normalized)
+- Hour of day (normalized)</p>
+<hr />
+<h2 id="model-selection-guide">Model Selection Guide<a class="headerlink" href="#model-selection-guide" title="Permanent link">&para;</a></h2>
+<h3 id="by-performance-priority">By Performance Priority<a class="headerlink" href="#by-performance-priority" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>PatchTST</strong> - Best overall accuracy</li>
+<li><strong>Autoformer</strong> - Best for periodic data</li>
+<li><strong>iTransformer</strong> - Best for multivariate</li>
+<li><strong>Informer</strong> - Good long-sequence performance</li>
+<li><strong>TimeLLM</strong> - Novel LLM approach</li>
+<li><strong>DLinear</strong> - Fast baseline</li>
+<li><strong>TimeMoE</strong> - Zero-shot convenience</li>
+</ol>
+<h3 id="by-speed-priority">By Speed Priority<a class="headerlink" href="#by-speed-priority" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>DLinear</strong> - Fastest (linear layers only)</li>
+<li><strong>Informer</strong> - Efficient O(L log L)</li>
+<li><strong>Autoformer</strong> - Efficient O(L log L)</li>
+<li><strong>PatchTST</strong> - Moderate (depends on num_patches)</li>
+<li><strong>iTransformer</strong> - Moderate (depends on num_variates)</li>
+<li><strong>TimeMoE</strong> - Moderate</li>
+<li><strong>TimeLLM</strong> - Slowest (LLM overhead)</li>
+</ol>
+<h3 id="by-resource-requirements">By Resource Requirements<a class="headerlink" href="#by-resource-requirements" title="Permanent link">&para;</a></h3>
+<p><strong>Lightweight (&lt; 4GB GPU):</strong>
+- DLinear
+- Informer (with distillation)
+- Autoformer</p>
+<p><strong>Moderate (4-8GB GPU):</strong>
+- PatchTST
+- iTransformer
+- TimeMoE
+- TimeLLM (with BERT/GPT2)</p>
+<p><strong>Heavy (&gt; 8GB GPU):</strong>
+- TimeLLM (with LLAMA)</p>
+<h3 id="by-data-type">By Data Type<a class="headerlink" href="#by-data-type" title="Permanent link">&para;</a></h3>
+<p><strong>Univariate Time Series:</strong>
+- DLinear (baseline)
+- PatchTST (best accuracy)
+- Informer (long sequences)</p>
+<p><strong>Multivariate with Correlations:</strong>
+- iTransformer (best for inter-variate dependencies)
+- PatchTST (channel-independent)
+- Autoformer (decomposition)</p>
+<p><strong>Periodic/Seasonal Data:</strong>
+- Autoformer (explicitly models seasonality)
+- PatchTST (strong overall)</p>
+<p><strong>Long Sequences (&gt; 500 steps):</strong>
+- Informer (ProbSparse attention)
+- Autoformer (AutoCorrelation)
+- PatchTST (patch-based)</p>
+<hr />
+<h2 id="advanced-usage">Advanced Usage<a class="headerlink" href="#advanced-usage" title="Permanent link">&para;</a></h2>
+<h3 id="model-persistence">Model Persistence<a class="headerlink" href="#model-persistence" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># Save model</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="n">model</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">&quot;path/to/model.pth&quot;</span><span class="p">)</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="c1"># Load model</span>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="n">loaded_model</span> <span class="o">=</span> <span class="n">DLinearAdapter</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="n">loaded_model</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;path/to/model.pth&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="gpucpu-control">GPU/CPU Control<a class="headerlink" href="#gpucpu-control" title="Permanent link">&para;</a></h3>
+<p>Models automatically use CUDA if available. To force CPU:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="c1"># Before creating model</span>
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="kc">False</span>
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>
+<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a><span class="n">model</span> <span class="o">=</span> <span class="n">DLinearAdapter</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="batch-processing">Batch Processing<a class="headerlink" href="#batch-processing" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="c1"># Process multiple batches</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="n">batch_size</span> <span class="o">=</span> <span class="mi">32</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">dataloader</span><span class="p">:</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>    <span class="n">inputs</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>        <span class="s2">&quot;x_enc&quot;</span><span class="p">:</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;historical&quot;</span><span class="p">],</span>
+<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>        <span class="c1"># ... other inputs</span>
+<a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a>    <span class="p">}</span>
+<a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a>    <span class="n">outputs</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+<a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a>    <span class="n">predictions</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;predictions&quot;</span><span class="p">]</span>
+</code></pre></div>
+<hr />
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<h3 id="import-errors">Import Errors<a class="headerlink" href="#import-errors" title="Permanent link">&para;</a></h3>
+<p><strong>Problem:</strong> <code>ModuleNotFoundError: No module named 'torch'</code></p>
+<p><strong>Solution:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[torch-models]&quot;</span>
+</code></pre></div></p>
+<p><strong>Problem:</strong> <code>ModuleNotFoundError: No module named 'transformers'</code></p>
+<p><strong>Solution:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[torch-models-full]&quot;</span>
+</code></pre></div></p>
+<h3 id="memory-errors">Memory Errors<a class="headerlink" href="#memory-errors" title="Permanent link">&para;</a></h3>
+<p><strong>Problem:</strong> CUDA out of memory</p>
+<p><strong>Solutions:</strong>
+1. Reduce batch size
+2. Use smaller model (<code>d_model</code>, <code>d_ff</code>, <code>e_layers</code>)
+3. Enable distillation (Informer)
+4. Use CPU (slower but no memory limit)</p>
+<h3 id="download-failures">Download Failures<a class="headerlink" href="#download-failures" title="Permanent link">&para;</a></h3>
+<p><strong>Problem:</strong> TimeLLM/TimeMoE download fails</p>
+<p><strong>Solutions:</strong>
+1. Check internet connection
+2. Check disk space
+3. Clear HuggingFace cache: <code>rm -rf ~/.cache/huggingface/</code>
+4. Try different mirror (set <code>HF_ENDPOINT</code> environment variable)</p>
+<h3 id="performance-issues">Performance Issues<a class="headerlink" href="#performance-issues" title="Permanent link">&para;</a></h3>
+<p><strong>Problem:</strong> Model is too slow</p>
+<p><strong>Solutions:</strong>
+1. Use simpler model (DLinear)
+2. Reduce sequence length
+3. Increase patch length (PatchTST)
+4. Enable distillation (Informer)
+5. Use GPU instead of CPU</p>
+<hr />
+<h2 id="citation">Citation<a class="headerlink" href="#citation" title="Permanent link">&para;</a></h2>
+<p>If you use these models in your research, please cite the original papers:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">dlinear2023</span><span class="p">,</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="w">  </span><span class="na">title</span><span class="p">=</span><span class="s">{Are Transformers Effective for Time Series Forecasting?}</span><span class="p">,</span>
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="w">  </span><span class="na">author</span><span class="p">=</span><span class="s">{Zeng, Ailing and Chen, Muxi and Zhang, Lei and Xu, Qiang}</span><span class="p">,</span>
+<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="w">  </span><span class="na">booktitle</span><span class="p">=</span><span class="s">{AAAI}</span><span class="p">,</span>
+<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="w">  </span><span class="na">year</span><span class="p">=</span><span class="s">{2023}</span>
+<a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a><span class="p">}</span>
+<a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a>
+<a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">informer2021</span><span class="p">,</span>
+<a id="__codelineno-26-9" name="__codelineno-26-9" href="#__codelineno-26-9"></a><span class="w">  </span><span class="na">title</span><span class="p">=</span><span class="s">{Informer: Beyond Efficient Transformer for Long Sequence Time-Series Forecasting}</span><span class="p">,</span>
+<a id="__codelineno-26-10" name="__codelineno-26-10" href="#__codelineno-26-10"></a><span class="w">  </span><span class="na">author</span><span class="p">=</span><span class="s">{Zhou, Haoyi and Zhang, Shanghang and Peng, Jieqi and Zhang, Shuai and Li, Jianxin and Xiong, Hui and Zhang, Wancai}</span><span class="p">,</span>
+<a id="__codelineno-26-11" name="__codelineno-26-11" href="#__codelineno-26-11"></a><span class="w">  </span><span class="na">booktitle</span><span class="p">=</span><span class="s">{AAAI}</span><span class="p">,</span>
+<a id="__codelineno-26-12" name="__codelineno-26-12" href="#__codelineno-26-12"></a><span class="w">  </span><span class="na">year</span><span class="p">=</span><span class="s">{2021}</span>
+<a id="__codelineno-26-13" name="__codelineno-26-13" href="#__codelineno-26-13"></a><span class="p">}</span>
+<a id="__codelineno-26-14" name="__codelineno-26-14" href="#__codelineno-26-14"></a>
+<a id="__codelineno-26-15" name="__codelineno-26-15" href="#__codelineno-26-15"></a><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">autoformer2021</span><span class="p">,</span>
+<a id="__codelineno-26-16" name="__codelineno-26-16" href="#__codelineno-26-16"></a><span class="w">  </span><span class="na">title</span><span class="p">=</span><span class="s">{Autoformer: Decomposition Transformers with Auto-Correlation for Long-Term Series Forecasting}</span><span class="p">,</span>
+<a id="__codelineno-26-17" name="__codelineno-26-17" href="#__codelineno-26-17"></a><span class="w">  </span><span class="na">author</span><span class="p">=</span><span class="s">{Wu, Haixu and Xu, Jiehui and Wang, Jianmin and Long, Mingsheng}</span><span class="p">,</span>
+<a id="__codelineno-26-18" name="__codelineno-26-18" href="#__codelineno-26-18"></a><span class="w">  </span><span class="na">booktitle</span><span class="p">=</span><span class="s">{NeurIPS}</span><span class="p">,</span>
+<a id="__codelineno-26-19" name="__codelineno-26-19" href="#__codelineno-26-19"></a><span class="w">  </span><span class="na">year</span><span class="p">=</span><span class="s">{2021}</span>
+<a id="__codelineno-26-20" name="__codelineno-26-20" href="#__codelineno-26-20"></a><span class="p">}</span>
+<a id="__codelineno-26-21" name="__codelineno-26-21" href="#__codelineno-26-21"></a>
+<a id="__codelineno-26-22" name="__codelineno-26-22" href="#__codelineno-26-22"></a><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">patchtst2023</span><span class="p">,</span>
+<a id="__codelineno-26-23" name="__codelineno-26-23" href="#__codelineno-26-23"></a><span class="w">  </span><span class="na">title</span><span class="p">=</span><span class="s">{A Time Series is Worth 64 Words: Long-term Forecasting with Transformers}</span><span class="p">,</span>
+<a id="__codelineno-26-24" name="__codelineno-26-24" href="#__codelineno-26-24"></a><span class="w">  </span><span class="na">author</span><span class="p">=</span><span class="s">{Nie, Yuqi and Nguyen, Nam H and Sinthong, Phanwadee and Kalagnanam, Jayant}</span><span class="p">,</span>
+<a id="__codelineno-26-25" name="__codelineno-26-25" href="#__codelineno-26-25"></a><span class="w">  </span><span class="na">booktitle</span><span class="p">=</span><span class="s">{ICLR}</span><span class="p">,</span>
+<a id="__codelineno-26-26" name="__codelineno-26-26" href="#__codelineno-26-26"></a><span class="w">  </span><span class="na">year</span><span class="p">=</span><span class="s">{2023}</span>
+<a id="__codelineno-26-27" name="__codelineno-26-27" href="#__codelineno-26-27"></a><span class="p">}</span>
+<a id="__codelineno-26-28" name="__codelineno-26-28" href="#__codelineno-26-28"></a>
+<a id="__codelineno-26-29" name="__codelineno-26-29" href="#__codelineno-26-29"></a><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">itransformer2024</span><span class="p">,</span>
+<a id="__codelineno-26-30" name="__codelineno-26-30" href="#__codelineno-26-30"></a><span class="w">  </span><span class="na">title</span><span class="p">=</span><span class="s">{iTransformer: Inverted Transformers Are Effective for Time Series Forecasting}</span><span class="p">,</span>
+<a id="__codelineno-26-31" name="__codelineno-26-31" href="#__codelineno-26-31"></a><span class="w">  </span><span class="na">author</span><span class="p">=</span><span class="s">{Liu, Yong and Hu, Tengge and Zhang, Haoran and Wu, Haixu and Wang, Shiyu and Ma, Lintao and Long, Mingsheng}</span><span class="p">,</span>
+<a id="__codelineno-26-32" name="__codelineno-26-32" href="#__codelineno-26-32"></a><span class="w">  </span><span class="na">booktitle</span><span class="p">=</span><span class="s">{ICLR}</span><span class="p">,</span>
+<a id="__codelineno-26-33" name="__codelineno-26-33" href="#__codelineno-26-33"></a><span class="w">  </span><span class="na">year</span><span class="p">=</span><span class="s">{2024}</span>
+<a id="__codelineno-26-34" name="__codelineno-26-34" href="#__codelineno-26-34"></a><span class="p">}</span>
+<a id="__codelineno-26-35" name="__codelineno-26-35" href="#__codelineno-26-35"></a>
+<a id="__codelineno-26-36" name="__codelineno-26-36" href="#__codelineno-26-36"></a><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">timellm2024</span><span class="p">,</span>
+<a id="__codelineno-26-37" name="__codelineno-26-37" href="#__codelineno-26-37"></a><span class="w">  </span><span class="na">title</span><span class="p">=</span><span class="s">{Time-LLM: Time Series Forecasting by Reprogramming Large Language Models}</span><span class="p">,</span>
+<a id="__codelineno-26-38" name="__codelineno-26-38" href="#__codelineno-26-38"></a><span class="w">  </span><span class="na">author</span><span class="p">=</span><span class="s">{Jin, Ming and Wang, Shiyu and Ma, Lintao and Chu, Zhixuan and Zhang, James Y and Shi, Xiaoming and Chen, Pin-Yu and Liang, Yuxuan and Li, Yuan-Fang and Pan, Shirui and Wen, Qingsong}</span><span class="p">,</span>
+<a id="__codelineno-26-39" name="__codelineno-26-39" href="#__codelineno-26-39"></a><span class="w">  </span><span class="na">booktitle</span><span class="p">=</span><span class="s">{ICLR}</span><span class="p">,</span>
+<a id="__codelineno-26-40" name="__codelineno-26-40" href="#__codelineno-26-40"></a><span class="w">  </span><span class="na">year</span><span class="p">=</span><span class="s">{2024}</span>
+<a id="__codelineno-26-41" name="__codelineno-26-41" href="#__codelineno-26-41"></a><span class="p">}</span>
+<a id="__codelineno-26-42" name="__codelineno-26-42" href="#__codelineno-26-42"></a>
+<a id="__codelineno-26-43" name="__codelineno-26-43" href="#__codelineno-26-43"></a><span class="nc">@article</span><span class="p">{</span><span class="nl">timemoe2024</span><span class="p">,</span>
+<a id="__codelineno-26-44" name="__codelineno-26-44" href="#__codelineno-26-44"></a><span class="w">  </span><span class="na">title</span><span class="p">=</span><span class="s">{TimeMoE: Billions of Time Series Now Trainable on a Single GPU}</span><span class="p">,</span>
+<a id="__codelineno-26-45" name="__codelineno-26-45" href="#__codelineno-26-45"></a><span class="w">  </span><span class="na">author</span><span class="p">=</span><span class="s">{Shi, Xiaoming and others}</span><span class="p">,</span>
+<a id="__codelineno-26-46" name="__codelineno-26-46" href="#__codelineno-26-46"></a><span class="w">  </span><span class="na">journal</span><span class="p">=</span><span class="s">{arXiv preprint arXiv:2409.16040}</span><span class="p">,</span>
+<a id="__codelineno-26-47" name="__codelineno-26-47" href="#__codelineno-26-47"></a><span class="w">  </span><span class="na">year</span><span class="p">=</span><span class="s">{2024}</span>
+<a id="__codelineno-26-48" name="__codelineno-26-48" href="#__codelineno-26-48"></a><span class="p">}</span>
+</code></pre></div>
+<hr />
+<h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Time-Series-Library:</strong> https://github.com/thuml/Time-Series-Library</li>
+<li><strong>Time-LLM:</strong> https://github.com/KimMeen/Time-LLM</li>
+<li><strong>liulian Project:</strong> [Link to project repository]</li>
+<li><strong>Adaptation Report:</strong> See <code>artifacts/adaptations/adapt_20260209_155126/report.md</code></li>
+</ul>
+<hr />
+<h2 id="support">Support<a class="headerlink" href="#support" title="Permanent link">&para;</a></h2>
+<p>For issues specific to:
+- <strong>Model implementation:</strong> Check traceability docs in <code>artifacts/adaptations/adapt_20260209_155126/traceability/</code>
+- <strong>liulian integration:</strong> Check liulian documentation
+- <strong>Original algorithms:</strong> Refer to original repositories and papers</p>
+<hr />
+<p><em>Last Updated: 2026-02-09</em>
+<em>Adaptation ID: adapt_20260209_155126</em></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
