@@ -37,11 +37,12 @@ CSV: `figures/swiss-mc-2026-06-14/swiss-mc-rmse.csv`.
   decomposition model over channels has no head-room to exploit per-channel
   identity, and the wrapper's fusion projection adds none.
 - **On PatchTST, the injection POINT — not the identifier type — drives the
-  result.** `embedding` via `add_after_patch` (injected *after* patch
-  embedding) helps (~−5% vs none). The transparent modes, injected via
-  `concat_to_x` + `ChannelTransparentWrapper`'s per-channel
-  `Linear(1+D,1)` fusion *before* patching, hurt substantially (+30–60%),
-  and they hurt in HPO val too (1990 onehot val 0.231 vs none 0.124).
+  result**, and the root cause is **instance normalization** (see the
+  mechanism section below). `embedding` via `add_after_patch` (injected
+  *after* patching, in d_model token space, **post-norm**) helps (~−5% vs
+  none). The transparent modes, injected via `concat_to_x` *before* patching
+  (**pre-norm**), hurt substantially (+30–85%), and hurt in HPO val too
+  (1990 onehot val 0.231 vs none 0.124).
 
 **NOT claimed (would over-reach):**
 
@@ -61,6 +62,37 @@ information. This wrapper is structurally different from the per_entity
 `EntityTransparentWrapper` (zero-parameter concat). Cross-split comparisons
 must account for this.
 
+## Why PatchTST transparent fails — instance-norm cancels constant identifiers (2026-06-15)
+
+PatchTST.forecast starts with per-channel **instance normalization** (from
+the Non-stationary Transformer): it subtracts each channel's mean over time
+and divides by its std (`patchtst.py:142-145`). All transparent identifiers
+are **per-channel CONSTANTS** (onehot / coordinates / sinusoidal / random
+produce one fixed vector per station, the same at every time step). The
+`concat_to_x` path adds that constant to the channel's series *before*
+PatchTST runs — so instance-norm, which subtracts the per-channel time-mean,
+**erases it exactly**.
+
+Verified numerically: feeding `w·x + const_offset` through PatchTST's
+instance-norm yields a tensor identical (max diff 8e-6) to normalizing the
+plain `x` — the identifier contributes **nothing** after norm, leaving only
+the fusion projection's distortion of the signal. Hence transparent on
+PatchTST is all cost, no signal → the +30–85% regression.
+
+`embedding` survives because `add_after_patch` injects in **d_model patch-
+token space, after** patching/normalization (`_inject_entity_after_patch`,
+`patchtst.py:127-138`) — the only injection point downstream of the norm.
+
+**Why the transparent modes can't currently use `add_after_patch`:** that
+path is hard-gated to `identifier_mode='embedding'` (`patchtst.py:72`) and is
+literally `nn.Embedding(N, d_model)` added to the token — it produces a
+d_model vector by construction. A transparent fixed vector has dimension
+≠ d_model (onehot=N, coords=2, sin/random=D), so adding it post-patch would
+require a learnable `Linear(D, d_model)` projection (no longer "zero-param
+transparent", and not implemented). So "can't" = a current implementation
+limit + a dimension mismatch, **not** a fundamental impossibility — it's the
+clean ablation to run next (below).
+
 ## Contrast with the per_entity LSTM (2026-06-13)
 
 | split | model | identifier effect |
@@ -78,9 +110,13 @@ report.
 
 ## To harden / explain (follow-ups)
 
-- **Ablation isolating injection point from identifier type**: run PatchTST
-  + transparent + `add_after_patch` — if it stops hurting, the cause is the
-  pre-patch fusion, confirming the audit's reading.
+- **Ablation isolating injection point from identifier type**: implement a
+  transparent `add_after_patch` for PatchTST (project the fixed (N,D) feature
+  table to d_model with one `Linear(D, d_model)`, add to the patch token like
+  the embedding path), then rerun PatchTST × {onehot, sinusoidal, random,
+  coordinates}. If they stop hurting (or help), it confirms the cause is the
+  pre-norm `concat_to_x` injection being cancelled by instance-norm, not the
+  identifier type. (Tracked as a task.)
 - **Inspect the DLinear fusion-projection weights** to tell "can't use" from
   "discards".
 - **Multi-seed** (≥3) for variance bands (shared with the lstm follow-up #32).
