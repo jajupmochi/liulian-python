@@ -241,3 +241,140 @@ class TestPatchTSTOtherTasks:
         model = PatchTSTAdapter(classification_config)
         outputs = model.run(sample_classification_inputs)
         validate_classification_output(outputs, 4, 10)
+
+
+class TestPatchTSTTransparentAddAfterPatch:
+    """PatchTST transparent identifiers via ``add_after_patch``.
+
+    Transparent modes (onehot/sinusoidal/random/coordinates/numeric_id) can be
+    injected in d_model patch-token space (downstream of the per-channel
+    instance-norm) via a learned projection of a FIXED identifier table, instead
+    of the pre-norm ``concat_to_x`` path. This bypasses the instance-norm that
+    would otherwise erase a per-channel time-invariant identifier.
+    """
+
+    N = 6  # channels / stations
+
+    def _make_ns(self, mode, integration='add_after_patch', split_mode='multi_channel'):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(
+            task_name='long_term_forecast',
+            seq_len=64,
+            pred_len=8,
+            enc_in=self.N,
+            dec_in=self.N,
+            c_out=self.N,
+            d_model=16,
+            n_heads=2,
+            e_layers=1,
+            d_ff=32,
+            dropout=0.0,
+            activation='gelu',
+            factor=1,
+            split_mode=split_mode,
+            identifier_mode=mode,
+            id_integration=integration,
+            sinusoidal_dim=8,
+            random_identifier_dim=8,
+            random_identifier_seed=2026,
+            coordinates={str(i): (float(i), float(2 * i)) for i in range(self.N)},
+            station_ids=[str(i) for i in range(self.N)],
+        )
+
+    @pytest.mark.parametrize(
+        'mode,expected_dim',
+        [
+            ('onehot', N),
+            ('numeric_id', 1),
+            ('sinusoidal', 8),
+            ('random', 8),
+            ('coordinates', 2),
+        ],
+    )
+    def test_builds_projection_with_correct_dims(self, mode, expected_dim):
+        """The fixed table + learned projection are built with matching dims."""
+        from liulian.models.torch.patchtst import Model
+
+        model = Model(self._make_ns(mode), patch_len=16, stride=8)
+        assert model._use_transparent_after_patch is True
+        assert model._use_embedding_after_patch is False
+        assert model._use_add_after_patch is True
+        assert hasattr(model, 'id_table')
+        assert hasattr(model, 'id_proj')
+        assert tuple(model.id_table.shape) == (self.N, expected_dim)
+        assert model.id_proj.in_features == expected_dim
+        assert model.id_proj.out_features == 16
+        # The fixed table must NOT be a trainable parameter (it is a buffer);
+        # only the projection is learned.
+        param_names = {n for n, _ in model.named_parameters()}
+        assert not any('id_table' in n for n in param_names)
+        assert any('id_proj' in n for n in param_names)
+
+    def test_forward_runs_and_is_finite(self):
+        """Forward pass produces a finite, correctly shaped forecast."""
+        import torch
+
+        from liulian.models.torch.patchtst import Model
+
+        model = Model(self._make_ns('onehot'), patch_len=16, stride=8).eval()
+        B = 4
+        x = torch.randn(B, 64, self.N)
+        mark = torch.zeros(B, 64, 1)
+        dec = torch.zeros(B, 8, self.N)
+        with torch.no_grad():
+            out = model(x, mark, dec, mark)
+        assert out.shape == (B, 8, self.N)
+        assert torch.isfinite(out).all()
+
+    def test_identifier_survives_instance_norm(self):
+        """The injected identifier changes the output (survives instance-norm).
+
+        Contrast with a per-channel constant added pre-norm, which instance-norm
+        erases. Zeroing the projection turns the injection into a no-op; the
+        output must differ from the trained (non-zero) projection.
+        """
+        import torch
+
+        from liulian.models.torch.patchtst import Model
+
+        torch.manual_seed(0)
+        model = Model(self._make_ns('onehot'), patch_len=16, stride=8).eval()
+        B = 4
+        x = torch.randn(B, 64, self.N)
+        mark = torch.zeros(B, 64, 1)
+        dec = torch.zeros(B, 8, self.N)
+        with torch.no_grad():
+            out_with_id = model(x, mark, dec, mark)
+            model.id_proj.weight.zero_()
+            model.id_proj.bias.zero_()
+            out_no_id = model(x, mark, dec, mark)
+        # Non-trivial difference => the post-patch identifier is NOT erased.
+        assert (out_with_id - out_no_id).abs().max().item() > 1e-4
+
+    def test_embedding_path_unchanged(self):
+        """The learned ``embedding`` add_after_patch path is untouched."""
+        from liulian.models.torch.patchtst import Model
+
+        model = Model(self._make_ns('embedding'), patch_len=16, stride=8)
+        assert model._use_embedding_after_patch is True
+        assert model._use_transparent_after_patch is False
+        assert hasattr(model, 'entity_embedding')
+        assert not hasattr(model, 'id_proj')
+        assert not hasattr(model, 'id_table')
+
+    def test_requires_multi_channel(self):
+        """add_after_patch is rejected outside multi_channel split."""
+        from liulian.models.torch.patchtst import Model
+
+        with pytest.raises(ValueError, match='multi_channel'):
+            Model(self._make_ns('onehot', split_mode='per_entity'), patch_len=16, stride=8)
+
+    def test_concat_to_x_does_not_build_projection(self):
+        """Transparent + concat_to_x keeps the legacy (no internal) path."""
+        from liulian.models.torch.patchtst import Model
+
+        model = Model(self._make_ns('onehot', integration='concat_to_x'), patch_len=16, stride=8)
+        assert model._use_transparent_after_patch is False
+        assert model._use_add_after_patch is False
+        assert not hasattr(model, 'id_proj')

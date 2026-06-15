@@ -323,6 +323,9 @@ def print_dataset_summary(dataset: Any) -> None:
 
 
 _MODEL_INJECTABLE_TRANSPARENT_MODES = frozenset({'onehot', 'coordinates', 'sinusoidal', 'random', 'numeric_id'})
+# Transparent modes PatchTST can inject via add_after_patch (projected fixed
+# table, post-instance-norm). Kept in sync with patchtst._TRANSPARENT_ADD_AFTER_PATCH_MODES.
+_PATCHTST_TRANSPARENT_ADD_AFTER_PATCH_MODES = frozenset({'onehot', 'sinusoidal', 'random', 'coordinates', 'numeric_id'})
 
 
 def _transparent_injection_kind(config: Dict[str, Any]) -> str | None:
@@ -350,6 +353,11 @@ def _transparent_injection_kind(config: Dict[str, Any]) -> str | None:
                 "'descriptors' yet (no descriptor source is plumbed) — use "
                 "id_injection='data'."
             )
+        return None
+    # PatchTST transparent add_after_patch injects INTERNALLY (project the
+    # fixed table to d_model post-norm); no external wrapper — handled in
+    # build_model's config-injection block, not here.
+    if config.get('model') == 'patchtst' and config.get('id_integration') == 'add_after_patch':
         return None
     return 'multi_channel' if config.get('split_mode') == 'multi_channel' else 'per_entity'
 
@@ -483,6 +491,28 @@ def build_model(config: Dict[str, Any], dataset: Any = None) -> Any:
             features,
         )
 
+    # PatchTST transparent add_after_patch: PatchTST builds the fixed (N,D)
+    # identifier table INTERNALLY and projects it to d_model post-norm (no
+    # external wrapper — _transparent_injection_kind returns None for this
+    # case). Surface the data-derived bits it needs onto config BEFORE ns is
+    # built. enc_in stays = #channels (post-patch injection, not concat).
+    if (
+        model_name == 'patchtst'
+        and config.get('id_integration') == 'add_after_patch'
+        and config.get('identifier_mode') in _PATCHTST_TRANSPARENT_ADD_AFTER_PATCH_MODES
+    ):
+        if dataset is not None:
+            _topo = getattr(dataset, 'topology', None)
+            if _topo is not None and config.get('coordinates') is None:
+                config['coordinates'] = getattr(_topo, 'coordinates', None)
+            if config.get('station_ids') is None:
+                _sids = getattr(dataset, 'station_ids', None)
+                if _sids is not None:
+                    config['station_ids'] = [str(s) for s in _sids]
+        config.setdefault('sinusoidal_dim', config.get('sinusoidal_dim', 16))
+        config.setdefault('random_identifier_dim', config.get('random_identifier_dim', 16))
+        config.setdefault('random_identifier_seed', config.get('random_identifier_seed', 2026))
+
     ns = SimpleNamespace(**config)
 
     # Pre-processing for LLM-based models
@@ -492,10 +522,14 @@ def build_model(config: Dict[str, Any], dataset: Any = None) -> Any:
     if config.get('id_integration') == 'add_after_patch':
         if not model_name == 'patchtst':
             raise ValueError(
-                "id_integration='add_after_patch' is only supported for model='patchtst' with identifier_mode='embedding'."
+                "id_integration='add_after_patch' is only supported for model='patchtst' "
+                "with identifier_mode='embedding' or a transparent mode."
             )
-        if not config.get('identifier_mode') == 'embedding':
-            logger.warning('id_integration=add_after_patch has no effect when identifier_mode is not embedding.')
+        if (
+            config.get('identifier_mode') != 'embedding'
+            and config.get('identifier_mode') not in _PATCHTST_TRANSPARENT_ADD_AFTER_PATCH_MODES
+        ):
+            logger.warning('id_integration=add_after_patch has no effect for this identifier_mode.')
 
     # Dynamic import for all models
     _module_name = model_name

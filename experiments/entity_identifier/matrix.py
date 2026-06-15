@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
@@ -277,6 +278,7 @@ def build_cli_overrides(
     hpo_max_concurrent: int | None = None,
     hpo_resources_gpu: float | None = None,
     hpo_resume: bool = False,
+    patchtst_transparent_add_after_patch: bool | None = None,
 ) -> dict[str, Any]:
     """Build deterministic CLI overrides for one job.
 
@@ -309,9 +311,22 @@ def build_cli_overrides(
     else:
         overrides['split_mode'] = 'multi_channel'
 
+    # Ablation opt-in (task #40): route patchtst transparent through
+    # add_after_patch (post-instance-norm) instead of the default concat_to_x.
+    # Explicit arg wins; else env var; else default (concat_to_x) — unchanged.
+    if patchtst_transparent_add_after_patch is None:
+        _env = os.environ.get('LIULIAN_PATCHTST_TRANSPARENT_ADD_AFTER_PATCH', '')
+        patchtst_transparent_add_after_patch = _env.strip().lower() in {'1', 'true', 'yes', 'on'}
+
     if job.model == 'patchtst':
-        # Required by the approved design: embedding uses add_after_patch.
-        overrides['id_integration'] = 'add_after_patch' if job.mode == 'embedding' else 'concat_to_x'
+        # embedding always uses add_after_patch (approved design); transparent
+        # uses add_after_patch only under the ablation opt-in, else concat_to_x.
+        if job.mode == 'embedding':
+            overrides['id_integration'] = 'add_after_patch'
+        elif patchtst_transparent_add_after_patch and job.mode in {'onehot', 'coordinates', 'sinusoidal', 'random'}:
+            overrides['id_integration'] = 'add_after_patch'
+        else:
+            overrides['id_integration'] = 'concat_to_x'
     elif job.mode in {'onehot', 'coordinates', 'sinusoidal', 'random'}:
         overrides['id_integration'] = 'concat_to_x'
     elif job.mode == 'embedding':

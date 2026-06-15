@@ -12,6 +12,14 @@ Supported entity settings for ``model: patchtst``:
 * ``identifier_mode: embedding`` + ``id_integration: add_after_patch``
     — add a learned per-channel embedding in ``d_model`` space after
         patching and patch projection.
+* Transparent modes (``onehot`` / ``sinusoidal`` / ``random`` /
+    ``coordinates`` / ``numeric_id``) + ``id_integration: add_after_patch``
+    — project the FIXED per-channel identifier table ``(N, D)`` to
+        ``d_model`` via a learned ``nn.Linear`` and add it in patch-token
+        space, downstream of the per-channel instance-norm. This lets the
+        transparent identifiers survive instance normalization (which would
+        otherwise subtract away any pre-norm per-channel constant), exactly
+        like the learned ``embedding`` path.
 """
 
 import torch
@@ -21,7 +29,13 @@ from liulian.models.torch.layers.transformer_blocks import Encoder, EncoderLayer
 from liulian.models.torch.layers.attention import FullAttention, AttentionLayer
 from liulian.models.torch.layers.embed import PatchEmbedding
 from liulian.models.torch.base_adapter import TorchModelAdapter
-from liulian.models.torch.entity_mixin import EntityAwareMixin
+from liulian.models.torch.entity_mixin import EntityAwareMixin, _build_channel_features
+
+
+# Transparent identifier modes that can also use ``add_after_patch``.
+# These build a FIXED ``(N, D)`` table (no learned lookup) projected to
+# ``d_model`` and added in patch-token space.
+_TRANSPARENT_ADD_AFTER_PATCH_MODES = frozenset({'onehot', 'sinusoidal', 'random', 'coordinates', 'numeric_id'})
 
 
 class Transpose(nn.Module):
@@ -69,15 +83,47 @@ class Model(nn.Module):
         self.id_integration = getattr(configs, 'id_integration', 'concat_to_x')
         padding = stride
 
-        self._use_add_after_patch = self.identifier_mode == 'embedding' and self.id_integration == 'add_after_patch'
+        # ``add_after_patch`` has two flavours, both injecting a per-channel
+        # vector in ``d_model`` patch-token space (downstream of the
+        # instance-norm in ``forecast``):
+        #   * embedding  → learned ``nn.Embedding`` lookup.
+        #   * transparent → FIXED ``(N, D)`` identifier table projected to
+        #     ``d_model`` via a learned ``nn.Linear`` (the table itself is a
+        #     non-learned buffer; only the projection is trained).
+        self._use_embedding_after_patch = (
+            self.identifier_mode == 'embedding' and self.id_integration == 'add_after_patch'
+        )
+        self._use_transparent_after_patch = (
+            self.identifier_mode in _TRANSPARENT_ADD_AFTER_PATCH_MODES and self.id_integration == 'add_after_patch'
+        )
+        # Union flag — gates the early return in ``_inject_entity_after_patch``
+        # and the multi_channel requirement shared by both flavours.
+        self._use_add_after_patch = self._use_embedding_after_patch or self._use_transparent_after_patch
         if self._use_add_after_patch and getattr(configs, 'split_mode', None) != 'multi_channel':
             raise ValueError("PatchTST only supports id_integration='add_after_patch' in split_mode='multi_channel'.")
 
         # patching and embedding
         self.patch_embedding = PatchEmbedding(configs.d_model, patch_len, stride, padding, configs.dropout)
-        if self._use_add_after_patch:
+        if self._use_embedding_after_patch:
             num_stations = getattr(configs, 'enc_in', 1)
             self.entity_embedding = nn.Embedding(num_stations, configs.d_model)
+        elif self._use_transparent_after_patch:
+            num_stations = getattr(configs, 'enc_in', 1)
+            # Build the FIXED per-channel identifier table once, reusing the
+            # canonical feature formulas from entity_mixin (onehot/sinusoidal/
+            # random/coordinates/numeric_id). Registered as a buffer so it
+            # moves with the model (.to(device)) and lands in state_dict.
+            id_table = _build_channel_features(
+                self.identifier_mode,
+                num_stations,
+                sinusoidal_dim=int(getattr(configs, 'sinusoidal_dim', 16)),
+                random_dim=int(getattr(configs, 'random_identifier_dim', 16)),
+                random_seed=int(getattr(configs, 'random_identifier_seed', 2026)),
+                coordinates=getattr(configs, 'coordinates', None),
+                station_ids=getattr(configs, 'station_ids', None),
+            )
+            self.register_buffer('id_table', id_table)  # (N, D)
+            self.id_proj = nn.Linear(id_table.shape[1], configs.d_model)
 
         # Encoder
         self.encoder = Encoder(
@@ -129,12 +175,24 @@ class Model(nn.Module):
         enc_out: torch.Tensor,
         n_vars: int,
     ) -> torch.Tensor:
-        """Add per-channel entity embeddings in patch-token space."""
+        """Add per-channel entity vectors in patch-token space.
+
+        ``enc_out`` is ``(batch * n_vars, patch_num, d_model)`` with the
+        channels interleaved as ``arange(n_vars).repeat(batch)``. Both the
+        learned-embedding and the transparent-projection flavours produce a
+        per-channel ``(n_vars, d_model)`` matrix that is indexed by channel
+        and broadcast over the ``patch_num`` axis.
+        """
         if not self._use_add_after_patch:
             return enc_out
         batch_size = enc_out.shape[0] // n_vars
         ids = torch.arange(n_vars, device=enc_out.device).repeat(batch_size)
-        emb = self.entity_embedding(ids)
+        if self._use_transparent_after_patch:
+            # (N, d_model) projection of the fixed identifier table.
+            per_channel = self.id_proj(self.id_table)  # (N, d_model)
+            emb = per_channel[ids]  # (batch * n_vars, d_model)
+        else:
+            emb = self.entity_embedding(ids)  # (batch * n_vars, d_model)
         return enc_out + emb.unsqueeze(1)
 
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
