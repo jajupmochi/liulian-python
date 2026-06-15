@@ -12,6 +12,7 @@ and skips missing cells. No hardcoded numbers (code-verifier).
 Usage:  python tools/build_entity_id_figures.py [--pull]
   --pull  rsync the cluster run-tag dirs first.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -34,22 +35,43 @@ OUT.mkdir(parents=True, exist_ok=True)
 
 # Where each (dataset, model) family's cells live. Order here = display order.
 RUN_TAGS = [
-    'swiss3dt-1990-20260612', 'swiss3dt-2010-20260612', 'swiss3dt-zurich-20260612',
-    'swiss-mc-1990-20260614', 'swiss-mc-2010-20260614', 'swiss-mc-zurich-20260614',
-    'traffic-mc-20260614', 'elec-mc-20260614',
+    'swiss3dt-1990-20260612',
+    'swiss3dt-2010-20260612',
+    'swiss3dt-zurich-20260612',
+    'swiss-mc-1990-20260614',
+    'swiss-mc-2010-20260614',
+    'swiss-mc-zurich-20260614',
+    'traffic-mc-20260614',
+    'elec-mc-20260614',
 ]
-DATASET_ORDER = ['swiss-river-1990', 'swiss-river-2010', 'swiss-river-zurich',
-                 'traffic', 'electricity']
+DATASET_ORDER = ['swiss-river-1990', 'swiss-river-2010', 'swiss-river-zurich', 'traffic', 'electricity']
 MODEL_ORDER = ['lstm', 'patchtst', 'dlinear']
 MODES = ['none', 'embedding', 'onehot', 'sinusoidal', 'random', 'coordinates']
-UNITS = {'swiss-river-1990': '°C', 'swiss-river-2010': '°C',
-         'swiss-river-zurich': '°C', 'traffic': 'norm', 'electricity': 'std'}
+UNITS = {
+    'swiss-river-1990': '°C',
+    'swiss-river-2010': '°C',
+    'swiss-river-zurich': '°C',
+    'traffic': 'norm',
+    'electricity': 'std',
+}
+
+# --- PatchTST transparent injection ablation (task #40) -------------------- #
+# The MAIN table/heatmap above use the concat_to_x (pre-norm) patchtst
+# transparent results from RUN_TAGS. The ablation reruns the SAME cells with
+# add_after_patch (post-norm) injection; fill ABLATION_TAGS once those run.
+# The main table will then show, per patchtst transparent cell, the BETTER of
+# the two — but the final pick is the user's (see MAIN_PATCHTST_SOURCE).
+ABLATION_TAGS: list[str] = []  # add_after_patch run-tags — TBD when #40 runs
+TRANSPARENT_MODES = ['onehot', 'sinusoidal', 'random', 'coordinates']
+# 'concat' | 'add_after_patch' | 'better' — which injection the MAIN summary
+# uses for patchtst transparent cells. Stays 'concat' until the user decides.
+MAIN_PATCHTST_SOURCE = 'concat'
 
 
-def collect() -> dict:
-    """(dataset, model) -> {mode: rmse}, taking the latest results.json per cell."""
+def collect_tags(tags: list[str]) -> dict:
+    """(dataset, model) -> {mode: rmse} over the given run-tags, latest per cell."""
     data: dict = {}
-    for tag in RUN_TAGS:
+    for tag in tags:
         for cell in glob.glob(f'{ART}/{tag}/*-seed2026'):
             rjs = glob.glob(f'{cell}/**/results.json', recursive=True)
             if not rjs:
@@ -68,6 +90,11 @@ def collect() -> dict:
             except (KeyError, json.JSONDecodeError):
                 continue
     return data
+
+
+def collect() -> dict:
+    """Main results over all RUN_TAGS (concat_to_x / embedding / none)."""
+    return collect_tags(RUN_TAGS)
 
 
 def ordered_rows(data: dict) -> list[tuple[str, str]]:
@@ -108,12 +135,10 @@ def build_heatmap(data: dict, rows: list[tuple[str, str]]) -> None:
     for i in range(len(rows)):
         for j in range(len(MODES)):
             if annot[i][j]:
-                ax.text(j, i, annot[i][j], ha='center', va='center', fontsize=7.5,
-                        color='black')
+                ax.text(j, i, annot[i][j], ha='center', va='center', fontsize=7.5, color='black')
     cb = fig.colorbar(im, ax=ax, shrink=0.7)
     cb.set_label('% RMSE change vs none  (green = better, red = worse)')
-    ax.set_title('Entity identifiers: % test-RMSE change vs none\n'
-                 '(single seed; clipped at ±60%)', fontsize=10)
+    ax.set_title('Entity identifiers: % test-RMSE change vs none\n(single seed; clipped at ±60%)', fontsize=10)
     fig.tight_layout()
     fig.savefig(OUT / 'heatmap-vs-none.png', dpi=150, bbox_inches='tight')
     print('wrote', OUT / 'heatmap-vs-none.png')
@@ -170,14 +195,90 @@ def build_latex(data: dict, rows: list[tuple[str, str]]) -> None:
     tex.write_text('\n'.join(lines))
     print('wrote', tex)
     try:
-        subprocess.run(['pdflatex', '-interaction=nonstopmode', '-halt-on-error',
-                        'results-table.tex'], cwd=OUT, check=True,
-                       capture_output=True, timeout=60)
+        subprocess.run(
+            ['pdflatex', '-interaction=nonstopmode', '-halt-on-error', 'results-table.tex'],
+            cwd=OUT,
+            check=True,
+            capture_output=True,
+            timeout=60,
+        )
         for ext in ('aux', 'log'):
             (OUT / f'results-table.{ext}').unlink(missing_ok=True)
         print('compiled', OUT / 'results-table.pdf')
     except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
         print(f'pdflatex failed ({e}); .tex written, compile manually.')
+
+
+def build_ablation_table(main_data: dict) -> None:
+    """Separate table: patchtst transparent — concat_to_x vs add_after_patch.
+
+    Skips (no file written) until ABLATION_TAGS is populated and has data, so
+    it's safe to call on every watcher refresh. Bolds the better injection per
+    (dataset, mode); shows the none baseline for reference.
+    """
+    if not ABLATION_TAGS:
+        print('ablation: ABLATION_TAGS empty (add_after_patch not run yet) — skipping')
+        return
+    abl = collect_tags(ABLATION_TAGS)  # (ds, 'patchtst') -> {mode: rmse}
+    have = {ds for (ds, model) in abl if model == 'patchtst'}
+    if not have:
+        print('ablation: no patchtst add_after_patch cells yet — skipping')
+        return
+    datasets = [d for d in DATASET_ORDER if (d, 'patchtst') in main_data and d in have]
+    lines = [
+        r'\documentclass[border=6pt]{standalone}',
+        r'\usepackage{booktabs}',
+        r'\begin{document}',
+        r'\begin{tabular}{llrrrr}',
+        r'\toprule',
+        r'dataset (unit) & id-mode & none & concat\_to\_x & add\_after\_patch & better \\',
+        r'\midrule',
+    ]
+    last = None
+    for ds in datasets:
+        cc = main_data[(ds, 'patchtst')]
+        ap_ = abl.get((ds, 'patchtst'), {})
+        none_v = cc.get('none')
+        for mode in TRANSPARENT_MODES:
+            c = cc.get(mode)
+            a = ap_.get(mode)
+            if c is None and a is None:
+                continue
+            dlabel = f'{ds.replace("swiss-river-", "swiss-")} ({UNITS.get(ds, "?")})' if ds != last else ''
+            if ds != last and last is not None:
+                lines.append(r'\midrule')
+            last = ds
+
+            def f(v, bold=False):
+                if v is None:
+                    return '--'
+                s = f'{v:.3f}' if v < 100 else f'{v:.0f}'
+                return f'\\textbf{{{s}}}' if bold else s
+
+            better = ''
+            if c is not None and a is not None:
+                better = 'add\\_after\\_patch' if a < c else 'concat'
+            lines.append(
+                f'{dlabel} & {mode} & {f(none_v)} & '
+                f'{f(c, c is not None and a is not None and c <= a)} & '
+                f'{f(a, a is not None and c is not None and a < c)} & {better} ' + r'\\'
+            )
+    lines += [r'\bottomrule', r'\end{tabular}', r'\end{document}']
+    tex = OUT / 'ablation-patchtst-injection.tex'
+    tex.write_text('\n'.join(lines))
+    try:
+        subprocess.run(
+            ['pdflatex', '-interaction=nonstopmode', '-halt-on-error', 'ablation-patchtst-injection.tex'],
+            cwd=OUT,
+            check=True,
+            capture_output=True,
+            timeout=60,
+        )
+        for ext in ('aux', 'log'):
+            (OUT / f'ablation-patchtst-injection.{ext}').unlink(missing_ok=True)
+        print('compiled', OUT / 'ablation-patchtst-injection.pdf')
+    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
+        print(f'ablation pdflatex failed ({e}); .tex written.')
 
 
 def main() -> None:
@@ -186,16 +287,24 @@ def main() -> None:
     args = ap.parse_args()
     if args.pull:
         host = 'lj22u267@submit03.unibe.ch'
-        for tag in RUN_TAGS:
+        for tag in RUN_TAGS + ABLATION_TAGS:
             subprocess.run(
-                ['rsync', '-azq', '--exclude=ray_results/', '--exclude=checkpoints/',
-                 f'{host}:~/codes/liulian-python/artifacts/entity_identifier/{tag}',
-                 str(ART) + '/'], check=False)
+                [
+                    'rsync',
+                    '-azq',
+                    '--exclude=ray_results/',
+                    '--exclude=checkpoints/',
+                    f'{host}:~/codes/liulian-python/artifacts/entity_identifier/{tag}',
+                    str(ART) + '/',
+                ],
+                check=False,
+            )
     data = collect()
     rows = ordered_rows(data)
     print(f'collected {sum(len(v) for v in data.values())} cells across {len(rows)} (dataset,model) rows')
     build_heatmap(data, rows)
     build_latex(data, rows)
+    build_ablation_table(data)
 
 
 if __name__ == '__main__':
