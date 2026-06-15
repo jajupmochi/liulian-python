@@ -127,11 +127,17 @@ def build_latex(data: dict, rows: list[tuple[str, str]]) -> None:
             if ds not in best_per_ds or v < best_per_ds[ds]:
                 best_per_ds[ds] = v
 
-    def fmt(ds, v):
+    def fmt(ds, v, row_best):
+        """bold = best for the whole dataset; underline = best id-mode for
+        this (model, dataset) row. Both can stack."""
         if v is None:
             return '--'
         s = f'{v:.3f}' if v < 100 else f'{v:.0f}'
-        return f'\\textbf{{{s}}}' if abs(v - best_per_ds.get(ds, -1)) < 1e-9 else s
+        if abs(v - best_per_ds.get(ds, -1)) < 1e-9:
+            s = f'\\textbf{{{s}}}'
+        if row_best is not None and abs(v - row_best) < 1e-9:
+            s = f'\\underline{{{s}}}'
+        return s
 
     lines = [
         r'\documentclass[border=6pt]{standalone}',
@@ -149,9 +155,17 @@ def build_latex(data: dict, rows: list[tuple[str, str]]) -> None:
         if ds != last_ds and last_ds is not None:
             lines.append(r'\midrule')
         last_ds = ds
-        vals = ' & '.join(fmt(ds, cells.get(m)) for m in MODES)
+        row_best = min(cells.values()) if cells else None
+        vals = ' & '.join(fmt(ds, cells.get(m), row_best) for m in MODES)
         lines.append(f'{dlabel} & {model} & {vals} ' + r'\\')
-    lines += [r'\bottomrule', r'\end{tabular}', r'\end{document}']
+    lines += [
+        r'\bottomrule',
+        r'\multicolumn{' + str(2 + len(MODES)) + r'}{l}{\footnotesize '
+        r'\textbf{bold} = best over all models \& modes for that dataset; '
+        r'\underline{underline} = best id-mode for that (model, dataset) row.} \\',
+        r'\end{tabular}',
+        r'\end{document}',
+    ]
     tex = OUT / 'results-table.tex'
     tex.write_text('\n'.join(lines))
     print('wrote', tex)
