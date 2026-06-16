@@ -87,20 +87,24 @@ class ExperimentParams:
     (e.g. CPU-only) are applied through ``ResourceProfile.param_overrides``.
     """
 
-    phase: str = 'full'                       # dry | smoke | dev | full
-    run_tag: str = ''                         # '' -> run.py auto-timestamps
+    phase: str = 'full'  # dry | smoke | dev | full
+    run_tag: str = ''  # '' -> run.py auto-timestamps
     datasets: tuple[str, ...] = ('swiss-river-1990',)
     models: tuple[str, ...] = ('lstm', 'patchtst', 'dlinear')
     modes: tuple[str, ...] = ('none', 'embedding', 'onehot')
     seeds: tuple[int, ...] = (2026,)
-    hpo_num_samples: int | None = 50          # paper-grade trials, matches the 2026-05 baseline matrix
-    train_epochs: int | None = 30             # matches per-experiment config default (30)
-    max_train_samples: int | None = None      # cap for fast pipeline checks
-    hpo_max_concurrent: int | None = None      # None -> auto policy in matrix.py
-    hpo_resources_gpu: float | None = None     # None -> auto policy in matrix.py
-    resume: bool = True                        # skip ok cells + Ray hpo_resume
-    skip_compare: bool = True                  # skip post-run comparison report
-    output_root: str = ''                      # '' -> run.py default
+    hpo_num_samples: int | None = 50  # paper-grade trials, matches the 2026-05 baseline matrix
+    train_epochs: int | None = 30  # matches per-experiment config default (30)
+    max_train_samples: int | None = None  # cap for fast pipeline checks
+    hpo_max_concurrent: int | None = None  # None -> auto policy in matrix.py
+    hpo_resources_gpu: float | None = None  # None -> auto policy in matrix.py
+    resume: bool = True  # skip ok cells + Ray hpo_resume
+    skip_compare: bool = True  # skip post-run comparison report
+    output_root: str = ''  # '' -> run.py default
+    # Ablation opt-in (task #40): route patchtst transparent modes through
+    # add_after_patch instead of concat_to_x. Passed to the cluster job as the
+    # env var matrix.build_cli_overrides reads (sbatch is a fresh shell).
+    patchtst_transparent_add_after_patch: bool = False
 
 
 # Default experiment. Edit here, or override per-field on the command line.
@@ -147,7 +151,7 @@ class ResourceProfile:
     """SBATCH resources for a mode, plus any per-mode run.py overrides."""
 
     name: str
-    kind: str                                  # 'sbatch' | 'local'
+    kind: str  # 'sbatch' | 'local'
     account: str = 'gratis'
     partition: str = 'gpu'
     qos: str = 'job_gratis'
@@ -163,37 +167,58 @@ class ResourceProfile:
 RESOURCE_PROFILES: dict[str, ResourceProfile] = {
     # In-process, debuggable. Small concurrency so a debug run stays light.
     'local': ResourceProfile(
-        name='local', kind='local',
+        name='local',
+        kind='local',
         param_overrides={'hpo_max_concurrent': 1},
     ),
     # UBELIX free full tier.
     'gratis-gpu': ResourceProfile(
-        name='gratis-gpu', kind='sbatch',
-        account='gratis', partition='gpu', qos='job_gratis',
-        gres='gpu:rtx4090:1', time_limit='12:00:00',
-        cpus_per_task=4, mem_per_cpu='10G',
+        name='gratis-gpu',
+        kind='sbatch',
+        account='gratis',
+        partition='gpu',
+        qos='job_gratis',
+        gres='gpu:rtx4090:1',
+        time_limit='12:00:00',
+        cpus_per_task=4,
+        mem_per_cpu='10G',
     ),
     # UBELIX free preemptable tier (investor idle GPUs; max wall 6h).
     'preempt-gpu': ResourceProfile(
-        name='preempt-gpu', kind='sbatch',
-        account='gratis', partition='gpu-invest', qos='job_gpu_preemptable',
-        gres='gpu:rtx4090:1', time_limit='06:00:00',
-        cpus_per_task=4, mem_per_cpu='10G',
+        name='preempt-gpu',
+        kind='sbatch',
+        account='gratis',
+        partition='gpu-invest',
+        qos='job_gpu_preemptable',
+        gres='gpu:rtx4090:1',
+        time_limit='06:00:00',
+        cpus_per_task=4,
+        mem_per_cpu='10G',
     ),
     # UBELIX paid tier — COSTS MONEY. Log via ubelix_cost_tracker.py.
     'paygo-gpu': ResourceProfile(
-        name='paygo-gpu', kind='sbatch',
-        account='paygo', partition='gpu', qos='job_gpu',
+        name='paygo-gpu',
+        kind='sbatch',
+        account='paygo',
+        partition='gpu',
+        qos='job_gpu',
         wckey='inf_prg-research',
-        gres='gpu:rtx4090:1', time_limit='12:00:00',
-        cpus_per_task=4, mem_per_cpu='10G',
+        gres='gpu:rtx4090:1',
+        time_limit='12:00:00',
+        cpus_per_task=4,
+        mem_per_cpu='10G',
     ),
     # UBELIX CPU partition (no GPU). Ray trials run CPU-only.
     'cpu': ResourceProfile(
-        name='cpu', kind='sbatch',
-        account='gratis', partition='epyc2,bdw', qos='job_gratis',
-        gres=None, time_limit='12:00:00',
-        cpus_per_task=8, mem_per_cpu='10G',
+        name='cpu',
+        kind='sbatch',
+        account='gratis',
+        partition='epyc2,bdw',
+        qos='job_gratis',
+        gres=None,
+        time_limit='12:00:00',
+        cpus_per_task=8,
+        mem_per_cpu='10G',
         param_overrides={'hpo_resources_gpu': 0.0},
     ),
 }
@@ -202,15 +227,16 @@ RESOURCE_PROFILES: dict[str, ResourceProfile] = {
 # --------------------------------------------------------------------------- #
 # Builders / runners                                                          #
 # --------------------------------------------------------------------------- #
-def _resolve_params(
-    profile: ResourceProfile, params: ExperimentParams
-) -> ExperimentParams:
+def _resolve_params(profile: ResourceProfile, params: ExperimentParams) -> ExperimentParams:
     """Apply a profile's per-mode overrides on top of the shared params."""
     return replace(params, **profile.param_overrides) if profile.param_overrides else params
 
 
 def build_sbatch_script(
-    profile: ResourceProfile, run_argv: list[str], job_suffix: str = ''
+    profile: ResourceProfile,
+    run_argv: list[str],
+    job_suffix: str = '',
+    patchtst_transparent_add_after_patch: bool = False,
 ) -> str:
     """Render the sbatch script for a cluster mode."""
     job_name = f'eid.{profile.name}' + (f'.{job_suffix}' if job_suffix else '')
@@ -239,6 +265,10 @@ def build_sbatch_script(
         f'module load {PYTHON_MODULE}',
         f'source "{VENV_ACTIVATE}"',
         f'export FUNCTION_SIZE_ERROR_THRESHOLD={RAY_FN_SIZE_THRESHOLD}',
+    ]
+    if patchtst_transparent_add_after_patch:
+        lines.append('export LIULIAN_PATCHTST_TRANSPARENT_ADD_AFTER_PATCH=1')
+    lines += [
         f'cd "{PROJECT_ROOT}"',
         'python3 --version',
         payload,
@@ -247,15 +277,18 @@ def build_sbatch_script(
     return '\n'.join(lines)
 
 
-def submit_sbatch(
-    profile: ResourceProfile, params: ExperimentParams, dry_run: bool
-) -> None:
+def submit_sbatch(profile: ResourceProfile, params: ExperimentParams, dry_run: bool) -> None:
     """Build and submit (or print) an sbatch job."""
     resolved = _resolve_params(profile, params)
     run_argv = build_run_argv(resolved)
     # run_tag in the job name keeps concurrent submissions distinguishable
     # in squeue and in the outputs/errors filenames.
-    script = build_sbatch_script(profile, run_argv, job_suffix=resolved.run_tag)
+    script = build_sbatch_script(
+        profile,
+        run_argv,
+        job_suffix=resolved.run_tag,
+        patchtst_transparent_add_after_patch=resolved.patchtst_transparent_add_after_patch,
+    )
     (PROJECT_ROOT / 'outputs').mkdir(parents=True, exist_ok=True)
     (PROJECT_ROOT / 'errors').mkdir(parents=True, exist_ok=True)
     if dry_run:
@@ -265,11 +298,11 @@ def submit_sbatch(
         print(script)
         return
     if profile.name == 'paygo-gpu':
-        print('[run_job] ⚠️  PAYGO is a PAID tier — read the printed cost block, '
-              'then log the job with jobs/ubelix_cost_tracker.py.')
-    result = subprocess.run(
-        ['sbatch'], input=script, text=True, capture_output=True, check=False
-    )
+        print(
+            '[run_job] ⚠️  PAYGO is a PAID tier — read the printed cost block, '
+            'then log the job with jobs/ubelix_cost_tracker.py.'
+        )
+    result = subprocess.run(['sbatch'], input=script, text=True, capture_output=True, check=False)
     print(result.stdout.strip())
     if result.returncode != 0:
         raise RuntimeError(f'sbatch failed: {result.stderr.strip()}')
@@ -292,7 +325,7 @@ def run_local(params: ExperimentParams) -> dict[str, Any]:
 
     argv = build_run_argv(resolved)
     print(f'[run_job] LOCAL in-process call → run.main({argv})')
-    return run_mod.main(argv)   # ← put a breakpoint inside main() to debug
+    return run_mod.main(argv)  # ← put a breakpoint inside main() to debug
 
 
 # --------------------------------------------------------------------------- #
@@ -301,15 +334,14 @@ def run_local(params: ExperimentParams) -> dict[str, Any]:
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         description='Job launcher for the entity-identifier experiment '
-                    '(local in-process debug, or sbatch on UBELIX tiers).',
+        '(local in-process debug, or sbatch on UBELIX tiers).',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    p.add_argument('--mode', required=True,
-                   choices=sorted(RESOURCE_PROFILES),
-                   help='Execution backend / resource profile.')
-    p.add_argument('--dry-run', action='store_true',
-                   help='Cluster modes: print the sbatch script without submitting.')
+    p.add_argument(
+        '--mode', required=True, choices=sorted(RESOURCE_PROFILES), help='Execution backend / resource profile.'
+    )
+    p.add_argument('--dry-run', action='store_true', help='Cluster modes: print the sbatch script without submitting.')
     # Optional per-field overrides of EXPERIMENT_PARAMS (default = the dataclass):
     # default=None -> EXPERIMENT_PARAMS.phase ('full') wins unless overridden.
     p.add_argument('--phase', default=None, choices=('dry', 'smoke', 'dev', 'full'))
@@ -321,6 +353,12 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument('--hpo-num-samples', type=int, default=None)
     p.add_argument('--train-epochs', type=int, default=None)
     p.add_argument('--max-train-samples', type=int, default=None)
+    p.add_argument(
+        '--patchtst-transparent-add-after-patch',
+        action='store_true',
+        help='Ablation: route patchtst transparent modes through '
+        'add_after_patch (post-instance-norm) instead of concat_to_x.',
+    )
     return p
 
 
@@ -345,6 +383,8 @@ def _params_from_cli(args: argparse.Namespace) -> ExperimentParams:
         overrides['train_epochs'] = args.train_epochs
     if args.max_train_samples is not None:
         overrides['max_train_samples'] = args.max_train_samples
+    if args.patchtst_transparent_add_after_patch:
+        overrides['patchtst_transparent_add_after_patch'] = True
     return replace(EXPERIMENT_PARAMS, **overrides) if overrides else EXPERIMENT_PARAMS
 
 
