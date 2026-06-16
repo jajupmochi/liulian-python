@@ -314,3 +314,86 @@ no grade was inflated to A; A− is used only where the differentiator is *domai
 a *verified mechanism*, both defensible. Phrasing throughout is "no prior work
 **found**" (the sweep was arXiv-centric, 2016–2026, English; CN appendices and
 non-arXiv venues not exhaustively read), never "no prior work **exists**".
+
+## 10. Round-3 deep read: *how* "similar" papers got published, and the detail-level cracks (2026-06-16)
+
+User follow-up: *"为什么你列出的那些文章，他们也是做类似的工作，却可以有新的想法和切入点并且发很好的文章呢？…仔细研究每篇文章是如何做的…魔鬼在细节里（不同任务、不同评判标准、标准数据集之外/数据缺失、不同分析视角、不同应用领域）…细致调研获得新方向."*
+This round **deep-read each paper's actual method + admitted limitations** (not the
+idea label) and ran a second per-thesis search. Outcome: several of our §9.6
+"lead" ideas turned out **already owned** — but the detailed reading also exposed
+**narrow cracks the field's defaults leave open**.
+
+### 10.0 Why "similar" work still gets published — the *move*, not the mechanism
+
+Each paper owns a crisp framing + exploits one **default-breaking detail**:
+
+| paper | the publishable *move* | the default it broke |
+|---|---|---|
+| **CN/CID** (2506.00432) | ① *formalize a property* (CID), ② *relocate* identity into **normalization** params, ③ a **WHEN-law** (channel-entropy-gain ∝ #channels ∝ MSE-improvement, ρ=0.724; helps non-CID > CID), ④ **prototypes** for foundation models | "identity = an embedding you add" → identity = a normalization choice; + *when* it helps |
+| **How Biased?** (2502.09683) | a **meta-critique** via *non-standard data* (Chaotic-ODE, known channel dependence) | "CI beats CD" is a benchmark artifact, not a law |
+| **CCM** (2404.01340) | clustering as CI/CD middle ground + law "**identity-reliance anti-correlates with channel similarity**" + **zero-shot/unseen-channel** transfer | one model must be either CI or CD; identity is static |
+| **Channel Matters** (2408.14763) | a **new analysis tool** (channel-wise influence) on **different tasks** (anomaly, pruning) | accuracy is the only lens; sample-level influence only |
+| **STID** (2208.05233) | **reframe the causal story** (identity, not graph topology) | "GNNs win because of message passing" |
+| **CHARM** (2505.14543) | identity as **textual channel descriptions** for foundation models | identity must be a learned index |
+| **ChannelTokenFormer** (2506.08660) | unify **realistic corruption** (async + missing blocks + dependency) | clean regular MTS is the only setting |
+
+**Lesson for us:** publishability = *own a framing + break a specific default*
+(data complexity · similarity regime · a new task · a new metric · a new modality
+of identity · a realistic corruption · a causal reframe). Raw mechanism never sells.
+
+### 10.1 Honest downgrade — directions that are ALREADY OWNED (do NOT headline)
+
+Round-3 search closed these; name the owner and avoid duplicate work:
+
+| our earlier idea | owned by (confirmed this round) | verdict |
+|---|---|---|
+| Cold-start: coordinate identity transfers, learned doesn't | **inductive ST-GNN forecasting** (2601.21899 worldwide air-quality; MoGERNN; 2211.11596 unobserved nodes) — "Fourier-mapped coordinates enable zero-shot init for new stations; coords generalize better than transductive embeddings" is *already stated* | **TAKEN** as a headline; survives only as a *typed control in non-graph models* |
+| Robust forecasting under missingness | **2506.08660** (dependency+async+missingness), **S4M** (2503.00900) | architecture TAKEN — *but see N5*: they don't study identifier *type* × missingness |
+| WHEN-law (identity utility vs channel correlation) | **How Biased** (2502.09683), **CN entropy-law**, **CCM** similarity-anticorrelation, **TKDE Capacity-Robustness** (2304.05206) | **TAKEN**; practitioners already use Pearson>0.95 / Granger to decide |
+| New domain = river water temperature DL | Qiu et al. 2021 (J. Hydrology), HESS 2021, multi-model suites | domain forecasting **populated**; only the *identity-ablation lens on it* is open |
+| Content/metadata identity | **CHARM** (2505.14543, text descriptions) | metadata-identity TAKEN (text); typed comparison still open |
+| Swiss environmental ST benchmark | **PeakWeather** (2506.13652, MeteoSwiss *weather*) | adjacent niche being staked; **must-read before any Swiss-benchmark framing** (could not fetch — >10MB; verify) |
+
+### 10.2 Directions that SURVIVED the detailed search (genuinely under-occupied)
+
+Each anchored to a *specific crack the deep read exposed*. Grades A/A−/B/C as §9.6.
+
+| # | direction | the specific crack it exploits (anchor paper) | the *move* / 深入-实用化 axis | grade | how to use |
+|---|---|---|---|---|---|
+| **N1** | **Injection-point × normalization × identifier-type principle**: "per-channel instance-norm *erases* additive constant pre-norm identity; only post-norm token-space injection survives" (verified here, max-diff 8e-6) | CN puts identity *in* the norm but never asks *where* a naive identifier must go to survive normalization; not found stated anywhere | mechanistic *principle* + relocate-mechanism | **A−** | **lead nugget**; directly engages CN's design choice |
+| **N2** | **Mechanism-invariance of CN's entropy-law**: replicate CN's *channel-entropy-gain ∝ MSE-improvement* curve using **zero-parameter** onehot/random/coordinate identity. If the law holds mechanism-independently → the gain is *identity*, not learned norm-params (sharper than CN's own claim) | CN only used its *own learned* mechanism; never tested a free identifier | stand-on-CN + falsifiable extension; *different analysis on same law* | **B+/A−** | cleanest "build on top"; turns CN's headline into our test |
+| **N3** | **Type-decoupled controlled benchmark**: vary identifier *type* while holding architecture + injection-point fixed | every competitor *confounds* type with architecture (CN=norm-params, CCM=cluster-MLP, InjectTST=token-add, STID=concat, CHARM=text-gate) — nobody isolates *type* | own "type as a controlled variable" framing | **B+** | the systematic spine |
+| **N4** | **per_entity ↔ multi_channel regime crossing**: does the *same* station's identity carry different value as a *sample* vs a *channel*? | enabled by our dual data setup; not seen in literature | new analysis axis | **B+** | unique to our setup |
+| **N5** | **Identifier-type × MISSINGNESS interaction**: does coordinate identity enable geographic *borrowing* for missing/sparse channels where onehot/random cannot? | **2506.08660 explicitly does NOT study identity-type × missingness** ("missingness handled structurally, not semantically") | exploit unstudied interaction in an active area; *practical* | **B** | applied; coordinate identity has a natural advantage |
+| **N6** | **Per-entity error DISPERSION / worst-entity metric** (Gini/CVaR/worst-decile), not aggregate MSE: does identity help the atypical "no-neighbour" entities most? | all competitors report aggregate MSE; CN's t-SNE shows a 4th cluster with *no neighbours* but never measures its error | new *评判标准* (metric) + fairness/tail-risk framing | **B** | applied (environmental tail-risk) |
+| **N7** | **Extreme/threshold-exceedance TASK** (ecological thermal limits) vs mean MSE: does identity help the *tails* more? | competitors all do mean-MSE long-horizon | new *task* + water-beachhead applied | **B** | applied differentiator |
+
+### 10.3 Recommended lead thesis (non-duplicative, defensible)
+
+**Unify N1+N2+N3 into one controlled-study/mechanism paper:** *"Entity identity in
+time-series forecasting: where to inject it (N1 — the instance-norm principle),
+whether the gain is identity or learned capacity (N2 — CN's entropy-law replicated
+with zero-parameter identifiers), benchmarked type-decoupled across architectures and
+the per-entity/multi-channel regimes (N3+N4)."* Position **explicitly against CN**
+("we test CN's identifiability law *mechanism-invariantly*") and **against How-Biased**
+("we add a real hydrological domain + typed identity"). Add **N5/N6/N7** as the
+*applied/analysis differentiators* on the swiss-river domain (missingness-robustness,
+per-entity equity, thermal-exceedance) — these are where the water beachhead makes the
+work *practical*, the axis the user flagged. Contribution class unchanged: **controlled
+study / benchmark + one mechanistic finding + applied differentiators**, not a new
+architecture.
+
+### 10.4 research-critic + must-do
+
+- Grades pinned to a named anchor/owner found this round; no inflation (one A− = the
+  verified instance-norm mechanism; rest B). Phrasing "owned by / not found", not
+  "impossible".
+- **Must-read before committing to a Swiss-environmental framing: PeakWeather
+  (2506.13652)** — could not fetch (>10MB); confirm it doesn't pre-empt N3–N7 on Swiss
+  data. Consider it a *template* for a dataset-contribution, and a reason to keep our
+  novelty on the *identity-attribution + injection-mechanism* axis (N1–N4), where it
+  almost certainly does not compete.
+- A second *divergent* ideation pass (skill: `brainstorming-research-ideas` /
+  `creative-thinking-for-research`) is available on request if more angles are wanted;
+  this round was deliberately *convergent* (anchored to paper cracks per the user's
+  instruction).
