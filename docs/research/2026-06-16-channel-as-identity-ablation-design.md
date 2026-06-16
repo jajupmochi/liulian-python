@@ -131,7 +131,15 @@ none  <  shared-params + explicit ID (onehot/sin/random/coord/embed)  ≈?  buil
   DLinear genuinely cannot use channel identity here (linear capacity).
 - **PatchTST-mc**: transparent IDs via `concat_to_x` were erased by
   instance-norm (the +30–85% regression, 2026-06-14 finding); `add_after_patch`
-  is the post-norm fix now under ablation (#40). Step B (CM vs CI) is the
+  is the post-norm fix. **Ablation #40 now COMPLETE (2026-06-16): across all 12
+  swiss cells (3 datasets × 4 transparent modes), `add_after_patch` beats BOTH
+  `concat_to_x` and `none` in every cell** — `concat_to_x` regresses badly
+  (1.8–2.7 vs none 1.37–1.49 °C, the instance-norm erasure), while
+  `add_after_patch` lands 1.32–1.48 °C: it fixes the catastrophe and modestly
+  beats `none` (~1–4%). Read proportionally (research-critic): the
+  *concat-is-bad* effect is large + consistent (the N1 mechanism, real); the
+  *add-beats-none* margin is small and **single-seed** — needs multi-seed
+  (#32) before claiming a genuine gain over none. Step B (CM vs CI) is the
   deeper question of whether CI itself is "just" identity isolation.
 
 ## 6. Feasibility / cost / priority
