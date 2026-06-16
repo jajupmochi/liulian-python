@@ -268,3 +268,49 @@ To our knowledge, **among the work surveyed above**, none combines all of:
   de-risked by the ST-GNN search; Alt "CARD/STID already did attribution"
   acknowledged — our typed-ladder + same-backbone disable-substitute on
   non-graph models survives.
+
+## 9.6 Increment table + innovation grading (round-2 per-item confirmation, 2026-06-16)
+
+User follow-up: *"请表格形式具体说明我们还能做的内容，给出创新性分级，并再次调研确认没人做过."*
+A second, **per-idea** literature sweep (10 more searches) was run; each row's
+"closest prior work" was confirmed *this round*. **Grading scale:**
+
+- **A** — no prior work found; genuinely open.
+- **A−** — touched only tangentially or in a different domain; defensible as new *in our setting*.
+- **B** — known idea, but new combination / new domain / more systematic; incremental.
+- **C** — substantially done elsewhere; value is replication / control / engineering only.
+
+> **Headline of round 2: there is no clean "A" left.** Every *method-level* idea
+> is a port, combination, or new-domain application of an established one. The
+> two most defensible higher-novelty angles are **A−** and are NOT new methods:
+> (7) the new **hydrological / correlated-channel domain**, and (8) the
+> **instance-norm-erases-constant-identifiers mechanism** (already verified
+> here). Correct framing = *a rigorous controlled study / benchmark in a new
+> domain + one mechanistic finding*, not a novel-method paper.
+
+| # | Idea / what we'd run | What is genuinely *ours* | Closest prior work (confirmed 2026-06-16) | Grade | How to use it |
+|---|---|---|---|---|---|
+| 1 | **Identifier type×cost ladder** (`none`/`onehot`/`sin`/`random`/`coord`/`embed`) as a controlled factor for TSF channel identity | applying the comparison to *channel/entity identity in TSF* + the cost (param-count) axis | categorical-encoding comparison is **solved generically**: entity embeddings (Guo & Berkhahn 2016), hashing trick (Weinberger 2009), DHE (2010.10784), high-cardinality/similarity encoding (Cerda 1907.01860); RPMixer (2402.10487) even has a learned-vs-random-Fourier STID row | **C+** | scaffolding, **not** the headline; frame as "porting the encoding comparison to TSF channel identity" |
+| 2 | **Disable PatchTST CI → channel-mixing variant + substitute typed ID** (Ablation B) | only the "*does a free typed ID recover what CI gave*" framing | CD/CM-PatchTST **already exists** (CSformer 2312.06220; CT-PatchTST 2501.08620) and CI-vs-CD is **systematically ablated** (2502.09683 "How Biased…", CI beats CD 21-to-7; 2304.05206 "Revisiting CI") | **C** (build) / **B−** (the +ID twist) | do **not** claim CM-PatchTST as new; cite existing CD-PatchTST; the +ID-recovery angle is thin — keep low priority |
+| 3 | **Disable DLinear `individual` → shared + substitute typed ID** (Ablation A, full 2×k cross) | the *full cross* `individual∈{T,F}`×`ID∈{6 modes}` on the same budget | `individual` flag is original DLinear (Zeng 2023); per-channel-param vs shared widely discussed | **B−** | cheap, gratis-friendly; complements existing flat DLinear-mc rows; report as a controlled cross, not a discovery |
+| 4 | **Random-hash / fixed-random identifier as an attribution probe** ("does a zero-param injective tag recover the learned-embedding / built-in gain?") | the *systematic* version (typed ladder × CI/individual-disable × domains), separating "needs to *tell channels apart*" from "needs to *learn per-channel content*" | RPMixer's single "random-Fourier vs learned STID" row (learned wins); field assumption "learned > random tag" stated but not systematically tested | **B+** | the sharpest **experimental-design** angle; report honestly that the one prior data-point favors learned |
+| 5 | **Geographic lat/lon coordinate identifier** inside the controlled ladder | coords as a *head-to-head identity type* vs onehot/random/learned (not just as a feature) | coords-as-feature is common in multi-site / geospatial forecasting (SOFTS, maritime trajectory, multi-site examples) | **B** | incremental; pairs with the domain (row 7) |
+| 6 | **`per_entity` vs `multi_channel` regime contrast** | the identity-injection cross *within* the contrast | this *is* CI-vs-CD — the **most-studied axis** (survey 2502.10721; 2502.09683; 2304.05206) | **C+** | structure/framing only; not novel |
+| 7 | **New hydrological domain** (swiss river water-temp, per-station coords) + the **"correlated channels ⇒ identity may be USELESS"** twist | a controlled entity-identity study on a domain **outside** the standard suite, where redundant channels can **invert** the usual "identity helps" story | standard benchmarks are ETT/Weather/ECL/Traffic/PEMS; environmental/hydrology entity-identity not among them | **A−** | **lead with this**; real scientific question + genuine domain differentiator |
+| 8 | **Instance-norm erases constant identifiers** (pre-norm `concat_to_x` IDs nullified; only post-patch `d_model`-space injection survives; numerically verified, max-diff 8e-6) | the *interaction* statement "per-channel instance-norm nullifies additive constant channel identifiers in patch transformers ⇒ inject in post-norm token space" | instance-norm / RevIN well known (Kim 2021); the *erasure interaction* not found stated | **A−** | a crisp, citable mechanistic nugget; strengthens the "*where* you inject identity matters" story |
+| 9 | **Unified reproducible framework** (identifier *type* + injection point + built-in mechanism all first-class config; CN/CARD/InjectTST become *rungs on one ladder*) | the *engineering* unification + open benchmark | many channel-identity papers, each its own ad-hoc setup; no shared open ladder | **B** | real value as an open benchmark; not conceptual novelty |
+
+### 9.6.1 What this means for "不要做重复工作"
+
+- **Drop / deprioritize as headline:** rows 1, 2, 6 (done elsewhere or thin).
+- **Keep as supporting controlled structure:** rows 3, 4, 5 (B-grade, cheap, complete the ladder; honest "controlled-study" value).
+- **Lead the paper with:** rows 7 + 8 (A−) — *a controlled entity-identity attribution study on a new hydrological / correlated-channel domain, plus the injection-point/instance-norm mechanism* — with rows 1–6 as the systematic ladder underneath and row 9 as the reproducible artifact.
+- **Honest contribution class:** *controlled empirical study / reproducible benchmark + one mechanistic finding + new domain* — submit as a **benchmark/analysis paper or workshop**, or as the **analysis section of the broader entity-aware paper**, NOT as a "we invented a new identifier/architecture" paper.
+
+### 9.6.2 research-critic on the grades
+
+Each grade is pinned to a **named closest-prior-work found this round** (not asserted);
+no grade was inflated to A; A− is used only where the differentiator is *domain* or
+a *verified mechanism*, both defensible. Phrasing throughout is "no prior work
+**found**" (the sweep was arXiv-centric, 2016–2026, English; CN appendices and
+non-arXiv venues not exhaustively read), never "no prior work **exists**".
