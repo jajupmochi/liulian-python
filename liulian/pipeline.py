@@ -93,11 +93,18 @@ def parse_metric_names(value: str | list[str]) -> list[str]:
 def build_hpo_experiment_name(config: Dict[str, Any]) -> str:
     """Build a Ray Tune experiment name following the naming convention.
 
-    Pattern: ``{data}_{model}_{task}_{split_mode}[_{extra}]_{timestamp}``
+    Pattern: ``{data}_{model}_{task}_{split_mode}[_{extra}][_{timestamp}]``.
+
+    The timestamp is OMITTED when ``hpo_resume`` is set, so a resumed run
+    targets the SAME Ray experiment directory across walltime restarts. With a
+    timestamp every restart is a fresh experiment that re-runs all trials from
+    scratch — which is exactly what broke cross-12h resume on the big traffic
+    cell (single cell > walltime, 3 fresh experiments, ~129 trials, none
+    finished). Each matrix cell already has its own ``hpo_storage_path``, so a
+    stable name is unique per cell.
     """
     import datetime
 
-    ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
     parts = [
         config.get('data', 'data'),
         config.get('model', 'model'),
@@ -107,7 +114,8 @@ def build_hpo_experiment_name(config: Dict[str, Any]) -> str:
     extra = config.get('hpo_experiment_name')
     if extra:
         parts.append(extra)
-    parts.append(ts)
+    if not config.get('hpo_resume', False):
+        parts.append(datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
     return '_'.join(parts)
 
 
