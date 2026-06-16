@@ -61,7 +61,11 @@ UNITS = {
 # add_after_patch (post-norm) injection; fill ABLATION_TAGS once those run.
 # The main table will then show, per patchtst transparent cell, the BETTER of
 # the two — but the final pick is the user's (see MAIN_PATCHTST_SOURCE).
-ABLATION_TAGS: list[str] = []  # add_after_patch run-tags — TBD when #40 runs
+ABLATION_TAGS: list[str] = [  # patchtst transparent add_after_patch (task #40, paygo)
+    'swiss-ptap-1990-20260616',
+    'swiss-ptap-2010-20260616',
+    'swiss-ptap-zurich-20260616',
+]
 TRANSPARENT_MODES = ['onehot', 'sinusoidal', 'random', 'coordinates']
 # 'concat' | 'add_after_patch' | 'better' — which injection the MAIN summary
 # uses for patchtst transparent cells. Stays 'concat' until the user decides.

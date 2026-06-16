@@ -53,7 +53,46 @@
       "actual_chf": 0.9002,
       "cost_method": "elapsed",
       "status": "done",
-      "notes": "Paygo PatchTST resume #2 — onehot only"
+      "notes": "Paygo PatchTST resume #2 \u2014 onehot only"
+    },
+    {
+      "jobid": "TBD",
+      "run_tag": "swiss-ptap-1990-20260616",
+      "account": "paygo",
+      "wckey": "inf_prg-research",
+      "session": "entity-id-2026-06",
+      "submit_date": "2026-06-16",
+      "projected_chf": 1.2,
+      "actual_chf": null,
+      "status": "running",
+      "cost_method": "elapsed",
+      "notes": "ablation: swiss patchtst transparent add_after_patch, 4 modes, 1x4090"
+    },
+    {
+      "jobid": "TBD",
+      "run_tag": "swiss-ptap-2010-20260616",
+      "account": "paygo",
+      "wckey": "inf_prg-research",
+      "session": "entity-id-2026-06",
+      "submit_date": "2026-06-16",
+      "projected_chf": 1.2,
+      "actual_chf": null,
+      "status": "running",
+      "cost_method": "elapsed",
+      "notes": "ablation: swiss patchtst transparent add_after_patch, 4 modes, 1x4090"
+    },
+    {
+      "jobid": "TBD",
+      "run_tag": "swiss-ptap-zurich-20260616",
+      "account": "paygo",
+      "wckey": "inf_prg-research",
+      "session": "entity-id-2026-06",
+      "submit_date": "2026-06-16",
+      "projected_chf": 1.2,
+      "actual_chf": null,
+      "status": "running",
+      "cost_method": "elapsed",
+      "notes": "ablation: swiss patchtst transparent add_after_patch, 4 modes, 1x4090"
     }
   ]
 }
