@@ -41,6 +41,16 @@ RUN_TAGS = [
     'swiss-mc-1990-20260614',
     'swiss-mc-2010-20260614',
     'swiss-mc-zurich-20260614',
+    # May-2026 baseline (older HPO/code) — fills electricity/traffic ×
+    # {dlinear, patchtst} (and traffic×lstm) that the current June matrix has
+    # not rerun yet. Listed BEFORE the June mc tags so current results override
+    # on overlap. (The older buggy *-fullmatrix-20260511 tags are excluded.)
+    'traffic-dlinear-REAL-20260513-200223',
+    'traffic-lstm-REAL-20260515-163055',
+    'traffic-patchtst-REAL-20260519-130445',
+    'electricity-dlinear-REAL-20260519-142854',
+    'electricity-lstm-REAL-20260519-144558',
+    'electricity-patchtst-REAL-20260519-144559',
     'traffic-mc-20260614',
     'elec-mc-20260614',
 ]
@@ -50,6 +60,8 @@ MODEL_ORDER = ['lstm', 'patchtst', 'dlinear']
 # lands, so an in-flight dataset (e.g. traffic) is still visible in the report.
 FORCE_ROWS = [('traffic', 'lstm')]
 MODES = ['none', 'embedding', 'onehot', 'sinusoidal', 'random', 'coordinates']
+# shorter column headers so the table (esp. 'coordinates') doesn't get too wide.
+MODE_LABELS = {'embedding': 'embed', 'sinusoidal': 'sin', 'coordinates': 'coord'}
 UNITS = {
     'swiss-river-1990': '°C',
     'swiss-river-2010': '°C',
@@ -205,7 +217,7 @@ def build_latex(data: dict, rows: list[tuple[str, str]]) -> None:
         r'\begin{document}',
         r'\begin{tabular}{ll' + 'r' * len(MODES) + '}',
         r'\toprule',
-        'dataset (unit) & model & ' + ' & '.join(MODES) + r' \\',
+        'dataset (unit) & model & ' + ' & '.join(MODE_LABELS.get(m, m) for m in MODES) + r' \\',
         r'\midrule',
     ]
     last_ds = None
@@ -226,6 +238,9 @@ def build_latex(data: dict, rows: list[tuple[str, str]]) -> None:
         r'\multicolumn{' + str(2 + len(MODES)) + r'}{l}{\footnotesize '
         r'patchtst transparent modes use add\_after\_patch (post-norm) injection; '
         r'swiss = RMSE in \textdegree C, electricity/traffic = normalized RMSE.} \\',
+        r'\multicolumn{' + str(2 + len(MODES)) + r'}{l}{\footnotesize '
+        r'electricity/traffic dlinear \& patchtst (and traffic lstm) = May-2026 '
+        r'baseline (older HPO/code), preliminary pending the current matrix.} \\',
         r'\end{tabular}',
         r'\end{document}',
     ]
@@ -326,12 +341,19 @@ def main() -> None:
     if args.pull:
         host = 'lj22u267@submit03.unibe.ch'
         for tag in RUN_TAGS + ABLATION_TAGS:
+            # pull ONLY the small files the builder reads (results.json + the
+            # resolved config) — not the large pred arrays / ray_results — so a
+            # --pull over many (incl. historical) tags stays fast and never
+            # times out the watcher's refresh.
             subprocess.run(
                 [
                     'rsync',
                     '-azq',
-                    '--exclude=ray_results/',
-                    '--exclude=checkpoints/',
+                    '--timeout=60',
+                    '--include=*/',
+                    '--include=results.json',
+                    '--include=*.yaml',
+                    '--exclude=*',
                     f'{host}:~/codes/liulian-python/artifacts/entity_identifier/{tag}',
                     str(ART) + '/',
                 ],
