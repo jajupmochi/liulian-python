@@ -46,13 +46,16 @@ RUN_TAGS = [
 ]
 DATASET_ORDER = ['swiss-river-1990', 'swiss-river-2010', 'swiss-river-zurich', 'traffic', 'electricity']
 MODEL_ORDER = ['lstm', 'patchtst', 'dlinear']
+# rows that ALWAYS appear (even with 0 finished cells) — shown as N/A until data
+# lands, so an in-flight dataset (e.g. traffic) is still visible in the report.
+FORCE_ROWS = [('traffic', 'lstm')]
 MODES = ['none', 'embedding', 'onehot', 'sinusoidal', 'random', 'coordinates']
 UNITS = {
     'swiss-river-1990': '°C',
     'swiss-river-2010': '°C',
     'swiss-river-zurich': '°C',
     'traffic': 'norm',
-    'electricity': 'std',
+    'electricity': 'norm',
 }
 
 # --- PatchTST transparent injection ablation (task #40) -------------------- #
@@ -68,8 +71,9 @@ ABLATION_TAGS: list[str] = [  # patchtst transparent add_after_patch (task #40, 
 ]
 TRANSPARENT_MODES = ['onehot', 'sinusoidal', 'random', 'coordinates']
 # 'concat' | 'add_after_patch' | 'better' — which injection the MAIN summary
-# uses for patchtst transparent cells. Stays 'concat' until the user decides.
-MAIN_PATCHTST_SOURCE = 'concat'
+# uses for patchtst transparent cells. User decision (2026-06-17): use the BEST =
+# add_after_patch (post-norm), since concat_to_x is erased by instance-norm.
+MAIN_PATCHTST_SOURCE = 'add_after_patch'
 
 
 def collect_tags(tags: list[str]) -> dict:
@@ -87,7 +91,12 @@ def collect_tags(tags: list[str]) -> dict:
                 model = r['model']['type']
                 mode = r['data']['identifier_mode']
                 m = r['metrics']['test']
-                rmse = m.get('denorm_rmse', m.get('rmse'))
+                # swiss river: interpretable °C (denorm). standard benchmarks
+                # (electricity/traffic): conventional normalized RMSE (~0-1).
+                if ds.startswith('swiss'):
+                    rmse = m.get('denorm_rmse', m.get('rmse'))
+                else:
+                    rmse = m.get('rmse', m.get('denorm_rmse'))
                 if rmse is None or rmse != rmse:  # skip NaN
                     continue
                 data.setdefault((ds, model), {})[mode] = float(rmse)
@@ -101,11 +110,33 @@ def collect() -> dict:
     return collect_tags(RUN_TAGS)
 
 
+def apply_patchtst_source(data: dict) -> None:
+    """Override patchtst transparent cells in the MAIN summary per
+    MAIN_PATCHTST_SOURCE. RUN_TAGS hold concat_to_x (pre-norm); ABLATION_TAGS hold
+    add_after_patch (post-norm). User chose add_after_patch (the better one)."""
+    if MAIN_PATCHTST_SOURCE == 'concat' or not ABLATION_TAGS:
+        return
+    abl = collect_tags(ABLATION_TAGS)
+    for (ds, model), cells in abl.items():
+        if model != 'patchtst':
+            continue
+        main_cells = data.setdefault((ds, model), {})
+        for mode in TRANSPARENT_MODES:
+            a = cells.get(mode)
+            if a is None:
+                continue
+            if MAIN_PATCHTST_SOURCE == 'better':
+                c = main_cells.get(mode)
+                main_cells[mode] = a if (c is None or a < c) else c
+            else:  # 'add_after_patch'
+                main_cells[mode] = a
+
+
 def ordered_rows(data: dict) -> list[tuple[str, str]]:
     rows = []
     for ds in DATASET_ORDER:
         for model in MODEL_ORDER:
-            if (ds, model) in data:
+            if (ds, model) in data or (ds, model) in FORCE_ROWS:
                 rows.append((ds, model))
     return rows
 
@@ -115,7 +146,7 @@ def build_heatmap(data: dict, rows: list[tuple[str, str]]) -> None:
     grid = np.full((len(rows), len(MODES)), np.nan)
     annot = [['' for _ in MODES] for _ in rows]
     for i, (ds, model) in enumerate(rows):
-        cells = data[(ds, model)]
+        cells = data.get((ds, model), {})
         base = cells.get('none')
         for j, mode in enumerate(MODES):
             v = cells.get(mode)
@@ -179,7 +210,7 @@ def build_latex(data: dict, rows: list[tuple[str, str]]) -> None:
     ]
     last_ds = None
     for ds, model in rows:
-        cells = data[(ds, model)]
+        cells = data.get((ds, model), {})
         dlabel = f'{ds.replace("swiss-river-", "swiss-")} ({UNITS.get(ds, "?")})' if ds != last_ds else ''
         if ds != last_ds and last_ds is not None:
             lines.append(r'\midrule')
@@ -192,6 +223,9 @@ def build_latex(data: dict, rows: list[tuple[str, str]]) -> None:
         r'\multicolumn{' + str(2 + len(MODES)) + r'}{l}{\footnotesize '
         r'\textbf{bold} = best over all models \& modes for that dataset; '
         r'\underline{underline} = best id-mode for that (model, dataset) row.} \\',
+        r'\multicolumn{' + str(2 + len(MODES)) + r'}{l}{\footnotesize '
+        r'patchtst transparent modes use add\_after\_patch (post-norm) injection; '
+        r'swiss = RMSE in \textdegree C, electricity/traffic = normalized RMSE.} \\',
         r'\end{tabular}',
         r'\end{document}',
     ]
@@ -304,6 +338,7 @@ def main() -> None:
                 check=False,
             )
     data = collect()
+    apply_patchtst_source(data)
     rows = ordered_rows(data)
     print(f'collected {sum(len(v) for v in data.values())} cells across {len(rows)} (dataset,model) rows')
     build_heatmap(data, rows)

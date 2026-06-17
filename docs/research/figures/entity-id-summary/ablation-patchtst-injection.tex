@@ -1,0 +1,24 @@
+\documentclass[border=6pt]{standalone}
+\usepackage{booktabs}
+\begin{document}
+\begin{tabular}{llrrrr}
+\toprule
+dataset (unit) & id-mode & none & concat\_to\_x & add\_after\_patch & better \\
+\midrule
+swiss-1990 (°C) & onehot & 1.374 & \textbf{1.319} & 1.319 & concat \\
+ & sinusoidal & 1.374 & \textbf{1.325} & 1.325 & concat \\
+ & random & 1.374 & \textbf{1.326} & 1.326 & concat \\
+ & coordinates & 1.374 & \textbf{1.353} & 1.353 & concat \\
+\midrule
+swiss-2010 (°C) & onehot & 1.488 & \textbf{1.423} & 1.423 & concat \\
+ & sinusoidal & 1.488 & \textbf{1.451} & 1.451 & concat \\
+ & random & 1.488 & \textbf{1.424} & 1.424 & concat \\
+ & coordinates & 1.488 & \textbf{1.459} & 1.459 & concat \\
+\midrule
+swiss-zurich (°C) & onehot & 1.480 & \textbf{1.427} & 1.427 & concat \\
+ & sinusoidal & 1.480 & \textbf{1.434} & 1.434 & concat \\
+ & random & 1.480 & \textbf{1.441} & 1.441 & concat \\
+ & coordinates & 1.480 & \textbf{1.475} & 1.475 & concat \\
+\bottomrule
+\end{tabular}
+\end{document}
