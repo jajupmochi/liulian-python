@@ -277,6 +277,92 @@ To our knowledge, **among the work surveyed above**, none combines all of:
   acknowledged — our typed-ladder + same-backbone disable-substitute on
   non-graph models survives.
 
+## 11. Round-4 deep read → the one surviving novel lens (2026-06-18)
+
+After a 4th deep-read round (missingness / robustness / virtual-sensing), the
+honest strategic picture is: **the channel/entity-identity space in TSF is
+saturated (2022–2026); almost every *application* framing we generate is already
+owned.** Don't keep hunting application angles — they keep dying:
+
+| our candidate angle | already owned by (deep-read this round) |
+|---|---|
+| coordinate identity imputes missing sensors | **virtual sensing / kriging**: SPIN (2205.13479, Cini/Marisca/Alippi NeurIPS'22), Geographical Positional Encoding modules, graph-missing-data downsampling (2402.10634) |
+| identifier robustness under sensor dropout | **2026 sensor-fault-robustness benchmark** (2605.10822); ChannelTokenFormer (2506.08660); MMformer (environmental) |
+| identity-type × missingness | adjacent: IndexNet (2509.23813, variable-aware), Variate Embedding (2409.06169) — learned-embedding-centric |
+| identity vs structure / cold-start / when-law / text-identity | §9–§10: STID, CCM, CN, CHARM, How-Biased, inductive ST-GNN |
+
+### 11.1 The lens that survived **all four** rounds (and is verified in our data)
+
+Every search closes the *applications*, but **none** closes **N1 — the
+instance-normalization interaction.** Reframed, it is a genuinely fresh, unifying
+thesis:
+
+> **"Where you inject entity identity *relative to per-channel instance
+> normalization* is the hidden determinant of whether identity helps at all — it
+> is a normalization-interaction problem, not an architecture problem."**
+
+Why this is novel and defensible (research-critic-checked):
+- The field treats "how to add channel identity" as an **architectural** choice:
+  norm-params (CN 2506.00432), channel tokens (CARD), clustering (CCM),
+  text-gating (CHARM), concat-to-input (many). Each reports *that* its mechanism
+  helps, on its own model.
+- **We have the controlled evidence that the binding constraint is the
+  normalization interaction, not the architecture**: the *same* transparent
+  identifier on the *same* PatchTST backbone **regresses +30–85%** when injected
+  pre-norm (`concat_to_x`) and **beats `none`** when injected post-norm
+  (`add_after_patch`) — 12/12 swiss cells, numerically verified (per-channel
+  instance-norm subtracts the additive constant identity). No prior work *states*
+  this interaction as the general principle.
+- It **retro-explains** prior work: CN's choice to put identity *inside* the
+  normalization (channel-specific α,β) is exactly the post-norm fix — CN found it
+  empirically for *their* mechanism but never framed it as the general
+  "pre-norm additive identity dies under RevIN-style normalization" law. RevIN
+  (Kim 2021) / instance-norm is in nearly every SOTA TSF model, so the lens is
+  broadly load-bearing.
+
+### 11.2 The realistic paper (not a new method — a controlled study + mechanism)
+
+Lead = §11.1 lens. Body = the matrix we already built:
+- **Mechanism (novel core):** injection-point × normalization × identifier-type —
+  the instance-norm erasure law, with the 12-cell PatchTST ablation and a clean
+  ablation that toggles the norm to isolate it.
+- **Controlled attribution (empirical body):** identifier *type* decoupled from
+  architecture across LSTM / DLinear / PatchTST and per_entity / multi_channel
+  (the §9.6 ladder), giving the secondary findings we already have:
+  domain-dependence (swiss per-entity **−20–35%** vs traffic/electricity
+  multi-channel **weak**) and model-dependence (DLinear flat; PatchTST needs
+  post-norm; LSTM strong).
+- **Positioning:** explicitly against the ~8 subfields above — *we don't propose a
+  new identity mechanism; we explain when/where any of them works.*
+- **Contribution class:** analysis / mechanism / controlled-benchmark paper
+  (lineage: "How Biased is TSF?", "Are Data Embeddings Effective?") — venue:
+  workshop or a benchmark/analysis track, or the analysis section of the broader
+  entity-aware paper. **Not** a new-architecture paper.
+
+### 11.3 What to STOP doing (so we don't burn effort on dead angles)
+
+- Stop generating *application* novelty (missingness, cold-start, domain-as-new):
+  each is a populated subfield. Use them only as *evaluation settings*, never as
+  the claimed contribution.
+- Do NOT frame swiss-river as a "new benchmark" contribution — PeakWeather
+  (2506.13652) and the imputation datasets already stake Swiss/environmental ST.
+- Keep the claim to **mechanism + controlled study**, the one thing four rounds
+  of search could not close.
+
+### 11.4 research-critic on §11
+
+- Q1 falsifiable ✅ — "pre-norm additive identity is erased by per-channel
+  instance-norm; post-norm injection survives" is a sharp, testable mechanism
+  (already 12/12 + numerical check; a norm-on/off ablation would seal it).
+- Q3 fair / Q5 proportional ✅ — claim is *mechanism + study*, explicitly NOT
+  method novelty; retro-explanation of CN is offered as a hypothesis to test, not
+  asserted as their stated claim.
+- Q6 ✅ — surveyed the closest normalization+identity work (CN, RevIN); the
+  *general normalization-interaction framing* was not found stated. Hedge "to our
+  knowledge". Single-seed / single-domain caveats from §7 carry over; a
+  norm-toggle ablation + a 2nd architecture with instance-norm (iTransformer,
+  S-Mamba) would strengthen generality before any headline.
+
 ## 9.6 Increment table + innovation grading (round-2 per-item confirmation, 2026-06-16)
 
 User follow-up: *"请表格形式具体说明我们还能做的内容，给出创新性分级，并再次调研确认没人做过."*
