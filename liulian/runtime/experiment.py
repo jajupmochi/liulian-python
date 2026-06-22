@@ -566,6 +566,7 @@ class Experiment:
                 self.spec,
                 search_space,
                 trainable,
+                loaders=loaders,
             )
             summary['metrics']['hpo'] = {
                 'best_config': hpo_result.best_config,

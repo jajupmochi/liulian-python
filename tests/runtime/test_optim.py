@@ -119,13 +119,15 @@ class TestRayOptimizer:
 
         monkeypatch.setattr(trainer_mod, 'ForecastTrainer', DummyTrainer)
 
+        _loaders = {'train': object(), 'val': object(), 'test': object()}
         trainable = make_trainable(
             model_cls=DummyModel,
             model_args=SimpleNamespace(),
-            loaders={'train': object(), 'val': object(), 'test': object()},
+            loaders=_loaders,
             base_config={},
         )
-        trainable({})
+        # loaders are injected (tune.with_parameters) rather than closure-captured
+        trainable({}, loaders=_loaders)
 
         assert captured['config'] == {'disable_early_stopping': False}
         assert captured['checkpoint_dir'] == 'checkpoints/trial_abc123'

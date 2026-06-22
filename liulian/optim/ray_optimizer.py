@@ -72,7 +72,18 @@ def make_trainable(
         A callable ``(config: dict) -> None`` suitable for ``tune.run``.
     """
 
-    def _trainable(config: Dict[str, Any]) -> None:
+    def _trainable(config: Dict[str, Any], loaders: Optional[Dict[str, Any]] = None) -> None:
+        # `loaders` is INJECTED by tune.with_parameters (Ray object store), not
+        # captured in this closure. A large multi_channel loaders dict (e.g.
+        # traffic 862ch ~hundreds of MiB) captured in-closure bloats the
+        # serialized actor past Ray's FUNCTION_SIZE_ERROR_THRESHOLD (the 518 MiB
+        # 'ImplicitFunc is too large' crash). _run_ray wraps this trainable with
+        # tune.with_parameters(loaders=...) so the data ships once via the store.
+        if loaders is None:
+            raise RuntimeError(
+                'make_trainable: loaders were not injected — the optimizer must '
+                'wrap this trainable via tune.with_parameters(trainable, loaders=...).'
+            )
         # Register custom log levels (.ok, .hint, .progress) in this
         # Ray worker so downstream modules can use logger.ok() etc.
         import liulian.utils.log_tags  # noqa: F401
@@ -183,6 +194,29 @@ def make_trainable(
             test_loader,
             epoch_callback=_epoch_callback,
         )
+
+    # ── diagnostic (env-gated): pickled size of the trial closure + each
+    # captured object, to locate an oversized-actor (Ray FUNCTION_SIZE) cause.
+    if os.environ.get('LIULIAN_DEBUG_CLOSURE_SIZE'):
+        try:
+            from ray import cloudpickle as _cp
+
+            def _mb(o: Any) -> str:
+                try:
+                    return f'{len(_cp.dumps(o)) / 1048576:.1f} MiB'
+                except Exception as _e:  # noqa: BLE001
+                    return f'<unpicklable: {type(_e).__name__}>'
+
+            print(
+                '[CLOSURE-SIZE] '
+                f'_trainable={_mb(_trainable)} | loaders={_mb(loaders)} | '
+                f'base_config={_mb(base_config)} | model_factory={_mb(model_factory)} | '
+                f'model_args={_mb(model_args)} | model_cls={_mb(model_cls)} | '
+                f'loaders_factory={_mb(loaders_factory)}',
+                flush=True,
+            )
+        except Exception as _e:  # noqa: BLE001
+            print(f'[CLOSURE-SIZE] diagnostic failed: {_e}', flush=True)
 
     return _trainable
 
@@ -475,6 +509,7 @@ class RayOptimizer(BaseOptimizer):
         spec: Any,
         search_space: Dict[str, Any],
         trainable: Optional[Callable[..., Any]] = None,
+        loaders: Optional[Dict[str, Any]] = None,
     ) -> OptimizationResult:
         """Run hyperparameter optimization.
 
@@ -491,7 +526,7 @@ class RayOptimizer(BaseOptimizer):
             :class:`OptimizationResult` with the best configuration found.
         """
         if self._ray_available:
-            return self._run_ray(spec, search_space, trainable)
+            return self._run_ray(spec, search_space, trainable, loaders)
         return self._run_fallback(spec, search_space)
 
     # ------------------------------------------------------------------
@@ -503,6 +538,7 @@ class RayOptimizer(BaseOptimizer):
         spec: Any,
         search_space: Dict[str, Any],
         trainable: Optional[Callable[..., Any]] = None,
+        loaders: Optional[Dict[str, Any]] = None,
     ) -> OptimizationResult:
         """Execute HPO using Ray Tune with optional ASHA scheduler.
 
@@ -728,7 +764,13 @@ class RayOptimizer(BaseOptimizer):
             run_kwargs['resume'] = True
 
         try:
-            analysis = tune.run(trainable, **run_kwargs)
+            # Ship large data (loaders) via the Ray object store rather than
+            # capturing it in the trainable closure — keeps the serialized actor
+            # under Ray's FUNCTION_SIZE limit (fixes traffic-862ch oversized actor).
+            run_trainable = trainable
+            if loaders is not None and trainable is not None:
+                run_trainable = tune.with_parameters(trainable, loaders=loaders)
+            analysis = tune.run(run_trainable, **run_kwargs)
         finally:
             # ── Restore original paths after Ray finishes ───────────
             if _spaces_patch is not None:
