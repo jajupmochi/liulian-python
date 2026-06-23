@@ -363,6 +363,52 @@ Lead = §11.1 lens. Body = the matrix we already built:
   norm-toggle ablation + a 2nd architecture with instance-norm (iTransformer,
   S-Mamba) would strengthen generality before any headline.
 
+## 12. N2 result — channel redundancy vs identity utility (computed 2026-06-23)
+
+Computed on the raw channel matrices (train split): **mean |pairwise Pearson
+correlation|** across channels + **effective rank** (participation ratio
+`(Σλ)²/Σλ²` of the channel covariance):
+
+| dataset | C | mean \|corr\| | eff_rank | eff_rank / C |
+|---|---|---|---|---|
+| **swiss-1990** | 57* | **0.900** | 1.2 | 0.021 |
+| traffic | 862 | 0.564 | 2.8 | 0.003 |
+| electricity | 321 | 0.489 | 3.1 | 0.010 |
+
+\*swiss csv numeric columns (stations + possibly covariates); the point is
+robust either way. **All three real-world datasets are extremely
+channel-redundant** — effective rank 1–3 out of 57–862 channels; the data lives
+on a ~1–3 dimensional manifold.
+
+Pairing redundancy with identity-utility (best-ID % RMSE improvement vs `none`):
+
+- **multi_channel** (channels = entities, model sees all jointly): channel
+  identity gives only **−0.5 to −5%** everywhere. Consistent with "redundant
+  channels ⇒ channel-*discrimination* adds little" — but the redundancy
+  *gradient* (swiss 0.90 > traffic 0.56 > elec 0.49) does **not** yield a clean
+  utility gradient (mc utility is uniformly small; only 3 points; confounded by
+  different models/channel-counts). **Observation, not a law.**
+- **per_entity** (swiss LSTM, each station modelled alone + its ID): identity
+  gives **−20 to −35%** — *largest on the MOST redundant dataset*. This
+  **inverts** the naive "redundancy hurts identity": in per_entity, high
+  inter-station redundancy plausibly *helps* — the ID lets one shared model
+  specialise and transfer across similar stations.
+
+**Refined §11 / "when does identity help" thesis (the real finding):** identity
+utility is **regime-dependent**, not a monotone function of channel redundancy —
+`{multi_channel + redundant → marginal}` vs `{per_entity + redundant → large
+(specialisation + cross-entity transfer)}`. This is a sharper, data-grounded
+version of the question than "redundancy → low identity utility".
+
+research-critic: 3 datasets, single-seed; the mc-utility numbers mix models
+(dlinear/patchtst/lstm) and channel counts, so redundancy is **not** isolated as
+the driver — the defensible signal is the **per_entity-vs-multi_channel regime
+contrast** (swiss −20–35% per_entity, consistent across all 3 swiss datasets).
+**N6** (per-entity error dispersion / worst-entity) is still pending — it needs
+the per-entity prediction arrays, which are not pulled locally (the figure
+`--pull` filter fetches only `results.json`); a small cluster extraction would
+produce it.
+
 ## 9.6 Increment table + innovation grading (round-2 per-item confirmation, 2026-06-16)
 
 User follow-up: *"请表格形式具体说明我们还能做的内容，给出创新性分级，并再次调研确认没人做过."*
