@@ -79,6 +79,11 @@ VENV_ACTIVATE = PROJECT_ROOT / '.venv' / 'bin' / 'activate'
 # crashed at the old 476.8 MiB ceiling. Band-aid per user; proper fix = move
 # all data captures to the Ray object store (tracked, lower priority).
 RAY_FN_SIZE_THRESHOLD = '1073741824'
+# Ray's gRPC transport hard cap on a single message (default 512 MiB). The
+# ~543 MB traffic transparent actor exceeds it ("RpcError: Sent message larger
+# than max (543370753 vs 536870912)"), so raise it in lockstep with the
+# FUNCTION_SIZE threshold. Read by Ray 2.55 via the RAY_max_grpc_message_size env.
+RAY_GRPC_MSG_SIZE = '1073741824'
 
 
 # --------------------------------------------------------------------------- #
@@ -270,6 +275,7 @@ def build_sbatch_script(
         f'module load {PYTHON_MODULE}',
         f'source "{VENV_ACTIVATE}"',
         f'export FUNCTION_SIZE_ERROR_THRESHOLD={RAY_FN_SIZE_THRESHOLD}',
+        f'export RAY_max_grpc_message_size={RAY_GRPC_MSG_SIZE}',
     ]
     if patchtst_transparent_add_after_patch:
         lines.append('export LIULIAN_PATCHTST_TRANSPARENT_ADD_AFTER_PATCH=1')
@@ -323,6 +329,7 @@ def run_local(params: ExperimentParams) -> dict[str, Any]:
     profile = RESOURCE_PROFILES['local']
     resolved = _resolve_params(profile, params)
     os.environ.setdefault('FUNCTION_SIZE_ERROR_THRESHOLD', RAY_FN_SIZE_THRESHOLD)
+    os.environ.setdefault('RAY_max_grpc_message_size', RAY_GRPC_MSG_SIZE)
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
     # Imported here (not at module top) so cluster modes don't import torch/ray.
