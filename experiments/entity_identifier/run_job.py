@@ -72,8 +72,13 @@ MAIL_USER = 'jajupmochi@gmail.com'
 PYTHON_MODULE = 'Python/3.12.3-GCCcore-13.3.0'
 VENV_ACTIVATE = PROJECT_ROOT / '.venv' / 'bin' / 'activate'
 # Ray Tune closure-size threshold workaround — the traffic/electricity dataset
-# tensors captured by the trainable exceed Ray's default 95 MiB limit.
-RAY_FN_SIZE_THRESHOLD = '500000000'
+# tensors captured by the trainable exceed Ray's default 95 MiB limit. Bumped
+# 2026-06-23 from 500 MB → 1 GiB: traffic (862ch) transparent-mode trainables
+# serialize to 512–518 MiB (data captured via base_config/model_args, only
+# partly relieved by the tune.with_parameters loaders fix d52d0cb), which
+# crashed at the old 476.8 MiB ceiling. Band-aid per user; proper fix = move
+# all data captures to the Ray object store (tracked, lower priority).
+RAY_FN_SIZE_THRESHOLD = '1073741824'
 
 
 # --------------------------------------------------------------------------- #
