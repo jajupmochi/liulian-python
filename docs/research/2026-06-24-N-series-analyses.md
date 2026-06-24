@@ -152,9 +152,44 @@ decision).
    — consistent with "the model can't use the identity here".
 3. **Electricity has extreme per-channel dispersion (Gini 0.79; worst channel ≈ 33×
    the median)** that the aggregate RMSE completely hides — a few large-scale channels
-   dominate. This is exactly the failure mode hydrology warns about, and it explains
-   why the *denorm* electricity aggregate was misleading earlier (see the channel-id
-   design doc §"normalized vs denorm" correction).
+   dominate. **⚠ but see §2.3.1: this is mostly a SCALE artifact** — recomputed below.
+
+### 2.3.1 Normalized recompute (corrects §2.3 — done 2026-06-24)
+
+Per-channel error made **scale-free**: `NRMSE_c = RMSE_c / std(true_c)`.
+
+| cell | mean NRMSE | median | Gini | worst/median |
+|---|---|---|---|---|
+| swiss patchtst none | 0.359 | 0.350 | 0.143 | 1.62 |
+| swiss patchtst embedding (helps mean) | 0.346 | 0.333 | 0.148 | 1.69 |
+| swiss dlinear none | 0.342 | 0.326 | 0.170 | 1.78 |
+| swiss dlinear onehot | 0.342 | 0.330 | 0.166 | 1.73 |
+| traffic lstm none | 0.553 | 0.518 | 0.168 | 1.85 |
+| traffic lstm embedding | 0.558 | 0.523 | 0.163 | 1.82 |
+| traffic lstm onehot | 0.556 | 0.518 | 0.171 | 1.89 |
+| electricity lstm none/sin/onehot | *corrupted* | 0.44 / 0.46 / 0.45 | ~0.997\* | huge\* |
+
+\*electricity has **near-zero-variance channels** (flat/dead sensors); `÷std≈0`
+blows NRMSE up → use the **median** NRMSE (robust): 0.443 / 0.455 / 0.448 for
+none / sin / onehot.
+
+**Corrected finding (SUPERSEDES the denorm §2.3 points 1–3):**
+- On a **scale-free** metric, per-channel dispersion is **modest everywhere**
+  (Gini ≈ 0.14–0.17 on swiss/traffic) — the denorm "Gini 0.79 / worst 33×" was
+  **entirely a channel-SCALE artifact** (some channels just have larger values),
+  now confirmed.
+- **Identity does NOT meaningfully change per-entity error *dispersion*** on the
+  normalized scale (Gini barely moves: swiss patchtst 0.143→0.148, traffic embed
+  0.168→0.163 — within noise; electricity median ~flat). It lifts the **mean**
+  where it helps (N2 / main results) but does **not** compress the per-channel
+  error distribution or specifically rescue the worst entities — the earlier
+  denorm hint "embedding helps the worst decile" does **not** survive normalisation.
+- electricity has **near-constant channels** — a data-quality finding; report
+  median NRMSE, not mean.
+
+**Methodological lesson (state it in the paper):** N6 *must* be computed on a
+scale-free per-channel error — the denorm version is dominated by channel scale and
+misleads. (This echoes why hydrology normalises via NSE/KGE rather than raw RMSE.)
 
 ### 2.4 How to use it in the paper
 - Report a **per-entity error CDF / Gini / worst-decile** column *next to* every mean
@@ -213,5 +248,9 @@ that also plays directly to the water-temp beachhead. It complements the N1
 
 ### research-critic (whole record)
 3 datasets, single seed; the redundancy↔utility link is an *observation* (confounded
-by model/channel-count), the robust signal is the per_entity-vs-mc regime contrast;
-N6 needs a normalised recompute. State everything as "we observe", not "law".
+by model/channel-count), the robust signal is the per_entity-vs-mc regime contrast.
+**N6 normalised recompute is done (§2.3.1) and it overturned the denorm finding** —
+on a scale-free metric identity does *not* change per-entity dispersion; the dramatic
+denorm spread was a channel-scale artifact. A good reminder to verify every
+analysis-lens claim on the right (normalised) units. State everything as "we
+observe", not "law".
