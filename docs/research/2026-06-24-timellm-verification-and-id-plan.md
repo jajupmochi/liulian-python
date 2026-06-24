@@ -84,6 +84,33 @@ A small table: `{official-GPT2, ours-GPT2, paper-LLaMA[ref]} × {MSE, MAE}` on
 ETTh1@96 (+ optionally 192/336/720), with a pass/fail verdict and, if needed, the
 fix applied.
 
+### 2.5 RESULT (2026-06-24) — PASS, bit-identical
+Ran V1 (official Time-LLM-Revised `Model`) and V2 (our liulian `Model`) under the
+**same** harness (`run_experiment.py`) + official `data_provider`, GPT2, ETTh1@96,
+fp32. **Per-epoch Train/Vali/Test/MAE are BIT-IDENTICAL** across V1 and V2:
+
+| epoch | Train | Vali | Test | MAE |
+|---|---|---|---|---|
+| 1 | 0.41813 | 0.80712 | 0.41547 | 0.43381 |
+| 3 | 0.39229 | 0.76519 | 0.39502 | 0.41675 |
+| 5 | 0.38109 | 0.74980 | 0.39078 | 0.41589 |
+| best (early-stop ~e10) | — | — | **0.3908** | **0.4159** |
+
+**Verdict: CONSISTENT — our Time-LLM port is numerically bit-exact to the official
+model** under identical conditions. Sanity vs paper: our GPT2 ETTh1@96 MSE 0.391
+is within ~8 % of the paper's LLaMA-7B ≈ 0.362 *[verify]* — the expected
+GPT2 < LLaMA gap. (Setup took 4 infra fixes: default-config override clobbering
+CLI args; login-`/tmp` not shared with compute nodes; a stale `TIMELLM_ROOT` path
+bug in `run_experiment.py`; and the official's separate GPT2 `cache_dir`.)
+
+### 2.6 Divergence found (documented, benign)
+Our port **intentionally keeps fp32** at the patch embedding
+(`liulian/models/torch/timellm.py:400-401` — the bf16 cast commented out) where
+the **official casts to bf16** (`Time-LLM-Revised/models/TimeLLM.py:340`, for its
+accelerate-bf16 harness). This is a *precision* choice, not architectural; under
+matched fp32 the two are bit-identical (§2.5). Note this one-liner whenever a
+Time-LLM number is reported.
+
 ---
 
 ## 3. Phase 2 — Time-LLM + id-mode design (organised + optimised from `timellm.md`)
