@@ -46,7 +46,7 @@ from tqdm import tqdm
 # ---------------------------------------------------------------------------
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..'))
-TIMELLM_ROOT = os.path.join(PROJECT_ROOT, 'refer_projects', 'Time-LLM_20260209_154911')
+TIMELLM_ROOT = os.path.join(PROJECT_ROOT, 'refer_projects', 'Time-LLM-Revised')
 
 # Add reference project to path for data_provider and utils imports
 if TIMELLM_ROOT not in sys.path:
@@ -55,9 +55,15 @@ if TIMELLM_ROOT not in sys.path:
 from data_provider.data_factory import data_provider
 from utils.tools import adjust_learning_rate
 
-# Import adapted TimeLLM model from liulian
+# Import the TimeLLM model: ours (liulian) by default, or the OFFICIAL
+# Time-LLM-Revised reference model when LIULIAN_TIMELLM_OFFICIAL is set. This
+# enables the reproduction-verification A/B (V1 official vs V2 ours) under the
+# *identical* harness + data_provider, so only the Model differs.
 sys.path.insert(0, PROJECT_ROOT)
-from liulian.models.torch.timellm import Model as TimeLLMModel
+if os.environ.get('LIULIAN_TIMELLM_OFFICIAL', '') == '1':
+    from models.TimeLLM import Model as TimeLLMModel  # official reference
+else:
+    from liulian.models.torch.timellm import Model as TimeLLMModel
 
 
 # ---------------------------------------------------------------------------
