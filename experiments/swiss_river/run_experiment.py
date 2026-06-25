@@ -144,6 +144,43 @@ def load_content(args):
     )
 
 
+def load_entity_descriptions(args):
+    """Per-channel entity descriptions for the H4 ``entity_description`` mode.
+
+    Returns ``None`` for every other identifier mode (so the Time-LLM prompt is
+    byte-identical to the verified baseline). Descriptions are externalized to
+    ``configs/entity_descriptions.yaml`` (keyed by ``--data``), index-aligned
+    with the model's channel order (features='M' -> CSV columns[1:]). The length
+    is validated against ``enc_in`` so a mismatched table fails loudly rather
+    than injecting the wrong identity.
+    """
+    mode = getattr(args, 'identifier_mode', 'none')
+    if mode != 'entity_description':
+        return None
+    import yaml
+
+    desc_path = os.path.join(SCRIPT_DIR, 'configs', 'entity_descriptions.yaml')
+    with open(desc_path, 'r') as f:
+        table = yaml.safe_load(f) or {}
+    if args.data not in table:
+        raise ValueError(
+            f"identifier_mode='entity_description' but no descriptions for "
+            f'data={args.data!r} in {desc_path}. Add a key with one description '
+            f'per channel (enc_in={args.enc_in}).'
+        )
+    descriptions = [str(d) for d in table[args.data]]
+    if len(descriptions) != args.enc_in:
+        raise ValueError(
+            f'entity_descriptions for {args.data!r} has {len(descriptions)} '
+            f'entries but enc_in={args.enc_in}; need exactly one per channel.'
+        )
+    print(
+        f'[H4] entity_description mode: {len(descriptions)} per-channel '
+        f'descriptions loaded for {args.data}'
+    )
+    return descriptions
+
+
 # ---------------------------------------------------------------------------
 # Validation function (adapted from utils/tools.py::vali)
 # ---------------------------------------------------------------------------
@@ -235,6 +272,10 @@ def train(args, device):
 
         # Load prompt content
         args.content = load_content(args)
+
+        # H4: per-channel entity descriptions for the entity_description mode
+        # (None for every other mode -> byte-identical to the verified baseline).
+        model.entity_descriptions = load_entity_descriptions(args)
 
         # Checkpoint path
         path = os.path.join(args.checkpoints, setting + '-' + args.model_comment)
@@ -390,6 +431,9 @@ def evaluate(args, device):
 
     model = TimeLLMModel(args).float().to(device)
 
+    # H4: per-channel entity descriptions (None for non-entity_description modes).
+    model.entity_descriptions = load_entity_descriptions(args)
+
     # Find checkpoint
     setting = '{}_{}_{}_{}_ft{}_sl{}_ll{}_pl{}_dm{}_nh{}_el{}_dl{}_df{}_fc{}_eb{}_{}_{}'.format(
         args.task_name,
@@ -500,6 +544,16 @@ def build_parser():
     parser.add_argument('--patch_len', type=int, default=16)
     parser.add_argument('--stride', type=int, default=8)
     parser.add_argument('--prompt_domain', type=int, default=0)
+    parser.add_argument(
+        '--identifier_mode',
+        type=str,
+        default='none',
+        choices=['none', 'entity_description'],
+        help="Entity-identifier mode. 'entity_description' (H4) injects per-channel "
+        'natural-language descriptions into the Time-LLM prompt (multi_channel, '
+        'channel = entity); descriptions come from configs/entity_descriptions.yaml. '
+        "'none' is byte-identical to the verified baseline prompt.",
+    )
     parser.add_argument('--llm_model', type=str, default='GPT2')
     parser.add_argument('--llm_dim', type=int, default=768)
 

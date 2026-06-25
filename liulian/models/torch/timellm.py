@@ -94,6 +94,13 @@ class Model(nn.Module):
 
         self.cache_dir: Union[str, PathLike, None] = getattr(configs, 'cache_dir', None)
 
+        # H4 entity_description (Time-LLM-only text identity): optional list of
+        # per-channel natural-language descriptions injected into the LLM prompt,
+        # one entry per channel for multi_channel (channel = entity). ``None`` →
+        # baseline prompt, byte-identical to the verified V1/V2 path. Set by the
+        # experiment harness/adapter; see forecast() for the b % N injection.
+        self.entity_descriptions: Union[list, None] = None
+
         # Import transformers here to make it optional
         from transformers import (
             LlamaConfig,
@@ -346,6 +353,54 @@ class Model(nn.Module):
             return dec_out[:, -self.pred_len :, :]
         return None
 
+    @staticmethod
+    def _validate_entity_descriptions(entity_descriptions: Union[list, None], n_channels: int) -> None:
+        """Validate the H4 description table length against the channel count.
+
+        Returns silently when no descriptions are set (the baseline path), so it
+        is a no-op for every non-``entity_description`` run. Raises ``ValueError``
+        on a length mismatch so a mis-sized table fails loudly instead of
+        silently injecting the wrong identity via ``b % N``.
+        """
+        if entity_descriptions is not None and len(entity_descriptions) != n_channels:
+            raise ValueError(
+                f'entity_descriptions has {len(entity_descriptions)} entries but '
+                f'the model sees N={n_channels} channels; the per-channel H4 path '
+                'requires one description per channel (multi_channel split).'
+            )
+
+    @staticmethod
+    def _compose_prompt(
+        description: str,
+        entity_desc: Union[str, None],
+        pred_len: str,
+        seq_len: str,
+        min_v: str,
+        max_v: str,
+        median_v: str,
+        trend_up: bool,
+        lags_str: str,
+    ) -> str:
+        """Build one channel's Time-LLM text prompt.
+
+        ``entity_desc`` is the H4 per-channel natural-language identity. When it
+        is ``None`` or empty the inserted segment is the empty string, so the
+        returned prompt is byte-identical to the original (pre-H4) prompt — this
+        preserves the V1/V2 bit-exact reproduction on the ``none`` path.
+        """
+        entity_str = f'Entity description: {entity_desc}; ' if entity_desc else ''
+        return (
+            f'<|start_prompt|>Dataset description: {description}'
+            f'Task description: forecast the next {pred_len} steps given the previous {seq_len} steps information; '
+            f'{entity_str}'
+            'Input statistics: '
+            f'min value {min_v}, '
+            f'max value {max_v}, '
+            f'median value {median_v}, '
+            f'the trend of input is {"upward" if trend_up else "downward"}, '
+            f'top 5 lags are : {lags_str}<|<end_prompt>|>'
+        )
+
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
 
         x_enc = self.normalize_layers(x_enc, 'norm')  # x_enc: [B, T, N_f]
@@ -359,21 +414,29 @@ class Model(nn.Module):
         lags = self.calcute_lags(x_enc)
         trends = x_enc.diff(dim=1).sum(dim=1)
 
+        # H4: optional per-channel entity description. After the reshape to
+        # (B*N, T, 1) above, loop index b maps to channel b % N — the entity in
+        # multi_channel mode (channel = entity). The guard makes a mis-sized
+        # table fail loudly instead of injecting the wrong identity (per_entity,
+        # N=1, needs the per-sample station-id path, not b % N).
+        self._validate_entity_descriptions(self.entity_descriptions, N)
         prompt = []
         for b in range(x_enc.shape[0]):
             min_values_str = str(min_values[b].tolist()[0])
             max_values_str = str(max_values[b].tolist()[0])
             median_values_str = str(medians[b].tolist()[0])
             lags_values_str = str(lags[b].tolist())
-            prompt_ = (
-                f'<|start_prompt|>Dataset description: {self.description}'
-                f'Task description: forecast the next {str(self.pred_len)} steps given the previous {str(self.seq_len)} steps information; '
-                'Input statistics: '
-                f'min value {min_values_str}, '
-                f'max value {max_values_str}, '
-                f'median value {median_values_str}, '
-                f'the trend of input is {"upward" if trends[b] > 0 else "downward"}, '
-                f'top 5 lags are : {lags_values_str}<|<end_prompt>|>'
+            entity_desc = self.entity_descriptions[b % N] if self.entity_descriptions is not None else None
+            prompt_ = self._compose_prompt(
+                self.description,
+                entity_desc,
+                str(self.pred_len),
+                str(self.seq_len),
+                min_values_str,
+                max_values_str,
+                median_values_str,
+                bool(trends[b] > 0),
+                lags_values_str,
             )
 
             prompt.append(prompt_)

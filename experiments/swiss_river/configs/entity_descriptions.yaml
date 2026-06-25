@@ -1,0 +1,33 @@
+# Per-channel natural-language entity descriptions for the Time-LLM H4
+# `entity_description` identifier mode (--identifier_mode entity_description).
+#
+# Keyed by --data. Each value is a list of descriptions, ONE PER CHANNEL,
+# index-aligned with the model's channel order. For features='M' the channel
+# order is the CSV columns after `date` (columns[1:]). The harness validates
+# len(list) == enc_in and fails loudly on a mismatch, so a wrong-length table
+# can never silently inject the wrong identity.
+#
+# This is the genuinely novel, Time-LLM-only identifier rung: the description
+# text enters the LLM's natural-language prompt and is grounded by its
+# pretrained world knowledge (no other forecaster in the matrix can use it).
+# Prefer DESCRIPTIVE text over bare names/IDs — a frozen LLM grounds
+# "high useful load on an electricity transformer" far better than "HUFL".
+
+# ETTh1 — the 7 Electricity Transformer Temperature channels (Zhou et al.,
+# Informer, AAAI 2021). Order = HUFL, HULL, MUFL, MULL, LUFL, LULL, OT.
+ETTh1:
+  - "High UseFul Load on an electricity transformer"
+  - "High UseLess Load on an electricity transformer"
+  - "Middle UseFul Load on an electricity transformer"
+  - "Middle UseLess Load on an electricity transformer"
+  - "Low UseFul Load on an electricity transformer"
+  - "Low UseLess Load on an electricity transformer"
+  - "Oil Temperature of an electricity transformer"
+
+# swiss-river-1990 — NOTE: the standalone harness loads swiss in PER-ENTITY,
+# station-agnostic, univariate form (features='S', enc_in=1); the per-channel
+# b % N path does not apply, and the repo holds only numeric BAFU station IDs
+# (no river names / locations / elevations). Headline swiss H4 therefore needs
+# (a) a per-sample station-id thread-through AND (b) a real station-metadata
+# source. Left intentionally unset until that decision is made (see
+# docs/research/2026-06-24-timellm-verification-and-id-plan.md).

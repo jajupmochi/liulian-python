@@ -321,3 +321,96 @@ class TestTimeLLMDownload:
 
         model = TimeLLMAdapter(config)
         assert model is not None
+
+
+class TestTimeLLMEntityDescriptionPrompt:
+    """Fast (no-GPT2) tests for the H4 ``entity_description`` prompt injection.
+
+    ``Model._compose_prompt`` is a staticmethod, so these exercise the real H4
+    prompt-composition logic without instantiating the LLM (no download, no
+    transformers forward). They lock two properties:
+
+    * **Parity** — with ``entity_desc=None`` (or ``''``) the prompt is
+      byte-identical to the original pre-H4 prompt, preserving the V1/V2
+      bit-exact reproduction on the ``none`` path.
+    * **Effect** — with a description set, that text actually appears in the
+      prompt and changes it (no dead knob).
+    """
+
+    # Fixed sample stats shared across the cases below.
+    _DESC = 'Swiss River Network water temperature. '
+    _PRED, _SEQ = '24', '96'
+    _MIN, _MAX, _MED = '0.1', '0.9', '0.5'
+    _LAGS = '[1, 2, 3, 24, 25]'
+
+    def _baseline(self, trend_up: bool = True) -> str:
+        """The exact original (pre-H4) prompt for the shared sample stats."""
+        return (
+            f'<|start_prompt|>Dataset description: {self._DESC}'
+            f'Task description: forecast the next {self._PRED} steps given the previous {self._SEQ} steps information; '
+            'Input statistics: '
+            f'min value {self._MIN}, '
+            f'max value {self._MAX}, '
+            f'median value {self._MED}, '
+            f'the trend of input is {"upward" if trend_up else "downward"}, '
+            f'top 5 lags are : {self._LAGS}<|<end_prompt>|>'
+        )
+
+    def _compose(self, entity_desc, trend_up: bool = True) -> str:
+        from liulian.models.torch.timellm import Model
+
+        return Model._compose_prompt(
+            self._DESC,
+            entity_desc,
+            self._PRED,
+            self._SEQ,
+            self._MIN,
+            self._MAX,
+            self._MED,
+            trend_up,
+            self._LAGS,
+        )
+
+    def test_none_is_byte_identical_to_baseline(self):
+        """entity_desc=None ⟹ byte-identical to the verified pre-H4 prompt."""
+        assert self._compose(None) == self._baseline(trend_up=True)
+        assert self._compose(None, trend_up=False) == self._baseline(trend_up=False)
+        assert 'Entity description:' not in self._compose(None)
+
+    def test_empty_string_falls_back_to_baseline(self):
+        """Empty description is falsy ⟹ no injection (same as None)."""
+        assert self._compose('') == self._baseline()
+
+    def test_description_is_injected_and_changes_prompt(self):
+        """A real description appears verbatim and changes the prompt (no dead knob)."""
+        desc = 'River Aare at Bern, alpine river, elevation 502 m'
+        out = self._compose(desc)
+        baseline = self._baseline()
+        assert f'Entity description: {desc};' in out
+        assert out != baseline
+        assert len(out) > len(baseline)
+        # Injected segment sits between the task description and the statistics.
+        assert out.index('Entity description:') < out.index('Input statistics:')
+
+    def test_distinct_descriptions_yield_distinct_prompts(self):
+        """Two entities ⟹ two different prompts (identity actually discriminates)."""
+        a = self._compose('Station A: Rhine at Basel')
+        b = self._compose('Station B: Ticino at Bellinzona')
+        assert a != b
+        assert 'Rhine at Basel' in a and 'Ticino at Bellinzona' in b
+
+    def test_validate_length_guard(self):
+        """The per-channel guard: no-op when unset/matched, raises on mismatch."""
+        import pytest
+
+        from liulian.models.torch.timellm import Model
+
+        # No descriptions → no-op (baseline path), regardless of N.
+        Model._validate_entity_descriptions(None, 7)
+        # Exactly one description per channel → passes.
+        Model._validate_entity_descriptions(['a', 'b', 'c'], 3)
+        # Too few / too many → fail loudly (would otherwise mis-index via b % N).
+        with pytest.raises(ValueError, match='one description per channel'):
+            Model._validate_entity_descriptions(['a', 'b'], 7)
+        with pytest.raises(ValueError, match='N=2'):
+            Model._validate_entity_descriptions(['a', 'b', 'c'], 2)
