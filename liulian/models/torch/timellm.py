@@ -100,6 +100,10 @@ class Model(nn.Module):
         # baseline prompt, byte-identical to the verified V1/V2 path. Set by the
         # experiment harness/adapter; see forecast() for the b % N injection.
         self.entity_descriptions: Union[list, None] = None
+        # H4 per-sample path: column index in x_mark_enc that carries the
+        # per-sample entity id (which channel/station this CI sample is). Set by
+        # the harness when the loader exposes it; None -> per-channel b % N path.
+        self.entity_id_mark_col: Union[int, None] = None
 
         # Import transformers here to make it optional
         from transformers import (
@@ -354,20 +358,53 @@ class Model(nn.Module):
         return None
 
     @staticmethod
-    def _validate_entity_descriptions(entity_descriptions: Union[list, None], n_channels: int) -> None:
-        """Validate the H4 description table length against the channel count.
+    def _resolve_entity_descs(
+        entity_descriptions: Union[list, None],
+        entity_id_mark_col: Union[int, None],
+        x_mark_enc: Any,
+        n_series: int,
+        n_channels: int,
+    ) -> list:
+        """Resolve the H4 entity description for each of the ``n_series`` flattened
+        series (returns a length-``n_series`` list of ``str`` or ``None``).
 
-        Returns silently when no descriptions are set (the baseline path), so it
-        is a no-op for every non-``entity_description`` run. Raises ``ValueError``
-        on a length mismatch so a mis-sized table fails loudly instead of
-        silently injecting the wrong identity via ``b % N``.
+        Three cases, in order:
+
+        - ``entity_descriptions is None`` -> all ``None`` (baseline; the prompt is
+          byte-identical to the verified pre-H4 path).
+        - ``entity_id_mark_col is not None`` -> **per-sample** id read from
+          ``x_mark_enc[:, 0, entity_id_mark_col]``. This is the correct path for
+          this repo's **channel-independent** loaders (each sample is one
+          channel/station; ``n_channels == 1``, ``n_series == batch``).
+        - else -> **per-channel** ``b % n_channels`` (a true multi_channel layout
+          where channels live in the feature axis).
+
+        Fails loud on a length / out-of-range id mismatch rather than silently
+        injecting the wrong identity.
         """
-        if entity_descriptions is not None and len(entity_descriptions) != n_channels:
+        if entity_descriptions is None:
+            return [None] * n_series
+        n_desc = len(entity_descriptions)
+        if entity_id_mark_col is not None:
+            ids = x_mark_enc[:, 0, entity_id_mark_col].long().tolist()
+            if len(ids) != n_series:
+                raise ValueError(
+                    f'per-sample entity ids ({len(ids)}) != n_series ({n_series}); '
+                    'the entity_id_mark_col path expects a channel-independent '
+                    'layout (one series per sample).'
+                )
+            resolved = []
+            for i in ids:
+                if not 0 <= i < n_desc:
+                    raise ValueError(f'entity id {i} out of range for {n_desc} descriptions.')
+                resolved.append(entity_descriptions[i])
+            return resolved
+        if n_desc != n_channels:
             raise ValueError(
-                f'entity_descriptions has {len(entity_descriptions)} entries but '
-                f'the model sees N={n_channels} channels; the per-channel H4 path '
-                'requires one description per channel (multi_channel split).'
+                f'entity_descriptions has {n_desc} entries but the model sees '
+                f'N={n_channels} channels; the per-channel path needs one per channel.'
             )
+        return [entity_descriptions[b % n_channels] for b in range(n_series)]
 
     @staticmethod
     def _compose_prompt(
@@ -414,19 +451,21 @@ class Model(nn.Module):
         lags = self.calcute_lags(x_enc)
         trends = x_enc.diff(dim=1).sum(dim=1)
 
-        # H4: optional per-channel entity description. After the reshape to
-        # (B*N, T, 1) above, loop index b maps to channel b % N — the entity in
-        # multi_channel mode (channel = entity). The guard makes a mis-sized
-        # table fail loudly instead of injecting the wrong identity (per_entity,
-        # N=1, needs the per-sample station-id path, not b % N).
-        self._validate_entity_descriptions(self.entity_descriptions, N)
+        # H4: resolve a per-series entity description (or None for the baseline).
+        # This harness is channel-independent (N=1, one channel/station per
+        # sample), so identity comes PER-SAMPLE from an x_mark column wired by the
+        # loader (entity_id_mark_col); b % N is the fallback for a true
+        # multi_channel layout. None -> byte-identical to the verified prompt.
+        entity_desc_for = self._resolve_entity_descs(
+            self.entity_descriptions, self.entity_id_mark_col, x_mark_enc, x_enc.shape[0], N
+        )
         prompt = []
         for b in range(x_enc.shape[0]):
             min_values_str = str(min_values[b].tolist()[0])
             max_values_str = str(max_values[b].tolist()[0])
             median_values_str = str(medians[b].tolist()[0])
             lags_values_str = str(lags[b].tolist())
-            entity_desc = self.entity_descriptions[b % N] if self.entity_descriptions is not None else None
+            entity_desc = entity_desc_for[b]
             prompt_ = self._compose_prompt(
                 self.description,
                 entity_desc,

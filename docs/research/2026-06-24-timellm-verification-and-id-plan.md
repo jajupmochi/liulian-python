@@ -192,3 +192,89 @@ identity hooks as PatchTST/GPT4TS apply — **plus a unique text hook**.
 - H4 (text identity) is the **novel** contribution angle but is the **riskiest**
   (frozen LLM may not use names); pre-register that risk + the descriptive-text
   mitigation.
+
+---
+
+## 6. UPDATE (2026-06-25) — the harness is channel-independent; H4 mechanism corrected
+
+### 6.1 What we built first (and why it was wrong)
+H4 v1 injected `entity_descriptions[b % N]` in `Model.forecast`, assuming a
+**multi_channel** layout (channel = entity, `N` = #channels). Committed `8c67fd0`
+with a length guard (`len(descriptions) == N`) + 5 unit tests (all pass).
+
+### 6.2 The finding (cluster run, job 7100824)
+Running ETTh1 × {none, entity_description} on gratis GPT2:
+- **`none` cell reproduced the verification to 7 digits** — Test **MSE 0.3907795,
+  MAE 0.4158892** (identical to §2.5). ⟹ the H4 refactor is **byte-clean** on the
+  baseline path, on the cluster, end-to-end.
+- **`entity_description` cell HALTED on the guard**: *"entity_descriptions has 7
+  entries but the model sees N=1 channels"*. The guard prevented a fake-identity
+  result (it would otherwise have injected channel-0's text into every sample).
+
+**Root cause.** This harness (`run_experiment.py` + the Time-LLM-Revised
+`data_provider`) is **channel-independent at the data layer** — for *every*
+dataset:
+- `Dataset_ETT_hour.__getitem__`: `feat_id = index // tot_len`; returns a
+  **univariate** `(seq_len, 1)` slice of channel `feat_id`; `__len__ = windows ×
+  enc_in`. (`Train samples 56231 = 7 × 8033` confirmed this.)
+- `Dataset_Swiss_1990`: a `ConcatDataset` of per-station univariate datasets, each
+  tagged `embedding_idx=i`.
+
+So the model **always sees `N=1`**; the per-sample entity id (ETT `feat_id`, swiss
+`embedding_idx`) is **computed but discarded** (`as_tensors` drops `embs`;
+`__getitem__` drops `feat_id`). `b % N` ⟹ `b % 1 = 0` ⟹ everyone gets
+description[0]. Invalid.
+
+### 6.3 Corrected mechanism (unifies ETT + swiss)
+Identity here is **per-sample** (which channel/station), not per-tensor-channel.
+The fix is one mechanism for both datasets:
+1. The CI loader exposes the per-sample entity id (ETT `feat_id`, swiss
+   `embedding_idx`) — thread it as the **last `x_mark` column** (constant over the
+   window). Keep it gated/append-only so the model ignores it unless H4 reads it
+   ⟹ baseline stays byte-identical (the `none` 7-digit reproduction is the proof
+   this is safe).
+2. `Model.forecast`: add `self.entity_id_mark_col` (default `None`). When set +
+   `entity_descriptions` set, read `id = x_mark_enc[b, 0, entity_id_mark_col]` and
+   use `entity_descriptions[id]`. Else fall back to `b % N` (true multi_channel).
+   Validate `id < len(entity_descriptions)` (fail-loud).
+3. Harness: set `model.entity_id_mark_col` when `--identifier_mode
+   entity_description`.
+
+This is the same per-sample-id path swiss needs anyway — so implementing it once
+unblocks **both** the ETTh1 validation and the headline swiss run (the latter
+still also needs a real station-description source; see §4.3 open items).
+
+### 6.4 Status
+- H4 v1 (b%N) committed `8c67fd0`; corrected to the per-sample-id mechanism
+  (resolver + loader-rebuild wrapper). Two runtime traps found via cluster
+  fail-fast and fixed: (i) N=1 (CI harness) ⟹ guard halt; (ii) PyTorch forbids
+  reassigning `loader.dataset` ⟹ rebuild the loader. Unit-tested (resolver 9/9 +
+  real-DataLoader rebuild).
+
+### 6.5 RESULT (2026-06-25) — ETTh1 H4, job 7109580 (gratis GPT2)
+
+| identifier_mode | Test MSE | Test MAE |
+|---|---|---|
+| none (baseline) | 0.3907795 | 0.4158892 |
+| entity_description (H4) | 0.3873198 | 0.4124619 |
+| Δ vs none | **−0.89 %** | **−0.82 %** |
+
+Config: `_verify_etth1.yaml` (ETTh1@96, GPT2, seq512/d_model32/d_ff128/batch24/
+lr0.01/12ep/patience5), **seed 2021**, both cells identical except
+`--identifier_mode`. `none` reproduced the §2.5 verification to 7 digits
+(0.3907795) ⟹ the H4 change does not perturb the baseline; the comparison is
+clean (the model is built BEFORE the H4 loader-wrap, so random init is identical;
+only the prompt text differs).
+
+**Honest claim (research-critic Q5/Q6 — hedged):**
+- ✅ The H4 mechanism runs correctly end-to-end; per-sample channel-text identity
+  injects into the GPT2 prompt and trains.
+- ✅ H4 does **not hurt** and gives a **−0.89 % MSE / −0.82 % MAE directional
+  reduction** on this single, controlled comparison.
+- ❌ Do NOT claim "H4 improves Time-LLM": **single seed** (no error bars; the
+  effect is within plausible Time-LLM run-to-run variance ≈1–2 %), **one
+  dataset/horizon**, and ETT channels are **sensor variables — a weak "entity"
+  story** vs named river stations. This is *mechanism validation*, not the
+  entity-rich headline.
+- **To upgrade the claim:** (1) multi-seed (≥3) both cells → error bars;
+  (2) the swiss-station run (named entities) once a description source is chosen.

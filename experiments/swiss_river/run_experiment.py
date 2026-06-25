@@ -175,10 +175,70 @@ def load_entity_descriptions(args):
             f'entries but enc_in={args.enc_in}; need exactly one per channel.'
         )
     print(
-        f'[H4] entity_description mode: {len(descriptions)} per-channel '
+        f'[H4] entity_description mode: {len(descriptions)} per-entity '
         f'descriptions loaded for {args.data}'
     )
     return descriptions
+
+
+class _PerSampleEntityIdDataset:
+    """Expose a channel-independent loader's per-sample entity id for H4.
+
+    This repo's Time-LLM loaders are channel-independent: each sample is ONE
+    channel/station (ETT: ``feat_id = index // tot_len``), and the id is computed
+    but discarded. This wrapper re-exposes it by appending the id as the LAST
+    ``x_mark`` column (constant over the window). The model reads it only in
+    ``entity_description`` mode (via ``entity_id_mark_col``), so the extra column
+    is inert for every other run — the baseline stays byte-identical.
+
+    Top-level (picklable) so it survives ``num_workers > 0`` multiprocessing.
+    """
+
+    def __init__(self, base, tot_len: int) -> None:
+        self.base = base
+        self.tot_len = int(tot_len)
+
+    def __len__(self) -> int:
+        return len(self.base)
+
+    def __getitem__(self, index):
+        seq_x, seq_y, seq_x_mark, seq_y_mark = self.base[index]
+        ent_id = index // self.tot_len  # which channel this CI sample is
+        col = np.full((seq_x_mark.shape[0], 1), ent_id, dtype=seq_x_mark.dtype)
+        seq_x_mark = np.concatenate([seq_x_mark, col], axis=1)
+        return seq_x, seq_y, seq_x_mark, seq_y_mark
+
+
+def _attach_entity_ids(loader):
+    """Return a NEW DataLoader whose dataset appends the per-sample entity id to
+    x_mark, for the H4 ``entity_description`` mode.
+
+    PyTorch forbids reassigning ``loader.dataset`` after init, so we rebuild the
+    loader around :class:`_PerSampleEntityIdDataset`, copying ``batch_size`` /
+    ``num_workers`` / ``drop_last`` / ``pin_memory`` from the original and
+    inferring ``shuffle`` from its sampler type. The config therefore matches the
+    baseline loader (a fair H4-vs-none comparison); only the inert extra x_mark
+    column differs.
+    """
+    from torch.utils.data import DataLoader, RandomSampler
+
+    base = loader.dataset
+    if not hasattr(base, 'tot_len'):
+        raise ValueError(
+            "identifier_mode='entity_description' currently supports "
+            'channel-independent loaders with a `tot_len` (e.g. ETT). The swiss '
+            'ConcatDataset uses per-station `embedding_idx` and needs its own '
+            'per-sample-id path (TODO — see timellm-verification doc §6).'
+        )
+    wrapped = _PerSampleEntityIdDataset(base, base.tot_len)
+    return DataLoader(
+        wrapped,
+        batch_size=loader.batch_size,
+        shuffle=isinstance(loader.sampler, RandomSampler),
+        num_workers=loader.num_workers,
+        drop_last=loader.drop_last,
+        pin_memory=loader.pin_memory,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -273,9 +333,16 @@ def train(args, device):
         # Load prompt content
         args.content = load_content(args)
 
-        # H4: per-channel entity descriptions for the entity_description mode
+        # H4: per-sample entity descriptions for the entity_description mode
         # (None for every other mode -> byte-identical to the verified baseline).
+        # The CI loaders are wrapped to expose the per-sample entity id as the
+        # LAST x_mark column, so the model reads it via entity_id_mark_col = -1.
         model.entity_descriptions = load_entity_descriptions(args)
+        if model.entity_descriptions is not None:
+            model.entity_id_mark_col = -1
+            train_loader = _attach_entity_ids(train_loader)
+            vali_loader = _attach_entity_ids(vali_loader)
+            test_loader = _attach_entity_ids(test_loader)
 
         # Checkpoint path
         path = os.path.join(args.checkpoints, setting + '-' + args.model_comment)
@@ -431,8 +498,12 @@ def evaluate(args, device):
 
     model = TimeLLMModel(args).float().to(device)
 
-    # H4: per-channel entity descriptions (None for non-entity_description modes).
+    # H4: per-sample entity descriptions (None for non-entity_description modes);
+    # the wrapped CI loader exposes the per-sample entity id as the last x_mark col.
     model.entity_descriptions = load_entity_descriptions(args)
+    if model.entity_descriptions is not None:
+        model.entity_id_mark_col = -1
+        test_loader = _attach_entity_ids(test_loader)
 
     # Find checkpoint
     setting = '{}_{}_{}_{}_ft{}_sl{}_ll{}_pl{}_dm{}_nh{}_el{}_dl{}_df{}_fc{}_eb{}_{}_{}'.format(

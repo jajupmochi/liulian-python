@@ -399,18 +399,49 @@ class TestTimeLLMEntityDescriptionPrompt:
         assert a != b
         assert 'Rhine at Basel' in a and 'Ticino at Bellinzona' in b
 
-    def test_validate_length_guard(self):
-        """The per-channel guard: no-op when unset/matched, raises on mismatch."""
+    def test_resolve_baseline_none(self):
+        """entity_descriptions=None → all-None (baseline; byte-identical prompt)."""
+        from liulian.models.torch.timellm import Model
+
+        assert Model._resolve_entity_descs(None, None, None, 5, 1) == [None] * 5
+
+    def test_resolve_per_sample_from_x_mark(self):
+        """Per-sample path: id read from x_mark column maps each sample's desc."""
+        import torch
+
+        from liulian.models.torch.timellm import Model
+
+        descs = ['A', 'B', 'C']
+        # x_mark_enc: (B=4, T=2, mark=3); last column carries the per-sample id.
+        xm = torch.zeros(4, 2, 3)
+        xm[:, :, -1] = torch.tensor([2.0, 0.0, 1.0, 2.0]).unsqueeze(1)
+        out = Model._resolve_entity_descs(descs, -1, xm, 4, 1)
+        assert out == ['C', 'A', 'B', 'C']
+
+    def test_resolve_per_sample_out_of_range_raises(self):
+        """An id beyond the table fails loud (no silent wrong identity)."""
+        import pytest
+        import torch
+
+        from liulian.models.torch.timellm import Model
+
+        xm = torch.zeros(2, 2, 1)
+        xm[:, :, -1] = torch.tensor([0.0, 9.0]).unsqueeze(1)  # 9 is out of range
+        with pytest.raises(ValueError, match='out of range'):
+            Model._resolve_entity_descs(['A', 'B'], -1, xm, 2, 1)
+
+    def test_resolve_per_channel_mod_n(self):
+        """Per-channel fallback (no x_mark col): b % N over the flattened series."""
+        from liulian.models.torch.timellm import Model
+
+        out = Model._resolve_entity_descs(['x', 'y', 'z'], None, None, 6, 3)
+        assert out == ['x', 'y', 'z', 'x', 'y', 'z']
+
+    def test_resolve_per_channel_length_mismatch_raises(self):
+        """Per-channel path with wrong table length fails loud."""
         import pytest
 
         from liulian.models.torch.timellm import Model
 
-        # No descriptions → no-op (baseline path), regardless of N.
-        Model._validate_entity_descriptions(None, 7)
-        # Exactly one description per channel → passes.
-        Model._validate_entity_descriptions(['a', 'b', 'c'], 3)
-        # Too few / too many → fail loudly (would otherwise mis-index via b % N).
-        with pytest.raises(ValueError, match='one description per channel'):
-            Model._validate_entity_descriptions(['a', 'b'], 7)
-        with pytest.raises(ValueError, match='N=2'):
-            Model._validate_entity_descriptions(['a', 'b', 'c'], 2)
+        with pytest.raises(ValueError, match='one per channel'):
+            Model._resolve_entity_descs(['x', 'y'], None, None, 7, 7)
