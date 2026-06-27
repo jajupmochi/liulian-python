@@ -278,3 +278,32 @@ only the prompt text differs).
   entity-rich headline.
 - **To upgrade the claim:** (1) multi-seed (≥3) both cells → error bars;
   (2) the swiss-station run (named entities) once a description source is chosen.
+
+### 6.6 MULTI-SEED (2026-06-25) — the single-seed effect was NOISE (job 7117768)
+
+Ran seeds 2022 + 2023 × {none, entity_description} (gratis GPT2, same config) and
+combined with seed 2021:
+
+| seed | none MSE | H4 MSE | Δ MSE % |
+|---|---|---|---|
+| 2021 | 0.3907795 | 0.3873198 | −0.89 % |
+| 2022 | 0.3888798 | 0.3943130 | **+1.40 %** |
+| 2023 | 0.3940935 | 0.3920069 | −0.53 % |
+| **mean ± std** | **0.39125 ± 0.00264** | **0.39121 ± 0.00356** | **−0.01 %** |
+
+(MAE: none 0.41576 ± 0.0020, H4 0.41604 ± 0.0029 → +0.07 %, also null.)
+
+**Conclusion (research-critic — defensible):** on ETTh1@96 (GPT2, n=3 seeds), the
+H4 `entity_description` text identity has **no detectable effect** — the means are
+equal to 4 sig-figs, the per-seed Δ **flips sign** (−0.89 %…+1.40 %), and the
+std (≈0.003) is ~70× the 0.00004 mean gap. **The single-seed −0.89 % (§6.5) was
+within run-to-run noise.** This is the multi-seed flag (Q5) paying off: a
+plausible single-seed "improvement" did not survive.
+
+**Interpretation (honest, not over-claimed):** naming the 7 ETT channels
+(HUFL/…/OT — sensor variables) does not help a frozen GPT2 reprogrammer. This is
+*consistent with* (not proof of) the hypothesis that text identity needs an
+**entity-rich** domain (named river stations with real-world referents the LLM
+knows) to matter. ETTh1 is the **null/control**; the swiss-station run is the
+**treatment** that would actually test H4's premise — still gated on a
+description source (§4.3 / A–D decision).

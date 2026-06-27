@@ -273,6 +273,12 @@ def build_ablation_table(main_data: dict) -> None:
         print('ablation: ABLATION_TAGS empty (add_after_patch not run yet) — skipping')
         return
     abl = collect_tags(ABLATION_TAGS)  # (ds, 'patchtst') -> {mode: rmse}
+    # concat_to_x (pre-norm) values MUST come from the un-mutated RUN_TAGS, not
+    # from main_data: apply_patchtst_source() overwrites main_data's patchtst
+    # transparent cells with the add_after_patch values, which made the concat
+    # column duplicate the add column and hid the +32-85% regression that is the
+    # paper's lead claim (bug fixed 2026-06-26).
+    concat = collect_tags(RUN_TAGS)  # (ds, 'patchtst') -> {mode: concat_to_x rmse}
     have = {ds for (ds, model) in abl if model == 'patchtst'}
     if not have:
         print('ablation: no patchtst add_after_patch cells yet — skipping')
@@ -289,7 +295,7 @@ def build_ablation_table(main_data: dict) -> None:
     ]
     last = None
     for ds in datasets:
-        cc = main_data[(ds, 'patchtst')]
+        cc = concat.get((ds, 'patchtst'), {})  # un-mutated concat_to_x (pre-norm)
         ap_ = abl.get((ds, 'patchtst'), {})
         none_v = cc.get('none')
         for mode in TRANSPARENT_MODES:
