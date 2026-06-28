@@ -8,8 +8,8 @@ model_comment: swiss_river_timellm
 model: TimeLLM
 
 # Data
-data: swiss-river-1990
-root_path: dataset/swiss_river/
+data: wt-swiss-1990  # data_provider key (data_dict in Time-LLM-Revised data_factory.py)
+root_path: dataset/swiss_river/  # resolved as PROJ_DIR/dataset/swiss_river (Time-LLM-Revised dir); swiss data symlinked there on the cluster
 data_path: swiss-1990.csv
 features: M
 target: OT

@@ -1,20 +1,22 @@
-# Per-channel natural-language entity descriptions for the Time-LLM H4
-# `entity_description` identifier mode (--identifier_mode entity_description).
+# Per-channel / per-station natural-language entity descriptions for the Time-LLM
+# H4 `entity_description` identifier mode (--identifier_mode entity_description).
 #
-# Keyed by --data. Each value is a list of descriptions, ONE PER CHANNEL,
-# index-aligned with the model's channel order. For features='M' the channel
-# order is the CSV columns after `date` (columns[1:]). The harness validates
-# len(list) == enc_in and fails loudly on a mismatch, so a wrong-length table
-# can never silently inject the wrong identity.
+# Keyed by --data. Each value is a list of descriptions, ONE PER ENTITY, index-
+# aligned with the entity id the loader exposes:
+#   * ETTh1  -> one per channel (feat_id 0..6, channel-independent loader).
+#   * swiss-river-1990 -> one per station (embedding_idx 0..27, the row order of
+#     graph_swiss-1990.pth).
+# The model's _resolve_entity_descs validates each per-sample id against this
+# list length at forward time (fail-loud), so a wrong-length table is caught.
 #
-# This is the genuinely novel, Time-LLM-only identifier rung: the description
-# text enters the LLM's natural-language prompt and is grounded by its
-# pretrained world knowledge (no other forecaster in the matrix can use it).
-# Prefer DESCRIPTIVE text over bare names/IDs — a frozen LLM grounds
-# "high useful load on an electricity transformer" far better than "HUFL".
+# This is the genuinely novel, Time-LLM-only identifier rung: the description text
+# enters the LLM's natural-language prompt and is grounded by its pretrained world
+# knowledge (no other forecaster in the matrix can use it).
 
 # ETTh1 — the 7 Electricity Transformer Temperature channels (Zhou et al.,
 # Informer, AAAI 2021). Order = HUFL, HULL, MUFL, MULL, LUFL, LULL, OT.
+# NOTE: these 7 channels are all ONE transformer's measurements (not distinct
+# entities) — a weak "entity" test; multi-seed result was null (see doc §6.6).
 ETTh1:
   - "High UseFul Load on an electricity transformer"
   - "High UseLess Load on an electricity transformer"
@@ -24,10 +26,38 @@ ETTh1:
   - "Low UseLess Load on an electricity transformer"
   - "Oil Temperature of an electricity transformer"
 
-# swiss-river-1990 — NOTE: the standalone harness loads swiss in PER-ENTITY,
-# station-agnostic, univariate form (features='S', enc_in=1); the per-channel
-# b % N path does not apply, and the repo holds only numeric BAFU station IDs
-# (no river names / locations / elevations). Headline swiss H4 therefore needs
-# (a) a per-sample station-id thread-through AND (b) a real station-metadata
-# source. Left intentionally unset until that decision is made (see
-# docs/research/2026-06-24-timellm-verification-and-id-plan.md).
+# swiss-river-1990 — 28 real FOEN/BAFU river gauging stations. Index-aligned with
+# embedding_idx (graph_swiss-1990.pth row order). River + town fetched from
+# hydrodaten.admin.ch; lat/lon converted from CH1903 coordinates. These are REAL
+# Swiss rivers (Rhine/Rhein, Aare, Reuss, Rhône, Limmat, …) at named towns — the
+# entity-rich domain H4 is designed for. Threaded per-sample via the swiss
+# ConcatDataset wrapper (_SwissStationIdDataset in run_experiment.py).
+wt-swiss-1990:  # data_provider's key for swiss-river-1990 (data_dict in data_factory.py)
+  - "Swiss river gauging station 2091 on the Rhein river at Rheinfelden, Switzerland, at latitude 47.56 and longitude 7.80"
+  - "Swiss river gauging station 2143 on the Rhein river at Rekingen, Switzerland, at latitude 47.57 and longitude 8.35"
+  - "Swiss river gauging station 2016 on the Aare river at Brugg, Switzerland, at latitude 47.48 and longitude 8.19"
+  - "Swiss river gauging station 2018 on the Reuss river at Mellingen, Switzerland, at latitude 47.41 and longitude 8.28"
+  - "Swiss river gauging station 2243 on the Limmat river at Baden, Switzerland, at latitude 47.47 and longitude 8.31"
+  - "Swiss river gauging station 2415 on the Glatt river at Rheinsfelden, Switzerland, at latitude 47.57 and longitude 8.48"
+  - "Swiss river gauging station 2044 on the Thur river at Andelfingen, Switzerland, at latitude 47.60 and longitude 8.69"
+  - "Swiss river gauging station 2473 on the Rhein river at Diepoldsau, Switzerland, at latitude 47.40 and longitude 9.65"
+  - "Swiss river gauging station 2029 on the Aare river at Bruegg, Switzerland, at latitude 47.12 and longitude 7.27"
+  - "Swiss river gauging station 2634 on the Kleine Emme river at Emmen, Switzerland, at latitude 47.07 and longitude 8.27"
+  - "Swiss river gauging station 2152 on the Reuss river at Luzern, Switzerland, at latitude 47.05 and longitude 8.30"
+  - "Swiss river gauging station 2104 on the Linth river at Weesen, Switzerland, at latitude 47.13 and longitude 9.09"
+  - "Swiss river gauging station 2085 on the Aare river at Hagneck, Switzerland, at latitude 47.05 and longitude 7.22"
+  - "Swiss river gauging station 2034 on the Broye river at Payerne, Switzerland, at latitude 46.82 and longitude 6.93"
+  - "Swiss river gauging station 2481 on the Engelberger Aa river at Buochs, Switzerland, at latitude 46.97 and longitude 8.40"
+  - "Swiss river gauging station 2056 on the Reuss river at Seedorf, Switzerland, at latitude 46.88 and longitude 8.62"
+  - "Swiss river gauging station 2084 on the Muota river at Ingenbohl, Switzerland, at latitude 47.00 and longitude 8.61"
+  - "Swiss river gauging station 2372 on the Linth river at Mollis, Switzerland, at latitude 47.08 and longitude 9.06"
+  - "Swiss river gauging station 2500 on the Worble river at Ittigen, Switzerland, at latitude 46.97 and longitude 7.49"
+  - "Swiss river gauging station 2135 on the Aare river at Bern, Switzerland, at latitude 46.93 and longitude 7.45"
+  - "Swiss river gauging station 2070 on the Emme river at Emmenmatt, Switzerland, at latitude 46.95 and longitude 7.75"
+  - "Swiss river gauging station 2030 on the Aare river at Thun, Switzerland, at latitude 46.76 and longitude 7.61"
+  - "Swiss river gauging station 2109 on the Luetschine river at Gsteig, Switzerland, at latitude 46.66 and longitude 7.87"
+  - "Swiss river gauging station 2019 on the Aare river at Brienzwiler, Switzerland, at latitude 46.75 and longitude 8.10"
+  - "Swiss river gauging station 2174 on the Rhone river at Chancy, Switzerland, at latitude 46.16 and longitude 5.97"
+  - "Swiss river gauging station 2170 on the Arve river at Geneve, Switzerland, at latitude 46.18 and longitude 6.17"
+  - "Swiss river gauging station 2009 on the Rhone river at Porte du Scex, Switzerland, at latitude 46.34 and longitude 6.90"
+  - "Swiss river gauging station 2269 on the Lonza river at Blatten, Switzerland, at latitude 46.42 and longitude 7.82"

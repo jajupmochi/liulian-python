@@ -169,16 +169,25 @@ def load_entity_descriptions(args):
             f'per channel (enc_in={args.enc_in}).'
         )
     descriptions = [str(d) for d in table[args.data]]
-    if len(descriptions) != args.enc_in:
-        raise ValueError(
-            f'entity_descriptions for {args.data!r} has {len(descriptions)} '
-            f'entries but enc_in={args.enc_in}; need exactly one per channel.'
-        )
-    print(
-        f'[H4] entity_description mode: {len(descriptions)} per-entity '
-        f'descriptions loaded for {args.data}'
-    )
+    # No hard enc_in check: for the channel-independent ETT loader len == enc_in
+    # (one per channel); for the per-station swiss ConcatDataset len == #stations
+    # (28) != enc_in (1). The model's _resolve_entity_descs validates each
+    # per-sample id against this list length at forward time (fail-loud), so a
+    # genuinely mis-sized table is still caught.
+    print(f'[H4] entity_description: {len(descriptions)} descriptions loaded for {args.data}')
     return descriptions
+
+
+def _append_id_column(x_mark, value):
+    """Append a constant-``value`` last column to ``x_mark`` (constant over the
+    window). Handles BOTH numpy and torch — the ETT loader returns numpy slices,
+    the swiss loader returns torch tensors (``as_tensors`` → ``torch.IntTensor``).
+    """
+    if isinstance(x_mark, torch.Tensor):
+        col = torch.full((x_mark.shape[0], 1), value, dtype=x_mark.dtype)
+        return torch.cat([x_mark, col], dim=1)
+    col = np.full((x_mark.shape[0], 1), value, dtype=x_mark.dtype)
+    return np.concatenate([x_mark, col], axis=1)
 
 
 class _PerSampleEntityIdDataset:
@@ -203,9 +212,35 @@ class _PerSampleEntityIdDataset:
 
     def __getitem__(self, index):
         seq_x, seq_y, seq_x_mark, seq_y_mark = self.base[index]
-        ent_id = index // self.tot_len  # which channel this CI sample is
-        col = np.full((seq_x_mark.shape[0], 1), ent_id, dtype=seq_x_mark.dtype)
-        seq_x_mark = np.concatenate([seq_x_mark, col], axis=1)
+        seq_x_mark = _append_id_column(seq_x_mark, index // self.tot_len)  # channel id
+        return seq_x, seq_y, seq_x_mark, seq_y_mark
+
+
+class _SwissStationIdDataset:
+    """Expose the per-sample station id for the swiss ``ConcatDataset``.
+
+    The swiss loader is a ``ConcatDataset`` of one sub-dataset per station, each
+    tagged ``embedding_idx``. For a flat ``index`` we find its station the same
+    way ``ConcatDataset`` does (``bisect`` on ``cumulative_sizes``) and append
+    that station's ``embedding_idx`` as the LAST ``x_mark`` column, so the H4
+    model can read it via ``entity_id_mark_col``. Top-level (picklable) for
+    ``num_workers > 0``.
+    """
+
+    def __init__(self, concat) -> None:
+        self.concat = concat
+        self.cumulative_sizes = list(concat.cumulative_sizes)
+        self.embedding_idxs = [int(getattr(d, 'embedding_idx', i)) for i, d in enumerate(concat.datasets)]
+
+    def __len__(self) -> int:
+        return len(self.concat)
+
+    def __getitem__(self, index):
+        import bisect
+
+        seq_x, seq_y, seq_x_mark, seq_y_mark = self.concat[index]
+        k = bisect.bisect_right(self.cumulative_sizes, index)  # which station
+        seq_x_mark = _append_id_column(seq_x_mark, self.embedding_idxs[k])
         return seq_x, seq_y, seq_x_mark, seq_y_mark
 
 
@@ -223,14 +258,18 @@ def _attach_entity_ids(loader):
     from torch.utils.data import DataLoader, RandomSampler
 
     base = loader.dataset
-    if not hasattr(base, 'tot_len'):
+    if hasattr(base, 'tot_len'):
+        # ETT channel-independent loader: id = index // tot_len.
+        wrapped = _PerSampleEntityIdDataset(base, base.tot_len)
+    elif hasattr(base, 'datasets') and hasattr(base, 'cumulative_sizes'):
+        # swiss ConcatDataset: id = embedding_idx of the sub-dataset (station).
+        wrapped = _SwissStationIdDataset(base)
+    else:
         raise ValueError(
-            "identifier_mode='entity_description' currently supports "
-            'channel-independent loaders with a `tot_len` (e.g. ETT). The swiss '
-            'ConcatDataset uses per-station `embedding_idx` and needs its own '
-            'per-sample-id path (TODO — see timellm-verification doc §6).'
+            "identifier_mode='entity_description' needs either a `tot_len` "
+            '(channel-independent loader, e.g. ETT) or a ConcatDataset of '
+            f'per-entity sub-datasets (e.g. swiss); got {type(base).__name__}.'
         )
-    wrapped = _PerSampleEntityIdDataset(base, base.tot_len)
     return DataLoader(
         wrapped,
         batch_size=loader.batch_size,
