@@ -377,7 +377,7 @@ def train(args, device):
         )
 
         # H2: the embedding table size must be known before the model is built.
-        if args.identifier_mode == 'embedding':
+        if args.identifier_mode in ('embedding', 'random_embedding'):
             args.num_entities = _num_entities(train_data, args)
 
         # Model
@@ -390,7 +390,7 @@ def train(args, device):
         # per-sample entity id from the LAST x_mark column exposed by the CI-loader
         # wrapper (entity_id_mark_col = -1); H4 additionally loads the text
         # descriptions. 'none' leaves both unset -> byte-identical to baseline.
-        if args.identifier_mode in ('entity_description', 'embedding'):
+        if args.identifier_mode in ('entity_description', 'embedding', 'random_embedding'):
             if args.identifier_mode == 'entity_description':
                 model.entity_descriptions = load_entity_descriptions(args)
             model.entity_id_mark_col = -1
@@ -551,13 +551,13 @@ def evaluate(args, device):
     print(f'Test samples: {len(test_data)}')
 
     # H2: embedding table size must be known before building the model.
-    if args.identifier_mode == 'embedding':
+    if args.identifier_mode in ('embedding', 'random_embedding'):
         args.num_entities = _num_entities(test_data, args)
 
     model = TimeLLMModel(args).float().to(device)
 
     # H4 (text) / H2 (embedding) per-sample identity wiring (see train()).
-    if args.identifier_mode in ('entity_description', 'embedding'):
+    if args.identifier_mode in ('entity_description', 'embedding', 'random_embedding'):
         if args.identifier_mode == 'entity_description':
             model.entity_descriptions = load_entity_descriptions(args)
         model.entity_id_mark_col = -1
@@ -677,7 +677,7 @@ def build_parser():
         '--identifier_mode',
         type=str,
         default='none',
-        choices=['none', 'entity_description', 'embedding'],
+        choices=['none', 'entity_description', 'embedding', 'random_embedding'],
         help="Entity-identifier mode. 'entity_description' (H4) injects per-channel "
         'natural-language descriptions into the Time-LLM prompt (multi_channel, '
         'channel = entity); descriptions come from configs/entity_descriptions.yaml. '

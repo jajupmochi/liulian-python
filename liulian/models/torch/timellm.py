@@ -110,11 +110,17 @@ class Model(nn.Module):
         # the H4 text identity. Built only for identifier_mode='embedding' (needs
         # configs.num_entities); None otherwise so other modes are unaffected.
         self.identifier_mode: str = getattr(configs, 'identifier_mode', 'none')
-        if self.identifier_mode == 'embedding':
+        if self.identifier_mode in ('embedding', 'random_embedding'):
             _n_ent = getattr(configs, 'num_entities', None)
             if _n_ent is None:
-                raise ValueError("identifier_mode='embedding' requires configs.num_entities")
+                raise ValueError(f'identifier_mode={self.identifier_mode!r} requires configs.num_entities')
             self.entity_embedding: Union[nn.Embedding, None] = nn.Embedding(int(_n_ent), int(configs.d_model))
+            if self.identifier_mode == 'random_embedding':
+                # Capacity-matched control: FIXED random per-entity vectors (0
+                # learnable params) with the same architecture as 'embedding'.
+                # If this helps too, the gain is per-entity DISTINCTNESS
+                # (identity), not the learnable capacity of 'embedding'.
+                self.entity_embedding.weight.requires_grad_(False)
         else:
             self.entity_embedding = None
 
