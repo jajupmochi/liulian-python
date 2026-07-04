@@ -280,6 +280,16 @@ def _attach_entity_ids(loader):
     )
 
 
+def _num_entities(dataset, args) -> int:
+    """Number of distinct entities for the H2 embedding table:
+    swiss ``ConcatDataset`` -> #stations (``len(.datasets)``); the ETT
+    channel-independent loader -> ``enc_in`` (#channels).
+    """
+    if hasattr(dataset, 'datasets'):
+        return len(dataset.datasets)
+    return int(args.enc_in)
+
+
 # ---------------------------------------------------------------------------
 # Validation function (adapted from utils/tools.py::vali)
 # ---------------------------------------------------------------------------
@@ -366,18 +376,23 @@ def train(args, device):
             f'Test samples: {len(test_data)}'
         )
 
+        # H2: the embedding table size must be known before the model is built.
+        if args.identifier_mode == 'embedding':
+            args.num_entities = _num_entities(train_data, args)
+
         # Model
         model = TimeLLMModel(args).float().to(device)
 
         # Load prompt content
         args.content = load_content(args)
 
-        # H4: per-sample entity descriptions for the entity_description mode
-        # (None for every other mode -> byte-identical to the verified baseline).
-        # The CI loaders are wrapped to expose the per-sample entity id as the
-        # LAST x_mark column, so the model reads it via entity_id_mark_col = -1.
-        model.entity_descriptions = load_entity_descriptions(args)
-        if model.entity_descriptions is not None:
+        # H4 (text) / H2 (embedding) per-sample identity wiring. Both read the
+        # per-sample entity id from the LAST x_mark column exposed by the CI-loader
+        # wrapper (entity_id_mark_col = -1); H4 additionally loads the text
+        # descriptions. 'none' leaves both unset -> byte-identical to baseline.
+        if args.identifier_mode in ('entity_description', 'embedding'):
+            if args.identifier_mode == 'entity_description':
+                model.entity_descriptions = load_entity_descriptions(args)
             model.entity_id_mark_col = -1
             train_loader = _attach_entity_ids(train_loader)
             vali_loader = _attach_entity_ids(vali_loader)
@@ -535,12 +550,16 @@ def evaluate(args, device):
     test_data, test_loader = data_provider(args, 'test')
     print(f'Test samples: {len(test_data)}')
 
+    # H2: embedding table size must be known before building the model.
+    if args.identifier_mode == 'embedding':
+        args.num_entities = _num_entities(test_data, args)
+
     model = TimeLLMModel(args).float().to(device)
 
-    # H4: per-sample entity descriptions (None for non-entity_description modes);
-    # the wrapped CI loader exposes the per-sample entity id as the last x_mark col.
-    model.entity_descriptions = load_entity_descriptions(args)
-    if model.entity_descriptions is not None:
+    # H4 (text) / H2 (embedding) per-sample identity wiring (see train()).
+    if args.identifier_mode in ('entity_description', 'embedding'):
+        if args.identifier_mode == 'entity_description':
+            model.entity_descriptions = load_entity_descriptions(args)
         model.entity_id_mark_col = -1
         test_loader = _attach_entity_ids(test_loader)
 
@@ -658,7 +677,7 @@ def build_parser():
         '--identifier_mode',
         type=str,
         default='none',
-        choices=['none', 'entity_description'],
+        choices=['none', 'entity_description', 'embedding'],
         help="Entity-identifier mode. 'entity_description' (H4) injects per-channel "
         'natural-language descriptions into the Time-LLM prompt (multi_channel, '
         'channel = entity); descriptions come from configs/entity_descriptions.yaml. '

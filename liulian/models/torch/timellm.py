@@ -105,6 +105,19 @@ class Model(nn.Module):
         # the harness when the loader exposes it; None -> per-channel b % N path.
         self.entity_id_mark_col: Union[int, None] = None
 
+        # H2 embedding injection (NUMERIC identity): a learned per-entity vector
+        # ADDED to the patch embeddings (post-norm) — the numeric counterpart of
+        # the H4 text identity. Built only for identifier_mode='embedding' (needs
+        # configs.num_entities); None otherwise so other modes are unaffected.
+        self.identifier_mode: str = getattr(configs, 'identifier_mode', 'none')
+        if self.identifier_mode == 'embedding':
+            _n_ent = getattr(configs, 'num_entities', None)
+            if _n_ent is None:
+                raise ValueError("identifier_mode='embedding' requires configs.num_entities")
+            self.entity_embedding: Union[nn.Embedding, None] = nn.Embedding(int(_n_ent), int(configs.d_model))
+        else:
+            self.entity_embedding = None
+
         # Import transformers here to make it optional
         from transformers import (
             LlamaConfig,
@@ -501,6 +514,13 @@ class Model(nn.Module):
         # x_enc: [B, N_f, T]， enc_out: [B*N_f, num_patches, d_model]:
         # enc_out, n_vars = self.patch_embedding(x_enc.to(torch.bfloat16))  # todo: maybe needed autocast as in timellm?
         enc_out, n_vars = self.patch_embedding(x_enc)  # keep as float32, do not cast to bfloat16
+        # H2: add the learned per-entity embedding to the patch embeddings
+        # (post-norm numeric identity). enc_out is [B*N, num_patches, d_model];
+        # this harness is channel-independent (N=1) so B*N == B and the per-sample
+        # ids (B,) read from the x_mark column align row-for-row.
+        if self.entity_embedding is not None and self.entity_id_mark_col is not None:
+            ids = x_mark_enc[:, 0, self.entity_id_mark_col].long()  # (B,)
+            enc_out = enc_out + self.entity_embedding(ids).unsqueeze(1)
         enc_out = self.reprogramming_layer(
             enc_out, source_embeddings, source_embeddings
         )  # enc_out: [B*N_f, num_patches, d_llm]
