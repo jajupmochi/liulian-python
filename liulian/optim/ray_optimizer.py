@@ -648,16 +648,19 @@ class RayOptimizer(BaseOptimizer):
             # This replaces the deprecated ``local_mode`` flag.
             if self.config.get('local_mode', False):
                 logger.warning(
-                    'Ray debug mode: num_cpus=1 and local_mode=True (sequential trials). '
-                    'NOTE: local_mode=True will be deprecated in Ray 2.0+.'
-                    'If only set num_cpus=1, PyCharm breakpoints inside the trainable '
-                    'will NOT hit because Ray still uses separate '
-                    'worker processes. For true in-process debugging, '
-                    'bypass Ray and call the trainable directly in '
-                    'the driver process with a predefined config dict.'
+                    'Ray debug mode: num_cpus=1 (sequential trials). For true '
+                    'in-process debugging (e.g. PyCharm breakpoints inside the '
+                    'trainable), bypass Ray and call the trainable directly in the '
+                    'driver with a predefined config dict — num_cpus=1 alone still '
+                    'uses separate worker processes.'
                 )
                 init_kwargs['num_cpus'] = 1
-                init_kwargs['local_mode'] = True  # still set local_mode for Ray <2.0
+                # ``local_mode`` was REMOVED in Ray 2.x — ray.init raises
+                # "Unknown keyword argument(s): local_mode". Pass it only on Ray
+                # <2.0; on 2.x, num_cpus=1 already gives the sequential-trials
+                # behaviour this debug flag wants. (Bug fixed 2026-07-05.)
+                if int(ray.__version__.split('.')[0]) < 2:
+                    init_kwargs['local_mode'] = True
                 os.environ['RAY_DEDUP_LOGS'] = '0'
 
             # Suppress Ray FutureWarning / DeprecationWarning noise
