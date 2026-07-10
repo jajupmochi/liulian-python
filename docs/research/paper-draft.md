@@ -257,7 +257,11 @@ text arm.
 
 ## Figure / table inventory
 
-- **Figure 1** — injection-point diagram (pre-norm concat vs post-norm add_after_patch) + punchline. *Build first.*
+- **Figure 1** — ✅ BUILT: `figures/entity-id-summary/fig1-injection-position.{pdf,png}`
+  — (a) pipeline schematic marking concat_to_x (pre-norm, ✗ erased) vs add_after_patch
+  (post-norm, ✓ survives); (b) 12-cell diverging bars, %Δ vs none (concat +32–85%, add
+  −0.3…−4.4%). Built by `tools/build_fig1_injection.py`, parsed from the committed
+  ablation `.tex` (cannot drift from the verified table).
 - **Figure 2** — %Δ-vs-none heatmap (`figures/entity-id-summary/heatmap-vs-none.png`).
 - **Table A** — PatchTST injection ablation (`ablation-patchtst-injection.{tex,pdf}`, render-bug-fixed).
 - **Table B** — main results (`results-table.{tex,pdf}`); **Table B′** — swiss LSTM n=3 error bars (STATUS §2.2 / commit 1da686c).
