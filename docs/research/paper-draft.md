@@ -5,10 +5,13 @@
 > Lineage: "How Biased is TSF?" (arXiv:2502.09683)[V], "Are Data Embeddings
 > Effective?" (arXiv:2505.20716)[V].
 >
-> ⚠ **Citations**: `[V]` = verified in this project's sweeps; `[verify]` = fetch
-> BibTeX programmatically before submission (NEVER write BibTeX from memory).
-> All numbers below are from committed runs (commit hashes inline); single-seed
-> unless "n=3 ± std" is shown.
+> ⚠ **Citations**: `[Vc]` = citation existence + arXiv ID confirmed via web search
+> (arXiv / Semantic Scholar, 2026-07-10); `[V]` on a *result/number* = reproduced in
+> our own sweeps. All 20 citations checked and exist; InjectTST ID corrected
+> (→2403.02814), non-stationary-transformer (→2205.14415) and Sagawa DRO
+> (→1911.08731) IDs added. BibTeX still to be fetched programmatically at submission
+> (NEVER write BibTeX from memory). All numbers below are from committed runs (commit
+> hashes inline); single-seed unless "n=3 ± std" is shown.
 
 ---
 
@@ -83,20 +86,21 @@
 
 ## §2 Related work (methodological)
 
-- *Channel strategy (CI/CD):* PatchTST (2211.14730)[verify], iTransformer
-  (2310.06625)[verify], channel-strategy survey (2502.10721)[V], "How Biased is
-  TSF?" (2502.09683)[V], Leading-Indicators (2401.17548)[V].
-- *Channel identity:* STID (2208.05233)[V], CARD (2305.12095)[verify], CCM
-  (2404.01340)[V], InjectTST (Chi 2024)[verify], C-LoRA (2407.17246)[V],
-  CN/Channel-Identifiability (2506.00432)[V], CHARM (2505.14543)[V].
-- *LLM reprogramming for TS:* Time-LLM (2310.01728)[verify], GPT4TS/One-Fits-All
-  (2302.11939)[verify], "Are Language Models Actually Useful for TS?"
-  (2406.16964)[verify] — the last motivates our text-vs-numeric contrast.
-- *Normalization:* RevIN / instance norm (Kim 2021)[verify]; non-stationary
-  transformer[verify]; "Are Data Embeddings Effective?" (2505.20716)[V].
+- *Channel strategy (CI/CD):* PatchTST (2211.14730)[Vc], iTransformer
+  (2310.06625)[Vc], channel-strategy survey (2502.10721)[Vc], "How Biased is
+  TSF?" (2502.09683)[Vc], Leading-Indicators (2401.17548)[Vc].
+- *Channel identity:* STID (2208.05233)[Vc], CARD (2305.12095)[Vc], CCM
+  (2404.01340)[Vc], InjectTST (2403.02814)[Vc], C-LoRA (2407.17246)[Vc],
+  CN/Channel-Identifiability (2506.00432)[Vc], CHARM (2505.14543)[Vc].
+- *LLM reprogramming for TS:* Time-LLM (2310.01728)[Vc], GPT4TS/One-Fits-All
+  (2302.11939)[Vc], "Are Language Models Actually Useful for TS?"
+  (2406.16964)[Vc] — the last motivates our text-vs-numeric contrast.
+- *Normalization:* RevIN / instance norm (Kim 2021, ICLR — OpenReview, no arXiv)[Vc];
+  non-stationary transformer (2205.14415)[Vc]; "Are Data Embeddings Effective?"
+  (2505.20716)[Vc].
 - *Evaluation lenses we import:* effective rank (Roy & Vetterli, EUSIPCO 2007)
-  [verify]; worst-group/DRO (Sagawa 2020)[verify]; per-station NSE/KGE in
-  large-sample hydrology (Clark 2021, WRR 10.1029/2020WR029001)[verify].
+  [Vc]; worst-group/DRO (Sagawa 2020, 1911.08731)[Vc]; per-station NSE/KGE in
+  large-sample hydrology (Clark 2021, WRR 10.1029/2020WR029001)[Vc].
 - *Positioning:* "Unlike these, which each propose a single (architecture-bound)
   identity mechanism and report aggregate accuracy, we hold architecture fixed and
   vary identifier type, placement, regime, and modality, and we characterize *when*
@@ -278,7 +282,11 @@ text arm.
 1. ~~Multi-seed swiss cells~~ → **DONE** for the headline LSTM cells (n=3) + all
    Time-LLM cells (n=3).
 2. Build Figure 1 (injection diagram).
-3. Verify every `[verify]` citation's BibTeX programmatically (Exa/Semantic Scholar).
-4. Fill the remaining traffic/electricity real-baseline cells (job 8156380 running).
+3. ~~Verify citation existence/IDs~~ → **DONE** (2026-07-10, web search): all 20 exist;
+   InjectTST→2403.02814, non-stat-transformer→2205.14415, Sagawa→1911.08731. BibTeX
+   fetch (programmatic, `.bib` file) still pending at submission.
+4. Fill remaining traffic/electricity cells: #39 diagnosed mostly-redundant (data in
+   older `*-REAL-*`/`*-mc-*` tags); electricity sin/random gap running (job 8787665);
+   traffic patchtst sin/random deferred (862ch compute-sink, ~12h/cell).
 5. (Optional) norm-on/off toggle ablation; iTransformer backbone; a larger LLM for
    the text arm.
