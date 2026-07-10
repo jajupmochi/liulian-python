@@ -1,6 +1,6 @@
 # LIULIAN 实体标识符研究 — 现状总表
 
-> 常驻文档，每轮工作后更新。最后更新 **2026-06-28** · 集群 UBELIX gratis(免费档) · **当前无作业在跑**。
+> 常驻文档，每轮工作后更新。最后更新 **2026-07-10** · 集群 UBELIX gratis(免费档) · **electricity sin/random 补格跑中 (job 8787665)**。
 
 ## 术语速查（看表前先扫一眼，不用翻历史）
 
@@ -23,9 +23,12 @@
 | swiss-1990 LSTM 多 seed 误差棒（n=3） | ✅ 完成(本轮) | 身份增益 −24~−35% 跨 seed 稳定 |
 | 通道冗余 / 每实体误差离散度 分析 | ✅ 完成 | 见 §2.5 |
 | Time-LLM（大模型重编程预测）复现验证 | ✅ 完成 | 我们的移植和官方代码逐位相同 |
-| Time-LLM **文本注入**（ETTh1） | ✅ 完成 | 结果 = null（无效，详见 §2.4） |
-| Time-LLM **嵌入注入**（embedding，数值向量） | ❌ **没做** | 该补的对比（文本 vs 数值） |
-| Time-LLM **swiss 命名站点**（实体丰富头牌测试） | ⏸ 等决策 A/B/C/D | 见 §4 |
+| Time-LLM **文本注入**（ETTh1 + swiss 真实站点，n=3） | ✅ 完成 | 文本几乎无效（swiss −1.9% 不显著；ETTh1 null）|
+| Time-LLM **嵌入注入**（embedding 数值向量，n=3） | ✅ 完成 | swiss **−17.6%**（高度显著，7×std）|
+| Time-LLM **容量对照**（frozen random，0 可学习） | ✅ 完成 | −19.2% ≈ 学习版 → 增益是身份非容量 |
+| Time-LLM **2×2**（swiss/ETTh1 × 文本/数值） | ✅ 完成 | 数值身份**域依赖**（swiss 有效、ETTh1 反噪）|
+| **论文初稿**（controlled-study/机制论文，C1–C5） | ✅ 完成(本轮) | `docs/research/paper-draft.md` |
+| Ray e2e `local_mode` bug（Ray 2.x 移除该 kwarg） | ✅ 修复(本轮) | commit `2f9e46d`；709 非-e2e 测试 0 回归 |
 
 ---
 
@@ -102,22 +105,22 @@
 ---
 
 ## 3. 正在跑的实验
-**无。** 集群队列空。
+**electricity × {dlinear, patchtst} × {sinusoidal, random}**（4 格补缺；job 8787665，gratis 单-seed，run-tag `elec-sinrand-39`）。这是主矩阵里 electricity dlinear/patchtst 行 sin/random 两列"−"的真正缺口；跑完并入主表。
+
+> **#39 诊断（本轮）**：原"traffic/electricity × {dlinear,patchtst} × 5 模式 = 20 格"大多**已存在**（散落在 `*-REAL-*` / `*-mc-20260614` 旧 tag 里）。真正缺口只是 **sin/random** 少数格（= 老 #17 backfill）。traffic（862 通道）patchtst sin/random 是**算力黑洞**（~12h/格、多天），价值边际（traffic 已知"扁平"），**暂缓**；只补轻量的 electricity（321 通道）。
 
 ---
 
-## 4. 下一步（按优先级；除头牌外均可我自主跑）
+## 4. 下一步（按优先级）
 
-| 任务 | 含义 | 成本 / 阻塞 |
+**核心研究已成体系**（主矩阵 + 误差棒 + 注入消融 + Time-LLM 2×2 + 论文初稿）。剩余为收尾/打磨：
+
+| 任务 | 含义 | 成本 / 状态 |
 |---|---|---|
-| **头牌：Time-LLM × swiss 命名站点 文本注入** | 真正的"实体丰富域"测试（命名河流站点，LLM 能联想真实世界）| ⏸ 等你定**描述来源 A/B/C/D**（见下）|
-| 补：Time-LLM **嵌入注入**（embedding） | 补"文本身份 vs 数值身份"对比 | 自主，约半天集群 |
-| 补：多 seed 扩到 swiss-2010 / zurich | 补全"论文主张三"全域误差棒 | 自主，多天集群 |
-| 补：electricity/traffic 真实基线（替换 5月旧值） | 主矩阵去掉"初步"标 | 自主，多天集群 |
-| 论文初稿 | 数据已成体系（主矩阵+误差棒+注入消融+Time-LLM null），最高性价比、不烧集群 | 自主，写作 |
+| 论文：Figure 1（注入位置示意图） | 唯一还没画的核心图（归一化前 vs 后）| 自主，写作/画图 |
+| 论文：核心引文 BibTeX 程序化核对 | `[verify]` 标记的引用逐条查 Semantic Scholar/Exa（严禁凭记忆写）| 自主，联网查 |
+| electricity sin/random 补格 → 并入主表 | 去掉 electricity dlinear/patchtst 的 sin/random"−" | 🔄 跑中(8787665)，跑完并表 |
+| **暂缓** traffic dlinear/patchtst sin/random | 862 通道算力黑洞、边际价值（traffic 已知扁平）| ⏸ 除非你要求 |
+| **暂缓（需你确认）** 多 seed 扩到 swiss-2010/zurick 全域误差棒 | 补"主张三"全域显著性 | ⏸ **seed 工作默认 hold**（standing rule 2026-07-05）|
 
-**头牌的"描述来源 A/B/C/D"**（swiss 站点只有数字站号 2091，没河名）：
-- **A**（推荐）：我联网抓真实瑞士水文站元数据（河名+位置）—— 需你同意联网调研。
-- **B**：你给站点描述文件（站号→描述）。
-- **C**：用已有经纬度坐标拼文本（偏弱，是数字不是名字）。
-- **D**：不做 swiss，到此为止。
+> **standing rule**：所有 seed / 多-seed 实验默认**不自主跑**，非做不可先问你确认。单-seed 补基线格（如 8787665）不算 seed 工作、可自主。
