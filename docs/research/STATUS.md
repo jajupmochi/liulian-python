@@ -105,7 +105,12 @@
 ---
 
 ## 3. 正在跑的实验
-**electricity × {dlinear, patchtst} × {sinusoidal, random}**（4 格补缺；job 8787665，gratis 单-seed，run-tag `elec-sinrand-39`）。这是主矩阵里 electricity dlinear/patchtst 行 sin/random 两列"−"的真正缺口；跑完并入主表。
+**无。** 集群队列空。
+
+> **electricity 补格（job 8787665, `elec-sinrand-39`）已完成 4/4，但 research-critic 拦下"并入主表"**：July 补的 sin/random 用**当前代码 + 20 次 HPO**，而行内 none/embed/onehot 是 **5 月旧代码/HPO** 基线——两者**不可公平同列**（自变量"身份模式"与"代码/HPO 时代"混淆）。
+> - **dlinear**：July sin/rand 0.4353/0.4341 ≈ May none 0.4341 → 印证 **dlinear 对身份不敏感**（且线性、对时代/HPO 不敏感，可比）。
+> - **patchtst**：July sin/rand **0.518/0.512 = +26%** vs May none 0.408，而 May onehot(同为 transparent)并未回归 → **混淆，不可用作结论**。
+> - **决定**：electricity dlinear/patchtst 行**维持 3 模式 5 月基线**（标"初步"不变），不部分填 July 值。要公平补全需**同代码整行重跑**（全 5 模式、同 HPO/注入），低价值、暂缓。traffic 仍暂缓（862 通道算力黑洞）。
 
 > **#39 诊断（本轮）**：原"traffic/electricity × {dlinear,patchtst} × 5 模式 = 20 格"大多**已存在**（散落在 `*-REAL-*` / `*-mc-20260614` 旧 tag 里）。真正缺口只是 **sin/random** 少数格（= 老 #17 backfill）。traffic（862 通道）patchtst sin/random 是**算力黑洞**（~12h/格、多天），价值边际（traffic 已知"扁平"），**暂缓**；只补轻量的 electricity（321 通道）。
 
