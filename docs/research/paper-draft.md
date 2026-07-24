@@ -76,9 +76,12 @@
   ≫ multi-channel) and domain-dependent (large only where the domain holds many
   genuinely-distinct entities). With an effective-dimensionality characterization
   of each domain.
-- **C4 (evaluation bridge).** Import two hydrology-standard lenses —
-  effective-dimensionality and per-entity error dispersion — into channel-identity
-  TSF; show identity shifts the mean error but not the dispersion (scale-free).
+- **C4 (evaluation bridge + a headline claim).** Import two hydrology-standard lenses —
+  effective-dimensionality and per-entity error dispersion — into channel-identity TSF, and
+  report the dispersion result as a quotable finding: **identity is a mean-shifter, not an
+  equalizer** — it lowers the average per-entity error but leaves the *dispersion* across
+  entities and the worst-decile / CVaR@10% essentially unchanged (scale-free NRMSE). This is
+  the study's most honest and most defensible result and we lead with it rather than bury it.
 - **C5 (LLM-reprogramming identity).** For a frozen-LLM reprogrammer
   (Time-LLM/GPT-2), a distinct *numeric* per-entity vector ≫ a *textual*
   description, but only in the entity-rich regime; a capacity-matched frozen-random
@@ -388,10 +391,15 @@ is bundled with a new encoder. Our text-versus-numeric arm (C5) fills exactly th
   regime-dependent, not monotone in redundancy* (mc+redundant → marginal;
   per-entity+redundant → large via transfer). Tie to hydrology PCA/EOF of station
   networks.
-- **N6 — per-entity dispersion (Table D).** scale-free per-channel NRMSE; Gini,
-  worst-decile. *Identity shifts the mean but does not change the dispersion or
-  rescue worst entities* (Gini ~unchanged). Methodological note: the denorm version
-  is a scale artifact. Tie to per-station NSE/KGE practice.
+- **N6 — per-entity dispersion (Table D) — the "mean-shifter, not equalizer" headline.**
+  Scale-free per-channel NRMSE with three dispersion lenses: the Gini coefficient across
+  entities, the worst-decile mean, and CVaR@10% (mean of the worst decile). **Identity
+  shifts the mean but does not change the dispersion or rescue the worst entities** (Gini
+  ~unchanged across identifier modes) — a falsifiable, quotable claim that we surface as a
+  headline rather than a caveat. Methodological note: the *denorm* version is a
+  range-weighting artifact of per-station min-max (a 20 °C-range station contributes 20× a
+  1 °C-range station at equal normalized error), so the dispersion result is reported on the
+  scale-free NRMSE and cross-checked with per-station NSE/KGE (§6 above, §8.2).
 
 ## §7 The LLM-reprogramming arm (C5 — new)
 

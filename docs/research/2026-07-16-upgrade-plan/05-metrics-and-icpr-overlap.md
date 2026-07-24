@@ -85,6 +85,12 @@ The draft **already** has per-entity dispersion (Gini, worst-decile — Table D)
 and cites per-station NSE/KGE as practice. It does **not** compute NSE/KGE, has **no significance
 test**, and has **no probing**.
 
+> ✅ **主张 C 核验更正（2026-07-24，见 [11 §四篇核验](11-bookmark-harvest.md)）**：不能写"水温领域
+> **缺**既定指标标准"。**HESS 29:2521 (2025)** 综述 57 篇 ML 水温研究，已推荐联合指标集（r/r²、
+> **NSE**、RMSE、MAE、PBIAS，附 satisfactory/good/very good 阈值），但**以 NSE 为中心、不含 KGE、
+> 不强制逐站分布**。正确措辞：**"采纳 HESS 推荐的指标基础，并扩展逐站 KGE(α/β 分解) 与逐站技能分布
+> ——这两者综述既未标准化也不要求。"** 下面 (b) 小节按此定位。
+
 ### (a) Accuracy, probabilistic scores, significance
 
 | Metric | Measures | Citation | Verified link |
