@@ -141,6 +141,34 @@ swiss 用的是 `EntityScaler` 的**逐站 min-max**——**每个站点被自�
 > 而不是一个异常。另注：BasicTS 对 PEMS04 设 `NORM_EACH_CHANNEL: False`、对 Electricity 设
 > `True`——**同一个基准内部就有天然对照，无人利用**。
 
+### 可直接引用的形式化：归一化 = 商掉仿射等价类
+
+Non-stationary Transformers（[arXiv:2205.14415](https://arxiv.org/abs/2205.14415), NeurIPS 2022）
+把这件事写死了，原文：
+
+> "Series Stationarization can generate the same stationarized input **𝐱′ from distinct time series
+> 𝐱₁, 𝐱₂ (i.e. 𝐱₂ = α𝐱₁ + β)**, and the base model will get identical attention"
+
+**即：归一化把每条序列塌缩到它的仿射等价类。两个实体在归一化后不可区分，当且仅当它们互为仿射像。
+一切非仿射的性质都幸存。** 这正是我们"形状/动力学幸存"论证的**已发表、可引用**版本——不必自己论证。
+佐证：FAN（[2409.20371](https://arxiv.org/abs/2409.20371), NeurIPS 2024）明确指出 RevIN
+**保留季节结构**。
+
+### 新增第 5 个度量（领域特异、且 min-max 动不了）
+
+**逐站"气温→水温"冲激响应离散度**：对每站拟合一个分布滞后/传递函数，比较其**时间常数与滞后**。
+逐 (站,变量) min-max 大体拉平了**增益幅度**，但**动不了滞后**。物理依据：Caissie
+([10.1111/j.1365-2427.2006.01597.x](https://doi.org/10.1111/j.1365-2427.2006.01597.x)) 与
+Kelleher 等 ([10.1002/hyp.8186](https://doi.org/10.1002/hyp.8186)) 把站间热响应差异归因于地下水/
+基流比例与热惯量。**这是最贴合物理机制、又对我们的 scaler 免疫的度量。**
+
+### 本文档推出的头号实验（规格）
+
+> **{逐实体, 全局} 归一化范围 × {identity, none} 的 2×2**，
+> **评分必须用逐站 NSE/KGE，而不是量程加权的 denorm RMSE**——否则度量本身的变化会伪装成效应。
+> 跨 arXiv/Crossref/DBLP 未找到任何论文交叉过这两个因子；而**交通文献所有的身份增益都落在
+> "全局范围"那一格**。
+
 所以 §3 的条件 B（"identity 白送一个稳定偏移"）**作为机制解释是错的**。§1 的统计量本身没错
 （它们算在原始未归一化数据上），但**把它们连到 identity 收益的那条因果链断了**。
 
