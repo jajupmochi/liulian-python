@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "updated_at": "2026-07-16T00:00:00Z",
+  "_comment": "Entity-identifier verification breakpoint set. See docs/debug_verification_guide.md section 5 for what to inspect at each stop. Import with: python tools/breakpoint_bridge.py import-pycharm --bridge .debug/breakpoints.entity-verification.json  (close PyCharm first).",
+  "breakpoints": [
+    {
+      "path": "liulian/pipeline.py",
+      "line": 939,
+      "enabled": true,
+      "_why": "run_experiment entry - inspect full config (identifier_mode, train_epochs, seed)"
+    },
+    {
+      "path": "liulian/pipeline.py",
+      "line": 163,
+      "enabled": true,
+      "_why": "build_dataset - swiss returns ConcatDataset, others a single Dataset"
+    },
+    {
+      "path": "liulian/pipeline.py",
+      "line": 392,
+      "enabled": true,
+      "_why": "auto_detect_enc_in - must equal C_base + D for transparent modes"
+    },
+    {
+      "path": "liulian/data/ts/timeseriesdataset.py",
+      "line": 80,
+      "enabled": true,
+      "_why": "make_entity_features - data-layer bake-in of transparent identity"
+    },
+    {
+      "path": "liulian/models/torch/entity_mixin.py",
+      "line": 274,
+      "enabled": true,
+      "_why": "_build_channel_features - verify the (N,D) table per mode (guide 3.1)"
+    },
+    {
+      "path": "liulian/models/torch/entity_mixin.py",
+      "line": 459,
+      "enabled": true,
+      "_why": "EntityTransparentWrapper.forward - x_enc last dim C_base -> C_base+D, 0 learnable params"
+    },
+    {
+      "path": "liulian/models/torch/entity_mixin.py",
+      "line": 95,
+      "enabled": true,
+      "_why": "EntityWrapper.forward - embedding lookup then projection BACK to C_base"
+    },
+    {
+      "path": "liulian/runtime/trainer.py",
+      "line": 722,
+      "enabled": true,
+      "_why": "loss.backward() - confirm loss is finite and actually backpropagates"
+    },
+    {
+      "path": "liulian/runtime/trainer.py",
+      "line": 723,
+      "enabled": true,
+      "_why": "optimizer.step() - CRITICAL anti-fake-run check: compare a parameter before/after, it MUST change"
+    },
+    {
+      "path": "liulian/runtime/trainer.py",
+      "line": 368,
+      "enabled": true,
+      "_why": "evaluate - metrics dict must be finite and match the committed table value"
+    }
+  ]
+}
