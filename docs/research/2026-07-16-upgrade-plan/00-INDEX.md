@@ -11,6 +11,9 @@
 > | [`03-datasets.md`](03-datasets.md) | **(a)(b)** standard suite w/ entity-richness verdicts, beyond-standard, graph data |
 > | [`04-tasks-beyond-forecasting.md`](04-tasks-beyond-forecasting.md) | **(g)** tasks |
 > | [`05-metrics-and-icpr-overlap.md`](05-metrics-and-icpr-overlap.md) | **(g)** metrics + **the ICPR self-overlap** |
+> | [`06-related-work-DRAFT.md`](06-related-work-DRAFT.md) | **(f)** — **paper-ready §2 prose**, six subsections, organised by where identity lives |
+> | [`07-implementation-playbook.md`](07-implementation-playbook.md) | **(h)** — **实施方案**: per-item files to touch, commands, validation criteria, failure modes, data-acquisition steps |
+> | [`refs/refs.bib`](refs/refs.bib) · [`refs/FETCH_REPORT.md`](refs/FETCH_REPORT.md) | 150 programmatically-fetched BibTeX entries + 112 downloaded PDFs |
 >
 > Every reference in the sub-documents carries a verification mark. **UNVERIFIED items are listed
 > explicitly in each doc and must not enter the paper without re-checking.**
