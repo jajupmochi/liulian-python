@@ -1,0 +1,4 @@
+# Downloaded reference PDFs are large binaries and are re-fetchable at any time:
+#   python tools/fetch_upgrade_plan_refs.py
+# Keep refs.bib and FETCH_REPORT.md tracked; keep the PDFs local.
+pdf/

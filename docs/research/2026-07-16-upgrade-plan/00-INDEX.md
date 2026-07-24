@@ -70,7 +70,7 @@ GPU-h are extrapolated estimates, never measured. **★ = required for a top ven
 | 0.7 | **§2 *text vs numeric identity in ST-LLMs*** — UrbanGPT vs ST-LLM vs TimeCMA; nobody isolated modality | e | Verified in [02](02-algorithms-graph-llm-stllm.md) | ~200 words; lifts C5 to "fills a stated gap" | 0.3 d | 🟡 |
 | 0.8 | **Cite Cini et al. NeurIPS 2023** and position | f | [2302.04071](https://arxiv.org/abs/2302.04071) verified | 1 paragraph | 0.2 d | ★ |
 | 0.9 | **Promote the dispersion result to a headline** — "identity is a mean-shifter, not an equalizer" | g | Table D already exists | Reframe + add worst-decile/CVaR | 0.5 d | ★ |
-| 0.10 | **Build the `.bib` programmatically** from all verified refs; record the three-way "ST-LLM" name clash | h | ~90 verified refs across the 5 docs | Fetch BibTeX by DOI/arXiv ID — never hand-write | 0.5 d | ★ |
+| 0.10 | **Build the `.bib` programmatically** + download open-access PDFs; record the three-way "ST-LLM" name clash | h | ✅ **DONE** — tooling shipped: [`tools/fetch_upgrade_plan_refs.py`](../../../tools/fetch_upgrade_plan_refs.py) → [`refs/refs.bib`](refs/refs.bib) + [`refs/FETCH_REPORT.md`](refs/FETCH_REPORT.md); PDFs in `refs/pdf/` (gitignored, re-fetchable) | Scans all plan docs for arXiv IDs + DOIs, fetches BibTeX via the arXiv bibtex endpoint and Crossref content negotiation (**never hand-written**), downloads arXiv + open-access-DOI PDFs only; paywalled publishers reported, not faked | done | ★ |
 
 ### Tier 1 — the experiments that make or break the paper
 
