@@ -74,19 +74,24 @@ def load_matrix(name: str) -> tuple[np.ndarray, str] | None:
     return df[cols].to_numpy(dtype=float), note
 
 
-def stats(x: np.ndarray) -> dict:
+def stats(x: np.ndarray, *, corr_cap: int = 400, seed: int = 2026) -> dict:
     """x: (T, C) raw values, one column per entity."""
+    n_rows_in = x.shape[0]
     x = x[~np.isnan(x).any(axis=1)] if np.isnan(x).any() else x
+    dropped = n_rows_in - x.shape[0]  # reported, never hidden: NaN rows bias every statistic
     T, C = x.shape
     mu_e = x.mean(axis=0)                      # (C,) per-entity mean
     var_between = mu_e.var(ddof=0)
     var_within = x.var(axis=0, ddof=0).mean()
     icc_level = var_between / (var_between + var_within) if (var_between + var_within) > 0 else np.nan
 
+    # NOTE: this is the std of log per-entity SD across entities -- a DISPERSION in log
+    # units, NOT an intraclass correlation and NOT bounded in [0,1]. Named accordingly;
+    # calling it ICC_scale (as an earlier revision did) invites reading 2.03 as a ratio.
     sd_e = x.std(axis=0, ddof=0)
     with np.errstate(divide='ignore'):
         log_sd = np.log(np.where(sd_e > 0, sd_e, np.nan))
-    icc_scale = float(np.nanstd(log_sd))       # dispersion of log-amplitude across entities
+    scale_disp = float(np.nanstd(log_sd))
 
     common = x.mean(axis=1, keepdims=True)     # (T,1) cross-entity mean signal
     cc = common[:, 0] - common[:, 0].mean()
@@ -108,8 +113,14 @@ def stats(x: np.ndarray) -> dict:
     rw = resid.var(axis=0, ddof=0).mean()
     resid_icc = rb / (rb + rw) if (rb + rw) > 0 else np.nan
 
-    # redundancy
-    sub = x[:, :400] if C > 400 else x          # cap for tractability
+    # redundancy. Sample columns at RANDOM rather than taking the first `corr_cap`:
+    # benchmark column order is often spatially clustered (traffic sensors are ordered
+    # along freeways), so a prefix slice systematically over-states correlation.
+    if C > corr_cap:
+        idx = np.random.default_rng(seed).choice(C, size=corr_cap, replace=False)
+        sub = x[:, np.sort(idx)]
+    else:
+        sub = x
     R = np.corrcoef(sub, rowvar=False)
     iu = np.triu_indices_from(R, k=1)
     mean_abs_r = float(np.nanmean(np.abs(R[iu])))
@@ -118,8 +129,8 @@ def stats(x: np.ndarray) -> dict:
     ev = ev[ev > 0]
     pr = float((ev.sum() ** 2) / (ev**2).sum()) if ev.size else np.nan
 
-    return dict(T=T, C=C, ICC_level=float(icc_level), ICC_scale=icc_scale,
-                shared_R2=shared_r2, resid_ICC=float(resid_icc),
+    return dict(T=T, C=C, dropped_rows=dropped, ICC_level=float(icc_level),
+                scale_disp=scale_disp, shared_R2=shared_r2, resid_ICC=float(resid_icc),
                 mean_abs_r=mean_abs_r, PR=pr)
 
 
@@ -142,7 +153,8 @@ def main() -> int:
         print('no datasets found', file=sys.stderr)
         return 1
     df = pd.DataFrame(rows)[
-        ['dataset', 'regime', 'C', 'T', 'ICC_level', 'resid_ICC', 'ICC_scale', 'shared_R2', 'mean_abs_r', 'PR']
+        ['dataset', 'regime', 'C', 'T', 'dropped_rows', 'ICC_level', 'resid_ICC',
+         'scale_disp', 'shared_R2', 'mean_abs_r', 'PR']
     ].sort_values('ICC_level', ascending=False)
     pd.set_option('display.width', 200)
     print('\n=== entity separability diagnostics (sorted by ICC_level) ===')
