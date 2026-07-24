@@ -13,7 +13,36 @@
 > | [`05-metrics-and-icpr-overlap.md`](05-metrics-and-icpr-overlap.md) | **(g)** metrics + **the ICPR self-overlap** |
 > | [`06-related-work-DRAFT.md`](06-related-work-DRAFT.md) | **(f)** — **paper-ready §2 prose**, six subsections, organised by where identity lives |
 > | [`07-implementation-playbook.md`](07-implementation-playbook.md) | **(h)** — **实施方案**: per-item files to touch, commands, validation criteria, failure modes, data-acquisition steps |
+> | [`08-why-swiss-responds.md`](08-why-swiss-responds.md) | **为什么偏偏 swiss 敏感** — 六数据集实测诊断量；**两个机制假设先后被证伪**（§2 数据否定 ICC 假设，§3.5 代码否定"偏移"假设）；四个可证伪预测 P1–P4 |
+> | [`09-generalizable-identity.md`](09-generalizable-identity.md) | **泛化到未见实体的身份** — 七个 family 的归纳性；能泛化的信息源只有三类；MetaEmbedding/DropoutNet 是"泛化模块"的先例（时序无对应）；建议三条臂 |
+> | [`entity-separability.csv`](entity-separability.csv) | 08 的原始诊断量输出（由 [`tools/analyze_entity_separability.py`](../../../tools/analyze_entity_separability.py) 生成，7 项已知答案测试）|
 > | [`refs/refs.bib`](refs/refs.bib) · [`refs/FETCH_REPORT.md`](refs/FETCH_REPORT.md) | 150 programmatically-fetched BibTeX entries + 112 downloaded PDFs |
+
+---
+
+## 本轮新增（2026-07-24）：两次证伪与两个可抢空位
+
+**两个机制假设都被推翻——这改变了论文的解释层，但不改变数据。**
+
+1. **"ICC 高 ⟹ identity 有用"被数据否定**（[`08` §2](08-why-swiss-responds.md)）。swiss 的
+   `ICC_level` 只排第四却收益最大。根因是**原始 ICC 在单位不一致的数据上无意义**（weather 的
+   21 个变量分别是 mbar/°C/%），这条方法学警告必须写进论文。
+2. **"identity 白送每站稳定偏移"被代码否定**（[`08` §3.5](08-why-swiss-responds.md)）。真实
+   `resolved_config.yaml` 显示 swiss 用 `scaler: minmax` + `eval_denorm: true` 的**逐站 min-max**
+   ——**水平与幅度在进模型前已被 scaler 拿走、评估时又还回来**。identity 只可能在提供**每站动力学
+   差异**（响应快慢、滞后、对驱动的敏感度）。**连带暴露**：逐站 min-max ⟹ `denorm_rmse` 天然
+   **按各站量程加权**，头条数字必须用逐站 NSE/KGE 复核。
+
+**两个可抢的空位**（均待独立核验，核验中）：
+
+| 空位 | 现状 |
+|---|---|
+| **训练/测试打乱通道顺序的退化消融** | 未找到已发表版本；一个下午即可完成；能直接证明"位置是否被当作隐式身份" |
+| **用序列自身导出身份替代查表 embedding，并在同一 backbone 上对照** | CCM 的 `h_i = MLP(X_i)` 最接近，但它的 zero-shot 是**跨数据集**、不是同数据集内留出实体 |
+
+**一条把两条线串起来的约束**：instance-norm 抹掉逐实体常量 ⟹ 自导出身份**必须注入在归一化之后**；
+且因 swiss 已做逐站 min-max，**均值/方差型自导出身份在 swiss 上会是常数、毫无信息量**，必须取
+形状/动力学特征——与 §3.5 的结论独立吻合。
 >
 > Every reference in the sub-documents carries a verification mark. **UNVERIFIED items are listed
 > explicitly in each doc and must not enter the paper without re-checking.**
