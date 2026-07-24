@@ -33,12 +33,69 @@
    差异**（响应快慢、滞后、对驱动的敏感度）。**连带暴露**：逐站 min-max ⟹ `denorm_rmse` 天然
    **按各站量程加权**，头条数字必须用逐站 NSE/KGE 复核。
 
-**两个可抢的空位**（均待独立核验，核验中）：
+**两个候选空位——对抗性核验后：一个被证伪，一个存活**（核验于 2026-07-24，任务是"努力推翻"）：
 
-| 空位 | 现状 |
+| 候选 | 裁定 |
 |---|---|
-| **训练/测试打乱通道顺序的退化消融** | 未找到已发表版本；一个下午即可完成；能直接证明"位置是否被当作隐式身份" |
-| **用序列自身导出身份替代查表 embedding，并在同一 backbone 上对照** | CCM 的 `h_i = MLP(X_i)` 最接近，但它的 zero-shot 是**跨数据集**、不是同数据集内留出实体 |
+| 训练/测试打乱通道顺序的退化消融 | ❌ **已被证伪 —— 不可主张。** 见下 |
+| 用序列自身导出身份替代查表 embedding，同 backbone 正面对照 | ✅ **存活**，但措辞须收紧，见下 |
+
+### ❌ 通道打乱消融：**CPiRi 已经做过，且做得更细**
+
+**CPiRi**（Xu et al., 上海财经大学，[arXiv:2601.20318](https://arxiv.org/abs/2601.20318)，代码
+`JasonStraka/CPiRi`）的 Table 2 明确分为 *CD trained with fixed channel order* /
+*CD tested with channel shuffling*——**正是"正常训练、推理期打乱"**，且附**梯度化打乱**
+（100/75/50/25/0%），比我们设想的单点实验更细。原文解释与我们的机制措辞几乎逐字重合：
+
+> "on PEMS-08, Informer's error increases by >400% under channel shuffling, **confirming reliance
+> on positional memorization rather than relational reasoning**" … "these models **memorize channel
+> order instead of content-driven dependencies**" … "**positional rigidity**"
+
+他们把该消融命名为 **"CPI diagnostic"**。**"通道位置 = 隐式实体标识符"这个 framing 也已被占用。**
+
+| 模型 (PEMS-08 WAPE) | 正常 | 打乱后 |
+|---|---:|---:|
+| Informer | 13.02% | **118.19%** |
+| STID | 10.90% | 65.18% |
+| Crossformer | 11.43% | 39.85% |
+| **iTransformer** | 10.70% | **10.70%（几乎不退化）** |
+
+**但留下一个 CPiRi 没深挖、对我们有利的角度**：**位置依赖是架构相关的，不是普遍现象**——
+iTransformer 零退化而 Informer/STID/Crossformer 崩溃。这与我们此前的更正（"位置是否即身份"取决于
+第一层怎么碰通道轴）**独立吻合**，且比"模型都依赖位置"更有意思。若要做，我们的 delta 只能是
+**跨模型族 + 跨领域的位置依赖归因**，或把退化幅度与实体可区分度定量关联——**必须引用 CPiRi**。
+
+相邻工作：[2603.08753](https://arxiv.org/abs/2603.08753)（置换等变 2D SSM）·
+**SOR-Mamba [2410.23356](https://arxiv.org/abs/2410.23356)**（2024-10，早于 CPiRi，针对 channel
+order bias；**UNVERIFIED：未能确认其是否含推理期置换评测，投稿前须自行读 PDF**）。
+
+### ✅ 序列自导出身份：gap 存活，但措辞必须收紧
+
+三篇占据了大部分概念地盘：**Butera et al.** 占了"embedding 退化成 mere sequence identifiers"的
+**诊断**（但其解法是**正则化**，非替换）；**Cini et al.** 把 embedding 定义为字面查表
+`Θ = V ∈ ℝ^{N×d_v}`，新节点靠**梯度拟合少量观测**（**不是前馈 encoder 编码窗口**——这正是我们的
+gap）；**CCM** 的 `h_i = MLP(X_i)` 机制最接近，但它替换成的是 **K 路 cluster identity**（`C ∈ ℝ^{K×d}`
+仍是学习出的原型表，只是 N→K），且**从未把 per-entity lookup embedding 作为对照臂**。
+
+**可站得住的表述（建议照抄）**：
+
+> Per-entity embeddings are widely used as local components in global forecasters, and prior work
+> has diagnosed that they can degenerate into mere sequence identifiers (Butera et al., 2024) or
+> characterized them as amortizing local specialization via a learnable table `V ∈ ℝ^{N×d_v}`
+> (Cini et al., 2023). Where identities for unseen entities are needed, they are obtained by
+> *fitting* a small number of observations by gradient descent (Cini et al., 2023) or by quantizing
+> series-derived features to K cluster prototypes (CCM, Chen et al., 2024). To our knowledge, no
+> prior work substitutes the lookup embedding with a feed-forward identity
+> `h_i = Encoder(X_i^{lookback})` computed from the entity's own window and compares the two
+> head-to-head on an identical backbone and data split.
+
+### ⚠ 核验覆盖不足（诚实披露）
+
+该核验会话的 **WebSearch 配额在开始前已耗尽（200/200）**，Semantic Scholar 持续 429，结果全部来自
+arXiv/DBLP API 与 HTML 全文。**投稿前必须补查**：**HN-MVTS
+([arXiv:2511.08340](https://arxiv.org/abs/2511.08340)，hypernetwork MTSF，2025-11，最高优先级)** ·
+SCPT · NST Projector · Dish-TS/SAN/FAN · DeepTime · IGNNK/GgNet/KITS/TPB 归纳 kriging 系 ·
+Deep Sets/Set Transformer 类比消融 · tabular DL 的列序敏感性。
 
 **一条把两条线串起来的约束**：instance-norm 抹掉逐实体常量 ⟹ 自导出身份**必须注入在归一化之后**；
 且因 swiss 已做逐站 min-max，**均值/方差型自导出身份在 swiss 上会是常数、毫无信息量**，必须取
