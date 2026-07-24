@@ -52,18 +52,35 @@ def extract_ids(md_files: list[Path]) -> tuple[set[str], set[str]]:
     dois: set[str] = set()
     # arXiv: 4 digits . 4-5 digits, optional version
     ax_re = re.compile(r'arxiv\.org/(?:abs|pdf|html)/(\d{4}\.\d{4,5})|arXiv:(\d{4}\.\d{4,5})', re.I)
-    # DOI: doi.org/<doi> or a bare 10.xxxx/... inside a link or backticks
-    doi_re = re.compile(r'(?:doi\.org/|\b)(10\.\d{4,9}/[^\s)\]<>"\'`,]+)', re.I)
+    # DOI: doi.org/<doi> or a bare 10.xxxx/... inside a link or backticks.
+    # ')' is ALLOWED in the class because legacy Elsevier DOIs embed balanced parens
+    # (e.g. 10.1016/0022-1694(70)90255-6, Nash & Sutcliffe). Unbalanced trailing ')'
+    # -- the markdown/prose closer -- is stripped afterwards by _clean_doi().
+    doi_re = re.compile(r'(?:doi\.org/|\b)(10\.\d{4,9}/[^\s\]<>"\'`,]+)', re.I)
     for f in md_files:
         text = f.read_text(encoding='utf-8')
         for m in ax_re.finditer(text):
             arxiv.add((m.group(1) or m.group(2)))
         for m in doi_re.finditer(text):
-            d = m.group(1).rstrip('.,;')
-            # strip trailing markdown artefacts
-            d = re.sub(r'\)+$', '', d)
-            dois.add(d)
+            dois.add(_clean_doi(m.group(1)))
     return arxiv, dois
+
+
+def _clean_doi(d: str) -> str:
+    """Trim prose/markdown trailing characters WITHOUT truncating a valid DOI.
+
+    Legacy Elsevier DOIs contain balanced parentheses, so a blanket ')' strip
+    truncates them (this really happened: 10.1016/0022-1694(70)90255-6 became
+    '10.1016/0022-1694(70' and 404'd). Only drop a trailing ')' when it is
+    UNBALANCED, i.e. it closes something that opened outside the DOI.
+    """
+    # '*' is markdown emphasis, never part of a DOI; strip it alongside prose punctuation
+    # so that e.g. '...WR031794)).**' reduces cleanly rather than 404-ing.
+    trail = '.,;*'
+    d = d.rstrip(trail)
+    while d.endswith(')') and d.count(')') > d.count('('):
+        d = d[:-1].rstrip(trail)
+    return d
 
 
 def fetch_arxiv(aid: str) -> tuple[str | None, str]:

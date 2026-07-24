@@ -97,6 +97,46 @@ def test_no_false_positives_on_prose_without_identifiers(mod, tmp_path):
     assert dois == set()
 
 
+def test_legacy_elsevier_doi_with_parens_is_not_truncated(mod, tmp_path):
+    """REGRESSION: a DOI containing balanced parens must survive intact.
+
+    Bug (observed in a real fetch run, FETCH_REPORT row `10.1016/0022-1694(70` ->
+    HTTP 404): the DOI character class excluded ')' to avoid swallowing a markdown
+    link closer, which truncated legacy Elsevier DOIs at their first paren. The
+    casualty was Nash & Sutcliffe 1970 -- the citation underpinning the entire NSE
+    metric recommendation -- silently dropped from refs.bib.
+
+    Expected: the full 10.1016/0022-1694(70)90255-6.
+    Pre-fix behaviour: '10.1016/0022-1694(70'.
+    """
+    md = _write(tmp_path, 'NSE: [10.1016/0022-1694(70)90255-6](https://doi.org/10.1016/0022-1694(70)90255-6)\n')
+    _, dois = mod.extract_ids(md)
+    assert dois == {'10.1016/0022-1694(70)90255-6'}
+
+
+def test_unbalanced_trailing_paren_is_still_stripped(mod, tmp_path):
+    """The paren fix must NOT reintroduce the markdown-closer bug it replaced.
+
+    A DOI inside a markdown link has a trailing ')' that belongs to the link, not the
+    DOI. It is unbalanced, so it must still be removed.
+    """
+    md = _write(tmp_path, 'see (https://doi.org/10.1029/2021WR031794) for details\n')
+    _, dois = mod.extract_ids(md)
+    assert dois == {'10.1029/2021WR031794'}
+
+
+def test_doi_followed_by_markdown_bold_and_nested_parens(mod, tmp_path):
+    """REGRESSION: '...WR031794)).**' must reduce to the bare DOI.
+
+    Observed in a real fetch run as `10.1029/2021WR031794)).**` -> HTTP 404. The DOI
+    sat inside a parenthesised markdown link that was itself followed by bold markers,
+    so stripping only './,/;' left ')).**' attached.
+    """
+    md = _write(tmp_path, 'see (Li 2022 ([10.1029/2021WR031794](https://doi.org/10.1029/2021WR031794)).**\n')
+    _, dois = mod.extract_ids(md)
+    assert dois == {'10.1029/2021WR031794'}
+
+
 def test_scans_every_file_it_is_given(mod, tmp_path):
     """IDs must be unioned across all plan documents, not just the first."""
     a = tmp_path / 'a.md'
