@@ -133,6 +133,13 @@
 | 1.6 | 第二个 TS-LLM = UniTime（文本/数值 × pre/post-norm） | d | 未开始；GPT4TS/TimeMoE 已实现可作更省替代 | 30–70 | 1–2周 | ★ |
 | 1.7 | C1 上第二个带 instance-norm 骨干：iTransformer + RevIN 开关 | h | iTransformer 已实现 | 10–20 | 3–4d | ★ |
 | 1.8 | **归一化范围 × 身份 2×2**（min-max vs z-score）——机制发现的决定性实验 | h | 未开始；改一个 config 字段 | ~5 | 1–2d | ★★ |
+| 1.9 | **提示词质量阶梯**（不透明索引→站名→丰富描述→oracle 描述） | d | 未开始；复用 `entity_descriptions.yaml` | ~10–20 | 2–3d | ★★ |
+| 1.10 | **冻结 vs LoRA 对照**（最佳文本档重跑） | d | 未开始 | ~15–30 | 3–4d | ★ |
+
+> **1.9/1.10 的来由**：[12](12-prompt-vs-embedding-verdict.md) 的对抗裁定——"数值≫文本"本身是**可预测的
+> 确认**（文本坍缩 2606.19413、条件多模态 2506.21611 已发表），单独不足以支撑主会。这两项把卖点从
+> **"文本输了"** 移到 **"文本在什么条件下不再输、瓶颈在哪个接口"**，是把 C5 从受控观察升级为机制主张
+> 的必要条件。1.9 最便宜且审稿人最可能索要。
 
 ### Tier 2 · 强烈建议
 
@@ -201,7 +208,8 @@
 | [08-why-swiss-responds](08-why-swiss-responds.md) | 为什么 swiss 敏感：六数据集实测诊断量；两个机制假设先后被证伪 + 一次再更正；归一化=商掉仿射类；scope 2×2；P1–P4 |
 | [09-generalizable-identity](09-generalizable-identity.md) | 泛化到未见实体：七个 family 归纳性；能泛化的三类信息源；MetaEmbedding/DropoutNet 先例；三条臂 |
 | [10-cpiri-ucast-intel](10-cpiri-ucast-intel.md) | CPiRi(ICLR'26 Poster) + U-Cast(拒稿) 的 OpenReview 情报；架构依赖性 gap；两条 framing 警告 |
-| [11-bookmark-harvest](11-bookmark-harvest.md) | 书签收割（HESS 水温综述/Forecastability/Few-Shot Heterogeneous）+ **四篇核验**（主张 A/B/C 收窄的判决与改写句） |
+| [11-bookmark-harvest](11-bookmark-harvest.md) | 书签收割（HESS 水温综述/Forecastability/Few-Shot Heterogeneous）+ **四篇核验**（主张 A/B/C 收窄）+ **四篇 UNVERIFIED 的最终核查**（HN-MVTS/SOR-Mamba/表示学习综述/T-Loss） |
+| [12-prompt-vs-embedding-verdict](12-prompt-vs-embedding-verdict.md) | **"提示词 vs 嵌入"能否当卖点的对抗裁定**：2×2 确实无人做，但结论可预测；现状=次要贡献，补强路线（提示词质量阶梯 + 解冻对照）|
 
 ### 数据与引文
 

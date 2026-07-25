@@ -154,6 +154,58 @@ very good"阈值（Table 2）。语料里最常用的是 RMSE、NSE、MAE、R²�
 
 ---
 
+## 四篇 UNVERIFIED 的最终核查（2026-07-24，均读一手全文）
+
+> 这四篇是前几轮标为 UNVERIFIED、投稿前必须清的。**结论：Claim B 存活，但 C6 的谱系必须改写。**
+
+### ✅ HN-MVTS（[2511.08340](https://arxiv.org/abs/2511.08340)）— LEAVES INTACT（claim B）
+
+最近的邻居，但**明确停在查表一侧**。超网络的条件输入是**逐通道可学习查表** `Z ∈ ℝ^{N×d}`，
+且原文有一句决定性的话：权重 *"**do not depend on the specific input time series**"*，训练后
+超网络被丢弃、权重拷进最后一层——**身份是静态参数，与推理期输入窗口无关**。也**没有**同 backbone
+的查表嵌入对照臂（全文无 ablation 节）。
+
+> ⚠ **必须打的补丁**：它的 `z` **初值**来自训练集通道相关矩阵的 PCA（一句话观察，无配表），随后由
+> 反向传播接管。所以**不能写**"从未有人用数据推导的通道向量"，只能写"从未有人把身份做成**推理期
+> 依赖该实体观测的函数**并与查表对照"。
+
+### ⚠ SOR-Mamba（[2410.23356](https://arxiv.org/abs/2410.23356)）— PARTIALLY ANTICIPATES（C6 谱系）
+
+**场地更正**：NeurIPS 2024 **Workshop**（Time Series in the Age of Large Models），**非主会**。
+代码仓已 **404**，无法核对协议。
+
+**它确实报告了通道置换敏感度**：*"we evaluate the performance variations with **five random
+permutations of channel order** using ETTh1"*（Table 10，附录 H 覆盖 5 个数据集）。**但论文从未
+说明这五次置换是重训还是推理期施加**；代理据"置换标准差(±.0002–.0004) < 种子标准差(±.001)"推断
+为推理期——**此为推断，非原文**，引用时须用不预设协议的措辞。
+
+即便按最不利读法，它与 CPiRi 仍差一个量级：只报**标准差**、只对比自己 vs S-Mamba、无退化倍率、
+无部分置换强度曲线（CPiRi 有 25/50/75/100% 扫描）。另注：**CPiRi 全文未引用 SOR-Mamba**。
+
+> 🔧 **C6 措辞必须改**：**不可再写"CPiRi 首次提出该诊断"**。正确谱系——SOR-Mamba(2024-10) 最早
+> 报告通道顺序敏感度，CPiRi 把它**扩展为系统性诊断**，我们贡献**解释该分界的架构分类法**。
+
+### ✅ Universal TS Representation 综述（[2401.03717](https://arxiv.org/abs/2401.03717)）— LEAVES INTACT
+
+下游任务分类法显式定义为八项（forecasting/classification/extrinsic regression/clustering/
+segmentation/anomaly detection/imputation/retrieval），统一框架是**表征替代模型输入**
+（*"use the corresponding representation Z = f_e(X) to perform the above downstream tasks
+**instead of the raw time series X**"*）。全文 grep "identity/per-entity/lookup" **零命中**；
+配套 awesome 仓库也无身份替换条目。
+
+### ✅ T-Loss（[1901.10738](https://arxiv.org/abs/1901.10738)）— LEAVES INTACT
+
+实验只有 UCR/UEA **分类**，加一个 IHEPC 上的回归——但那是**单条**序列（N=1）的"编码器→线性回归器"
+特征管线，**无多实体、无身份、无查表对照**。
+
+### 综合
+
+1. **Claim B 存活**，但措辞收窄为"推理期依赖该实体观测的函数 vs 查表，同 backbone 头对头"。
+2. **HN-MVTS 的相关矩阵初始化**要在脚注里如实承认。
+3. **C6 谱系改写**：SOR-Mamba 最早 → CPiRi 系统化 → 我们给分类法。
+
+---
+
 ## 下一步（按优先级）
 
 1. **读 HESS 2025 水温综述**——它可能已经定义了我们该用的指标集，直接影响 [`05`](05-metrics-and-icpr-overlap.md)。

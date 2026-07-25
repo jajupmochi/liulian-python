@@ -82,11 +82,19 @@
   equalizer** — it lowers the average per-entity error but leaves the *dispersion* across
   entities and the worst-decile / CVaR@10% essentially unchanged (scale-free NRMSE). This is
   the study's most honest and most defensible result and we lead with it rather than bury it.
-- **C5 (LLM-reprogramming identity).** For a frozen-LLM reprogrammer
-  (Time-LLM/GPT-2), a distinct *numeric* per-entity vector ≫ a *textual*
-  description, but only in the entity-rich regime; a capacity-matched frozen-random
-  control (0 learnable params) matches the learned embedding, proving the gain is
+- **C5 (LLM-reprogramming identity — a controlled modality contrast).** For a frozen-LLM
+  reprogrammer (Time-LLM/GPT-2), a distinct *numeric* per-entity vector ≫ a *textual*
+  description, but only in the entity-rich regime; a capacity-matched frozen-random control
+  (0 learnable params) matches the learned embedding, so the gain is
   **identity/distinctness, not capacity or learning**.
+  **Scope, stated honestly:** that a frozen LLM extracts little from a text channel is
+  *confirmation*, not discovery — text collapse and conditional multimodality report it, and
+  the identity on/off ablation already exists in ST-LLM. What is untested anywhere in the
+  TS-LLM or ST-LLM literature, and is therefore our contribution here, is the **controlled
+  modality contrast**: the *same* identity bits routed through the prompt versus through the
+  embedding with everything else held fixed. We present this as a controlled observation
+  rather than the paper's anchor; converting it into a mechanism claim requires the
+  prompt-quality ladder and the frozen-versus-tuned contrast set out in §8.3.
 - **C6 (architecture taxonomy for implicit identity).** Whether a model uses channel
   *position* as an implicit entity identifier is decided by the **first layer that
   touches the channel axis**: per-index weights (channel-mixing linear layers, flattened
@@ -95,9 +103,14 @@
   tokens (iTransformer) or a channel-independent backbone (PatchTST) is
   permutation-equivariant and cannot. We give the taxonomy **and a train-free predictive
   test** (a train/test channel-permutation probe) that sorts a model onto the correct
-  side before training. This distinguishes us from CPiRi (ICLR 2026), which *diagnoses*
-  the fragility but reports 4-robust/3-fragile models it never explains, all on traffic;
-  we mechanize the split and validate it across domains and model families.
+  side before training. **Lineage, stated precisely:** sensitivity to channel ordering was
+  first reported by SOR-Mamba (NeurIPS 2024 workshop), which measures error variation across
+  five random channel permutations for one Mamba baseline; CPiRi (ICLR 2026) turns that
+  observation into a systematic diagnostic across architectures and permutation intensities,
+  but reports 4-robust/3-fragile models it never explains, all on traffic. **Neither the
+  observation nor the diagnostic is ours** — our contribution is the architectural taxonomy
+  that *explains* the split, the train-free test that *predicts* it, and validation across
+  domains and model families.
 - **C7 (normalization scope × identity).** Whether an identifier helps depends on the
   **scope of normalization**: under per-entity normalization the entity's level/scale are
   quotiented out (normalization collapses each series onto its affine equivalence class —
@@ -177,10 +190,11 @@ iTransformer; we position C1 against it precisely, noting that it never argues n
 *erases* identity and never studies *when* identity is worth injecting — it proposes one
 encoding at one placement and reports aggregate accuracy, whereas we vary placement relative
 to normalization and characterize the conditions. We also distinguish our channel-position
-analysis (C6) from CPiRi (ICLR 2026), which introduces the channel-permutation *diagnostic*
-as motivation for a model but reports a spectrum of four robust and three fragile baselines
-it never explains, all on traffic; we supply the architectural taxonomy that explains the
-split and validate it across domains.
+analysis (C6) from the channel-permutation line, whose observation belongs to SOR-Mamba
+(2024) and whose systematic diagnostic belongs to CPiRi (ICLR 2026); the latter uses it as
+motivation for a model and reports a spectrum of four robust and three fragile baselines it
+never explains, all on traffic. We supply the architectural taxonomy that explains the split
+and validate it across domains.
 
 **A framing objection, answered here rather than in rebuttal.** One might argue that
 per-location sensors make this "really a spatio-temporal forecasting problem" — an objection
@@ -293,12 +307,18 @@ better than fine-tuning. In hydrology, Rahmani et al. (2021) report *attribute o
 across more than four hundred basins, and the ungauged-basin literature (Kratzert 2019) finds
 only attribute-grounded identity transfers to unseen catchments. CCM's retreat to cluster
 identity is motivated by the same failure. A distinct recent thread makes the cost visible
-through **channel-order permutation**: CPiRi (ICLR 2026) trains channel-dependent models with
-a fixed channel order and tests them under shuffling, showing catastrophic degradation (e.g.
-Informer +400% WAPE on PEMS-08) attributable to "positional memorization rather than
-relational reasoning". We build on this diagnostic rather than restate it — CPiRi reports the
+through **channel-order permutation**. Sensitivity to channel ordering was first reported by
+SOR-Mamba (NeurIPS 2024 workshop), which measures the variation in forecasting error across
+five random channel permutations for a single Mamba baseline and removes the 1-D convolution
+over the channel axis to reduce it. CPiRi (ICLR 2026) develops this into a systematic
+diagnostic: channel-dependent models trained with a fixed channel order and tested under
+shuffling degrade catastrophically (e.g. Informer +400% WAPE on PEMS-08), which the authors
+attribute to "positional memorization rather than relational reasoning", with a graded
+permutation-intensity sweep. We build on this line rather than restate it — CPiRi uses the
 degradation as motivation for a model and leaves a spectrum of robust and fragile baselines
-unexplained; we supply the architectural taxonomy (C6) that predicts the split.
+unexplained; we supply the architectural taxonomy (C6) that predicts which side a model falls
+on, and note that SOR-Mamba's own fix (deleting the channel-axis convolution) is already an
+instance of our taxonomy's prescription, though it is not framed as one.
 
 ### 2.6 Positioning, and the water-temperature / ST-LLM connections
 
@@ -463,6 +483,26 @@ designed; execution is the paper's critical path. Protocols in doc 07.)*
   ICC 0.067 ≠ 0), so on our data identity may supply residual level *and* residual scale *and*
   dynamics; the min-max-versus-z-score contrast inside this 2×2 separates them.
 
+- **§8.3 Locating the boundary of the text channel (upgrading C5).** Reporting that a frozen
+  LLM gains little from a textual identity is, on its own, a null result in a literature that
+  has already published text collapse and conditional multimodality. Two experiments convert
+  it into a mechanism claim by locating the *boundary* rather than the average.
+  **(i) A prompt-quality ladder.** Four rungs carrying the same entity, with strictly
+  increasing semantic grounding: an opaque index ("channel 7"), the station name, a rich
+  natural-language descriptor (river, location, altitude), and an *oracle* descriptor that
+  states in words the very statistics a learned embedding could infer. If numeric identity
+  still wins at the top rung, the "your prompt was weak" objection is answered empirically; if
+  text catches up, the result inverts into the stronger positive claim that **text identity
+  works, but only when semantically grounded**. This is the cheapest experiment in the paper
+  and the one a reviewer is most likely to demand.
+  **(ii) A frozen-versus-tuned contrast.** Repeat the best text rung with the LLM unfrozen
+  (or LoRA-adapted). If the text channel becomes useful once gradients reach the backbone,
+  the finding is no longer "LLMs ignore text" but **"the frozen reprogramming interface is
+  the bottleneck"** — an interface claim, and the one that most directly answers the charge
+  that we are re-deriving a known null. Optionally, a linear probe asking whether channel
+  identity is recoverable from hidden states under each injection modality turns the
+  accuracy comparison into direct evidence about the routing path.
+
 ## §9 Discussion
 
 - **Unifying picture.** Identity as *transfer* (per-entity, similar entities) vs
@@ -504,12 +544,24 @@ designed; execution is the paper's critical path. Protocols in doc 07.)*
   better — an explicit open question, with a second reprogrammer (UniTime) planned.
 - **Metric caveat, surfaced:** per-station min-max makes `denorm_rmse` range-weighted;
   headline numbers are re-scored with per-station NSE/KGE (§6, §8.2).
-- **Adjacent-claim boundaries** (stated so we do not overreach): the channel-permutation
-  *diagnostic* is CPiRi's (2026), not ours — we contribute the taxonomy that explains it;
-  the series-to-vector *primitive* is prior art (Series2Vec, T-Loss) — we contribute its use
-  as a per-entity identity substituted for a lookup, head-to-head on one backbone, which is
-  untested; and a pre-training *forecastability* diagnostic exists (2507.13556) — we
-  contribute a diagnostic of the *marginal* benefit of identity, which does not.
+- **Adjacent-claim boundaries** (stated so we do not overreach):
+  (i) the channel-order *observation* is SOR-Mamba's (NeurIPS 2024 workshop) and the
+  systematic *diagnostic* is CPiRi's (2026) — ours is only the taxonomy that explains the
+  robust/fragile split and the test that predicts it;
+  (ii) the series-to-vector *primitive* is prior art (Series2Vec, T-Loss) and the nearest
+  hypernetwork work (HN-MVTS, 2025) even *initializes* its per-channel table from a PCA of
+  the channel correlation matrix — we therefore claim only that no prior work makes identity
+  a function of the entity's own observations **at inference** and compares it head-to-head
+  against a lookup on one backbone (HN-MVTS's generated weights are explicitly independent of
+  the input series and its hypernetwork is discarded after training);
+  (iii) a pre-training *forecastability* diagnostic exists (2507.13556) — ours would be a
+  diagnostic of the *marginal* benefit of identity, which does not;
+  (iv) in the LLM arm, "text contributes little" is **confirmation, not discovery**: text
+  collapse (2606.19413) and conditional multimodality (2506.21611) already report it, the
+  identity on/off ablation already exists in ST-LLM (`w/o S`), and our frozen-random control
+  is the standard `woPre+woFT` device (2406.16964). Our contribution there is only the
+  *controlled modality contrast* — the same identity bits sent through the prompt versus
+  through the embedding, everything else fixed — which no TS-LLM or ST-LLM paper runs.
 - **Engineering caveat:** large-channel transparent trainables hit Ray serialization limits
   (band-aided); not a scientific result.
 
@@ -548,17 +600,25 @@ text arm.
   utility (C7). Contribution class = generalization + analysis + mechanism over an
   established phenomenon.
 - ❌ **Do NOT claim:** a new SOTA method; that we discovered identity helps (owned by
-  STID/DeepAR/EA-LSTM/STGNN + Cini/Butera — concede in §1); the channel-permutation
-  *diagnostic* (CPiRi 2026 — we contribute the taxonomy, not the probe); a *general*
-  data-level identity diagnostic ("marginal-benefit" only, since forecastability measures
-  own "overall predictability"); series-to-vector encoding as novel (Series2Vec/T-Loss —
-  we contribute its head-to-head use as an identity vs a lookup); numeric>text for LLMs *in
-  general* (GPT-2 only); "redundancy → low identity utility" as a law (confounded);
-  cross-domain generalization *beyond* the tested domains without the matched-C / SMD
-  controls (§8).
-- ⚠ **UNVERIFIED, resolve before camera-ready:** HN-MVTS (2511.08340) and SOR-Mamba as
-  possible earlier channel-order work; the Universal-TS-Representation survey taxonomy and
-  T-Loss downstream list (for the series-derived-identity novelty of C6/§7).
+  STID/DeepAR/EA-LSTM/STGNN + Cini/Butera — concede in §1); the channel-order *observation*
+  (SOR-Mamba 2024) or the systematic *diagnostic* (CPiRi 2026) — we contribute only the
+  taxonomy and the predictive test; a *general* data-level identity diagnostic
+  ("marginal-benefit" only, since forecastability measures own "overall predictability");
+  series-to-vector encoding as novel (Series2Vec/T-Loss/HN-MVTS — we contribute only the
+  inference-time-derived-identity vs lookup head-to-head); the identity on/off ablation in an
+  ST-LLM (ST-LLM's `w/o S` has it); the frozen-random capacity control as novel (it is
+  2406.16964's `woPre+woFT`); "text contributes little" as a discovery (text collapse
+  2606.19413; conditional multimodality 2506.21611); numeric>text for LLMs *in general*
+  (GPT-2 only, one reprogrammer, prompt quality not yet ablated); "redundancy → low identity
+  utility" as a law (confounded); cross-domain generalization *beyond* the tested domains
+  without the matched-C / SMD controls (§8).
+- ✅ **All four previously-UNVERIFIED threats resolved (2026-07-24)** — HN-MVTS, SOR-Mamba,
+  the Universal-TS-Representation survey, and T-Loss were each read in full; claim B survives
+  with the narrowed wording above, and C6's lineage is corrected to SOR-Mamba → CPiRi → us.
+  Remaining open item: whether SOR-Mamba's five permutations were applied at inference or via
+  retraining is not stated in the paper and its code repository 404s, so we cite it with
+  protocol-neutral wording ("reports the variation in error across five random channel
+  permutations").
 
 ## Immediate to-dos before submission
 
