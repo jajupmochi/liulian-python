@@ -266,6 +266,19 @@ Time-LLM 不走上面的 pipeline，走 [`experiments/swiss_river/run_experiment
 6. **旧 tag 跨代码时代混用**：不同时期跑的格子**不可同表比较**（2026-07 已因此拦下一次并表）。
 7. **`docs/entity_identifiers.md` L185 的 caveat 可能已过期**——它说 transparent 只在
    swiss+lstm 生效，但 multi_channel transparent wrapper 后来已接通（task #33）。**需实地验证并更新该文档**。
+8. **⚠ swiss harness 的 YAML 会静默吞掉所有 CLI 覆盖**（2026-07-29 实跑发现）。
+   `run_experiment.py` 的 `load_config_yaml()` 对 YAML 里的**每一个键**无条件
+   `setattr(args, k, v)`，**不检查该值是否来自命令行**。后果：
+   ```
+   --train_epochs 1   →  实际跑 30（YAML 里 train_epochs: 30）
+   ```
+   `batch_size` / `num_workers` / `seed` / **`identifier_mode`** 同样会被吞。
+   **最危险的是 `identifier_mode`**——批跑时命令行指定了模式，实际跑的却是 YAML 里的那个，
+   **格子的标签与内容不符**。
+   - **单跑 harness 时**：要么改 YAML，要么确认你的键**不在 YAML 里**。
+   - **走 `experiments/hydro_llm/run_matrix.py` 时已修**：它在 YAML 加载后用
+     `_reapply_cli_overrides()` 重新施加覆盖（保留 argparse 的类型）。
+   - **harness 本身刻意不改**——已发表的 Time-LLM 格子是在当前行为下产出的，改了会动到它们的复现路径。
 
 ---
 
