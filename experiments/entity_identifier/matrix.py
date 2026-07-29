@@ -41,6 +41,12 @@ MODES: tuple[str, ...] = (
     'coordinates',
     'sinusoidal',
     'random',
+    # Time-LLM-only carriers. They are filtered out for every other model by
+    # supported_modes_for_pair(), but they MUST appear here or the matrix cannot
+    # enumerate them at all -- Time-LLM's text-identity and capacity-control cells
+    # would be silently unreachable from the main entry point.
+    'entity_description',   # text identity in the LLM prompt
+    'random_embedding',     # frozen-random capacity control (0 learnable params)
 )
 DEFAULT_SEEDS: tuple[int, ...] = (2026,)
 
