@@ -267,6 +267,11 @@ def run_cell(cell: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
             # CAPTURE the returned metrics, instead of scraping stdout.
             harness_args = harness.build_parser().parse_args(argv)
             harness_args = harness.load_config_yaml(harness_args, harness_args.config)
+            # harness.load_config_yaml() overwrites EVERY arg it finds in the YAML,
+            # unconditionally -- so a CLI value is silently discarded whenever the
+            # same key exists in the config. That is how `--train_epochs 1` turned
+            # into a 30-epoch run. Re-apply our explicit overrides afterwards.
+            harness_args = _reapply_cli_overrides(harness_args, argv)
             harness_args = _resolve_harness_paths(harness, harness_args)
             device = _harness_device()
             original_cwd = os.getcwd()
@@ -296,6 +301,41 @@ def run_cell(cell: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
         )
     (job_dir / 'record.json').write_text(json.dumps(record, indent=2), encoding='utf-8')
     return record
+
+
+def _reapply_cli_overrides(harness_args: Any, argv: list[str]) -> Any:
+    """Re-apply the ``--key value`` pairs we passed, after the YAML clobbered them.
+
+    ``harness.load_config_yaml`` does ``setattr(args, k, v)`` for every key present
+    in the YAML with no regard for whether the user set it on the command line, so
+    any override that also exists in the config is silently lost. Verified the hard
+    way: ``--train_epochs 1`` ran for 30 epochs.
+
+    Parsing our own argv (which we constructed) is safe and keeps the fix local to
+    this runner, leaving the harness untouched so previously published cells stay
+    reproducible.
+    """
+    i = 0
+    applied: dict[str, str] = {}
+    while i < len(argv) - 1:
+        key, value = argv[i], argv[i + 1]
+        if key.startswith('--') and not value.startswith('--'):
+            name = key[2:]
+            if hasattr(harness_args, name):
+                current = getattr(harness_args, name)
+                # Cast to the type argparse already produced, so ints stay ints.
+                try:
+                    cast = type(current)(value) if current is not None and not isinstance(current, bool) else value
+                except (TypeError, ValueError):
+                    cast = value
+                setattr(harness_args, name, cast)
+                applied[name] = str(cast)
+            i += 2
+            continue
+        i += 1
+    if applied:
+        print(f'[hydro_llm] re-applied CLI overrides after YAML load: {applied}')
+    return harness_args
 
 
 def _harness_device() -> Any:
