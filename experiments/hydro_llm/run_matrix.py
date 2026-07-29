@@ -213,7 +213,13 @@ def _write_results_json(
             'batch_size': phase_caps.get('batch_size', 'from_yaml'),
             'phase': args.phase,
         },
-        'metrics': {'test': metrics},
+        # NOTE: build_entity_id_figures.collect_tags() looks for `denorm_rmse` (or
+        # `rmse`) on swiss datasets and SKIPS the cell when neither is present, so
+        # emitting only mse/mae would make these cells vanish from the tables
+        # silently. rmse is derived from mse; `denorm_rmse` is deliberately NOT
+        # written, because this harness reports normalized-space error and claiming
+        # a denormalized figure we did not compute would be fabrication.
+        'metrics': {'test': {**metrics, 'rmse': float(metrics['mse']) ** 0.5}},
         'provenance': {
             'runner': 'experiments/hydro_llm/run_matrix.py',
             'harness': 'experiments/swiss_river/run_experiment.py',
