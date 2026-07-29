@@ -1,101 +1,98 @@
-# 入口设计：为什么是两个入口、一套契约
+# 入口设计：只分实验设计层，不分管道
 
-> 回答用户的三个追问：① 之后要和 LSTM/PatchTST 比较，入口是否该统一？
-> ② LLM 线之后要接进 LIULIAN 应用、用统一 API/命令；③ 要做训练/推理。
->
-> **结论：入口分两个，契约只有一套；pipeline 是终局，harness 退为复现参照。**
+> **本文档已按用户 2026-07-29 的意见重写。前一版主张"两个入口 + 契约层"，那是错的**——
+> 见 §1 的核实结果。现在的方案：**管道统一，只有实验设计层分开**。
 
 ---
 
-## 1. 为什么现在不能一步统一
+## 1. 更正：两条"数据层"其实是同一个东西
 
-两条链路的**数据层根本不同**，这不是工程口味问题：
+前一版声称 Time-LLM 的 `channel-independent (N=1)` 与 pipeline 的 `per_entity ConcatDataset`
+是两种数据层，因此不能合并。**读码核实后，这个说法不成立**：
 
-| | `entity_identifier/run.py` | Time-LLM harness |
+| | Time-LLM 侧 | LIULIAN 侧 |
 |---|---|---|
-| 数据 | `liulian/data/` swiss loader，**per_entity ConcatDataset** | `refer_projects/Time-LLM-Revised/data_provider`，**channel-independent** |
-| 模型看到的 | 每样本含多站信息 | **每样本一个站点的单变量窗口，`N=1` 恒成立** |
-| 身份注入 | `EntityAwareMixin` + wrapper | `entity_id_mark_col` 经 `x_mark` 透传 |
-| **已提交的 n=3 Time-LLM 结果** | ❌ | ✅ **全部出自这条** |
+| 构造 | `Dataset_Swiss_1990(ConcatDataset)`，子集是 `SequenceWindowedDataset(..., embedding_idx=i, name=station)` | `swiss_river.py` 的 per_entity split，注释原文：*"`torch.utils.data.ConcatDataset`（**in the reference project**）"* |
 
-**若现在把 Time-LLM 改走 pipeline**：模型脚下的数据层被换掉 ⟹ 已发表的
-`none 0.01457 / 文本 0.01430 / 数值 0.01200 / 随机 0.01178`（n=3）**全部失效需重跑**，
-且这正是本项目已经栽过一次的「**跨代码时代混用**」——2026-07 的 electricity 补格就因此被
-research-critic 拦下。
+**同一个构造，一个是原版、一个是移植。** 所谓 `N=1` 并不是另一种数据结构，而是
+"每个样本本来就只含一个站点的窗口"的必然结果——ConcatDataset 天生如此。
+
+**结论**：数据层**不该分**。若将来某模型确实需要不同的组织方式（如多通道联合输入），
+**按模型自动选择**即可，而不是复制一条平行管道。
 
 ---
 
-## 2. 分层方案
+## 2. 正确的分层：只有实验设计层分
 
-### 层一 · 契约统一（**现在就做，零风险**）
+| 层 | 是否分开 | 理由 |
+|---|---|---|
+| 数据层 | ❌ 统一 | 本来就一样；差异按模型自动选择 |
+| 模型层 | ❌ 统一 | `TimeLLMAdapter` 已在 `liulian.models.torch` 内，pipeline 动态导入即可加载 |
+| **主管道** | ❌ 统一 | Time-LLM 与 LSTM 走同一条 `pipeline.run_experiment`，**嵌入方案作为参数** |
+| **实验设计层** | ✅ **分开** | LLM 需要扫**嵌入方案**（soft prompt / 文本嵌入 / LoRA / prompt 质量阶梯…），与**嵌入模式**（none/文本/数值/随机）是**笛卡尔积**关系，矩阵维度与 LSTM 矩阵根本不同 |
 
-`hydro_llm/run_matrix.py` 输出**与 entity_identifier 完全一致的 `results.json`**：
+### 关键收益（用户指出的，也是本方案的核心理由）
 
-```
-data.dataset · data.identifier_mode · model.type · metrics.test.{mse,mae}
-```
+> **LLM 专项实验跑完后，最优嵌入方案回落为主管道 `timellm` 的一个参数，
+> 直接与 LSTM/PatchTST/DLinear 在同一条管道上对比。**
 
-⟹ `tools/build_entity_id_figures.py` 的 `collect_tags()` **能同时吃两条链路**，
-LSTM / PatchTST / DLinear / Time-LLM **直接进同一张表**。
-
-并在 `provenance` 里**如实标注**数据层差异：
-
-> "Channel-independent data path (N=1 per sample) … comparable in metric, not in data layer."
-
-**这解决了你的①**：可比性靠契约，不靠共用入口。
-
-### 层二 · 迁进 pipeline（**中期，分步验证**）
-
-**好消息：Time-LLM 已经注册在 pipeline 里**——`liulian/pipeline.py:527` 有 `timellm` 分支，
-`liulian/models/torch/timellm.py:561` 有 `TimeLLMAdapter(EntityAwareMixin, TorchModelAdapter)`，
-pipeline 用**动态导入**加载任意 `liulian.models.torch.*`。**架构上没有障碍，缺的是配置与验证。**
-
-迁移步骤（每步都可回退）：
-
-1. 在 `matrix.py` 的 `MODELS` 加 `'timellm'`，并补 `BASE_CONFIG_BY_PAIR[(swiss-*, timellm)]`。
-2. **先只验证 `none` 一格**：pipeline 路径能否复现 harness 路径的 **MSE ≈ 0.01457**。
-   - 复现得上 ⟹ 数据层差异对该模型无实质影响，可安全迁移全部模式。
-   - 复现不上 ⟹ **就地停下**，记录差异来源（很可能是 N=1 vs per-entity 的身份语义不同），
-     两条链路各自保留，契约层继续承担可比性。
-3. 逐模式迁移，每次与 harness 数字对照。
-
-**这一步顺带解决你的②③**：进了 pipeline 就自动获得
-`liulian` CLI、`Experiment` 状态机（INIT→TRAIN→EVAL→INFER→COMPLETED）、统一 `results.json`、
-checkpoint 约定与推理路径——**不需要为 LLM 单独造一套应用侧 API**。
-
-### 层三 · harness 退为复现参照（长期）
-
-harness 的**不可替代价值**是它与官方 Time-LLM **逐位对齐**（ETTh1@96 MSE 0.3908 已验证）。
-迁移完成后它不删除，保留作"官方复现基准"，日常实验全走 pipeline。
+这样"实验架构与代码不一致导致的结果偏移"**从根上消失**，而不是靠一个"结果格式契约层"
+事后打补丁——后者只能保证数字长得像，保证不了它们是同一条路算出来的。
 
 ---
 
-## 3. 现在的入口用法
+## 3. 迁移阻力评估（已核实，比预想小）
 
-```bash
-# 列出将要跑的格子，不执行
-python experiments/hydro_llm/run_matrix.py --phase dry --modes none entity_description embedding
+| 需要的东西 | 现状 |
+|---|---|
+| `TimeLLMAdapter` 在 pipeline 可达 | ✅ `liulian/models/torch/timellm.py:561`，pipeline 动态导入 `liulian.models.torch.*` |
+| pipeline 里的 timellm 分支 | ✅ `pipeline.py:527` |
+| swiss 的 per_entity split | ✅ `pipeline.py:112` 默认就是 `per_entity` |
+| Time-LLM 需要的 prompt 内容 | ✅ `_load_prompt_content()` 已含 swiss 映射（`swiss-river-1990 → wt-swiss-1990`） |
+| 四种身份模式的模型侧实现 | ✅ 已在 `timellm.py`（none / entity_description / embedding / random_embedding） |
+| **矩阵注册** | ❌ **缺**：`matrix.py` 的 `MODELS` 无 `timellm`，`BASE_CONFIG_BY_PAIR` 无对应条目 |
+| **嵌入方案参数化** | ❌ **缺**：soft_prompt / text_embedding / llm_tuning 尚未实现 |
 
-# 单格 debug：1 epoch + num_workers=0（断点可命中）
-python experiments/hydro_llm/run_matrix.py --phase debug --modes none
-
-# 正式跑
-python experiments/hydro_llm/run_matrix.py --phase full \
-    --modes none entity_description embedding random_embedding --seeds 2021 2022 2023
-```
-
-**轴守卫**：未实现的取值会**报错而非静默退回基线**——
-
-- `--modes soft_prompt` → 明确报"PLANNED but not implemented in timellm.py"
-- `--tuning lora` → 明确报"LLM is frozen unconditionally at timellm.py:334；需先加 `llm_tuning` 开关 + peft"
-
-这防的是本项目最忌讳的失败模式：**一个看起来是结果、实际是基线的格子**。
+**只有最后两项要做。**
 
 ---
 
-## 4. 待办
+## 4. 执行方案
 
-- [ ] 层一：验证 `results.json` 能被 `build_entity_id_figures.py` 读入（需把 run-tag 加进 `RUN_TAGS`）
-- [ ] 层二第 1–2 步：pipeline 路径复现 `none` 基线（**这是迁移的 go/no-go 判据**）
-- [ ] `llm_tuning ∈ {frozen, ln_only, lora}` 开关（`timellm.py:334`）+ `peft` 依赖
-- [ ] soft_prompt / text_embedding 两个模式的模型侧实现
+### 阶段 A · 把 timellm 接进主矩阵（先做，判据明确）
+
+1. `matrix.py`：`MODELS` 增加 `'timellm'`，补 `BASE_CONFIG_BY_PAIR[(swiss-*, 'timellm')]`
+   指向一个 pipeline 版的 timellm config。
+2. **go/no-go 判据**：pipeline 路径跑 `none` 一格，与 harness 已发表的
+   **MSE 0.01457 ± 0.00022** 对照。
+   - **一致** ⟹ 两条路等价，harness 退为"官方复现参照"，此后全部实验走主管道。
+   - **不一致** ⟹ **就地停下查因**（不是各留一条），因为按 §1 两者本该等价，
+     不一致意味着某处存在真实差异，必须定位而不是绕开。
+3. 一致后，`experiments/entity_identifier/run.py` 即可跑
+   `--models timellm --modes none embedding ...`，与 LSTM 同表。
+
+### 阶段 B · LLM 专项矩阵（`experiments/hydro_llm/`）
+
+保留此入口，但**职责收窄为"实验设计层"**：它只负责枚举 LLM 特有的
+**嵌入方案 × 身份模式 × 可训性 × 骨干** 这个笛卡尔积，**底层调用主管道**
+（而不是 harness）。产出的最优方案写回主管道参数。
+
+### 阶段 C · 回归主管道
+
+最优嵌入方案成为 `timellm` 的一个配置项，与其它模型在阶段 A 的同一条管道上对比。
+
+---
+
+## 5. 当前状态与下一步
+
+- `experiments/hydro_llm/run_matrix.py` 已存在，但**目前调的是 harness**，属阶段 B 的临时形态；
+  阶段 A 完成后应改为调主管道。
+- 已在此过程中修掉两个真 bug（都已提交）：
+  1. **`results.json` 缺 `rmse`** ⟹ 格子会被图表构建器静默跳过。
+  2. **harness 的 YAML 无条件覆盖 CLI 参数** ⟹ `--train_epochs 1` 实际跑 30；
+     最危险的是 `--identifier_mode` 也会被吞，导致**格子标签与实际计算不符**。
+     已记入 [`debug_verification_guide.md`](../../debug_verification_guide.md) 陷阱清单第 8 条。
+- 另发现 `Dataset_Swiss_1990` **接收 `percent` 却从不使用**（dead knob，违反项目
+  CLAUDE.md 的"no dead knobs"）——限流需自行实现。
+
+**下一步 = 阶段 A 第 1–2 步**：注册 timellm 进矩阵，跑 `none` 对照 0.01457。

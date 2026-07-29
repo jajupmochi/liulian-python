@@ -20,7 +20,20 @@ MODELS: tuple[str, ...] = (
     'lstm',
     'patchtst',
     'dlinear',
+    # Time-LLM runs through the same pipeline as the others so their numbers are
+    # produced by one code path (see docs/research/2026-07-25-hydro-llm-plan/
+    # 02-ENTRYPOINT-DESIGN.md). Its identity modes differ from the transparent
+    # ladder -- see _SUPPORTED_MODES_BY_MODEL below.
+    'timellm',
 )
+
+#: Models whose identity modes are NOT the standard transparent ladder.
+#: Time-LLM injects identity either as text in the LLM prompt or as a vector added
+#: to patch embeddings; it has no concept of one-hot/sinusoidal/coordinate feature
+#: concatenation, so offering those modes would silently produce baseline cells.
+_SUPPORTED_MODES_BY_MODEL: dict[str, frozenset[str]] = {
+    'timellm': frozenset({'none', 'entity_description', 'embedding', 'random_embedding'}),
+}
 MODES: tuple[str, ...] = (
     'none',
     'embedding',
@@ -63,6 +76,11 @@ BASE_CONFIG_BY_PAIR: dict[tuple[str, str], Path] = {
     ('swiss-river-zurich', 'lstm'): Path('experiments/swiss_river/default_config.yaml'),
     ('swiss-river-zurich', 'patchtst'): Path('experiments/swiss_river/patchtst_config.yaml'),
     ('swiss-river-zurich', 'dlinear'): Path('experiments/swiss_river/dlinear_config.yaml'),
+    # Time-LLM, pipeline-native. Mirrors the harness hyper-parameters so the
+    # migration can be validated against the published MSE 0.01457 baseline.
+    ('swiss-river-1990', 'timellm'): Path('experiments/swiss_river/timellm_config.yaml'),
+    ('swiss-river-2010', 'timellm'): Path('experiments/swiss_river/timellm_config.yaml'),
+    ('swiss-river-zurich', 'timellm'): Path('experiments/swiss_river/timellm_config.yaml'),
     ('traffic', 'lstm'): Path('experiments/traffic/lstm_config.yaml'),
     ('traffic', 'patchtst'): Path('experiments/traffic/patchtst_config.yaml'),
     ('traffic', 'dlinear'): Path('experiments/traffic/dlinear_config.yaml'),
@@ -171,7 +189,15 @@ class MatrixJob:
 
 
 def supported_modes_for_pair(dataset: str, model: str) -> frozenset[str]:
-    """Return identifier modes applicable to one dataset-model pair."""
+    """Return identifier modes applicable to one dataset-model pair.
+
+    A model listed in ``_SUPPORTED_MODES_BY_MODEL`` REPLACES the transparent
+    ladder rather than extending it: Time-LLM has no one-hot/sinusoidal/coordinate
+    feature-concatenation path, so leaving those modes enabled would enumerate
+    cells that run but silently equal the baseline.
+    """
+    if model in _SUPPORTED_MODES_BY_MODEL:
+        return _SUPPORTED_MODES_BY_MODEL[model]
     supported = set(_ALWAYS_SUPPORTED_MODES)
     supported.update(_EXTRA_MODES_BY_PAIR.get((dataset, model), frozenset()))
     return frozenset(supported)

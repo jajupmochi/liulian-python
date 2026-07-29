@@ -103,12 +103,55 @@ def _phase_defaults(phase: str) -> dict[str, Any]:
 
     `debug` mirrors the harness's own --quick_test but also forces num_workers=0,
     because a multiprocess DataLoader makes breakpoints unreachable in PyCharm.
+
+    NOTE on run length: swiss-1990 yields 163,968 training windows (28 stations),
+    so even ONE epoch is ~41k iterations (~22 min measured). That is too slow to
+    single-step, which is why --max-iters exists (see _install_iteration_cap).
+    The harness's own `--percent` flag does NOT help here: Dataset_Swiss_1990
+    accepts the argument and never applies it, so it is a dead knob on this dataset.
     """
     if phase == 'debug':
         return {'train_epochs': 1, 'batch_size': 4, 'num_workers': 0, 'patience': 1}
     if phase == 'smoke':
         return {'train_epochs': 2, 'batch_size': 8, 'num_workers': 2, 'patience': 1}
     return {}  # full: whatever the YAML says
+
+
+def _install_iteration_cap(harness: Any, max_iters: int) -> None:
+    """Truncate the训练/验证 loaders so a debug cell finishes in seconds.
+
+    Implemented by wrapping the harness's ``data_provider`` and handing back a
+    Subset of the underlying dataset, rather than by breaking out of the training
+    loop: an early ``break`` would skip the epoch-end validation and checkpoint
+    logic, so the run would exercise a different code path than the real one.
+
+    Only ever called when the user explicitly passes --max-iters, and the cap is
+    recorded in results.json so a truncated cell can never be mistaken for a real
+    measurement.
+    """
+    import torch
+    from torch.utils.data import Subset
+
+    original = harness.data_provider
+
+    def capped(args: Any, flag: str) -> Any:
+        data_set, data_loader = original(args, flag)
+        n_keep = min(len(data_set), max_iters * int(args.batch_size))
+        if n_keep >= len(data_set):
+            return data_set, data_loader
+        subset = Subset(data_set, list(range(n_keep)))
+        capped_loader = torch.utils.data.DataLoader(
+            subset,
+            batch_size=data_loader.batch_size,
+            shuffle=False,
+            num_workers=data_loader.num_workers,
+            drop_last=getattr(data_loader, 'drop_last', False),
+        )
+        print(f'[hydro_llm] --max-iters={max_iters}: {flag} truncated '
+              f'{len(data_set)} -> {n_keep} samples')
+        return subset, capped_loader
+
+    harness.data_provider = capped
 
 
 def build_cells(args: argparse.Namespace) -> list[dict[str, Any]]:

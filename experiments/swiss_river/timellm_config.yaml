@@ -1,0 +1,94 @@
+# Swiss River — Time-LLM (frozen GPT-2 reprogramming), MAIN PIPELINE version
+#
+# This is the pipeline-native counterpart of the standalone harness config
+# (configs/swiss_river.yaml). It exists so Time-LLM runs through the SAME
+# liulian.pipeline path as LSTM/PatchTST/DLinear, which is what lets their
+# numbers be compared without an architecture mismatch.
+#
+# Hyper-parameters below are copied from the harness config so the two paths
+# are compared like-for-like. The go/no-go check for this migration is whether
+# `identifier_mode: none` here reproduces the harness's published
+# MSE 0.01457 +- 0.00022 (n=3, seeds 2021/2022/2023).
+#
+# Usage:
+#   liulian run experiments/swiss_river/timellm_config.yaml
+#   python experiments/entity_identifier/run.py --models timellm --modes none
+
+# ── General ─────────────────────────────────────────────────────────────
+model: timellm
+seed: 2021                        # harness default; the published cells used 2021/2022/2023
+quick_test: false
+eval_only: false
+
+# ── Data ────────────────────────────────────────────────────────────────
+data: swiss-river-1990            # swiss-river-1990 | swiss-river-2010 | swiss-river-zurich
+seq_len: 90
+pred_len: 7
+label_len: 0
+features: M
+train_split: 0.8
+max_samples: null
+
+# ── Task & mode ─────────────────────────────────────────────────────────
+task: forecast
+# per_entity: one shared model, each sample is one station's window. This is the
+# same construction the Time-LLM harness uses (a ConcatDataset of per-station
+# windowed datasets), which is why the two paths are expected to agree.
+split_mode: per_entity
+scaler: minmax                    # matches the harness/LSTM swiss setting
+use_current_x: true
+short_subsequence_method: drop
+
+# ── Identity ────────────────────────────────────────────────────────────
+# none | entity_description (text) | embedding (numeric) | random_embedding (capacity control)
+identifier_mode: none
+id_injection: model
+embedding_size: 16                # = d_model; the embedding is added to patch embeddings
+num_embeddings: null              # auto-detected from the dataset
+
+# ── Model architecture (mirrors configs/swiss_river.yaml) ───────────────
+enc_in: 1                         # one series per sample (per-station univariate)
+dec_in: 1
+c_out: 1
+d_model: 16
+d_ff: 32
+n_heads: 8
+e_layers: 2
+d_layers: 1
+patch_len: 16
+stride: 8
+dropout: 0.1
+embed: timeF
+activation: gelu
+output_attention: false
+moving_avg: 25
+factor: 1
+
+# ── LLM backbone ────────────────────────────────────────────────────────
+llm_model: GPT2                   # GPT2 | LLAMA | BERT
+llm_dim: 768
+llm_layers: 6
+prompt_domain: 0
+# llm_tuning: frozen              # PLANNED: frozen | ln_only | lora (see timellm.py:334)
+
+# ── Training ────────────────────────────────────────────────────────────
+train_epochs: 30
+batch_size: 8
+eval_batch_size: 8
+learning_rate: 0.001
+patience: 10
+loss: MSE
+lradj: type1
+pct_start: 0.2
+use_amp: false
+
+# ── Evaluation ──────────────────────────────────────────────────────────
+eval_denorm: true
+metrics: mse,mae,rmse
+
+# ── System ──────────────────────────────────────────────────────────────
+num_workers: 4
+checkpoints: ./checkpoints/
+itr: 1
+percent: 100
+des: swiss_river_timellm
