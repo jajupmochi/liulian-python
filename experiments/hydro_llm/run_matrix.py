@@ -84,9 +84,12 @@ DEFAULT_SEEDS: tuple[int, ...] = (2021,)
 #: data_provider keys differ from our dataset names (a real bug we hit before:
 #: the loader wants `wt-swiss-1990`, not `swiss-river-1990`).
 _DATA_KEY: dict[str, str] = {
+    # These are the data_provider registry keys (data_dict in the harness's
+    # data_factory.py), NOT our dataset names. zurich's key is 'wt-zurich', not
+    # 'wt-swiss-zurich' -- a mismatch here KeyErrors the whole cell on the cluster.
     'swiss-river-1990': 'wt-swiss-1990',
     'swiss-river-2010': 'wt-swiss-2010',
-    'swiss-river-zurich': 'wt-swiss-zurich',
+    'swiss-river-zurich': 'wt-zurich',
 }
 _DATA_FILE: dict[str, str] = {
     'swiss-river-1990': 'swiss-1990.csv',
