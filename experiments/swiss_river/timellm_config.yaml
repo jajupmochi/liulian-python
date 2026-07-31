@@ -16,7 +16,12 @@
 
 # ── General ─────────────────────────────────────────────────────────────
 model: timellm
-seed: 2021                        # harness default; the published cells used 2021/2022/2023
+# 2026 = the project matrix standard (matrix.DEFAULT_SEEDS, default_config.yaml).
+# Time-LLM must share this seed with LSTM/PatchTST/DLinear or the cross-model
+# comparison is unfair (research-critic Q3). The published Time-LLM harness cells
+# used seed 2021 (n=3: 2021/2022/2023); that number is a separate reproduction
+# reference, not the value that belongs in this project's unified model table.
+seed: 2026
 quick_test: false
 eval_only: false
 
