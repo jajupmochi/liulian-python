@@ -36,11 +36,13 @@ from experiments.entity_identifier.submit_slurm import (
 
 def test_iter_jobs_default_matrix_size() -> None:
     jobs = iter_jobs()
-    # 15 pairs (5 datasets x 3 models) x (none + embedding) = 30 baseline jobs
+    # 15 pairs (5 datasets x 3 transparent models) x (none + embedding) = 30 baseline jobs
     # + 3 universally-supported transparent modes (onehot, sinusoidal, random) x 15 pairs = 45
     # + coordinates for all 9 Swiss pairs (3 datasets x {lstm, dlinear, patchtst}) = 9
-    # Total = 30 + 45 + 9 = 84
-    assert len(jobs) == 84
+    # + timellm on the 3 Swiss datasets x its 4 modes (none, embedding,
+    #   random_embedding, entity_description) = 12  (swiss-only, see below)
+    # Total = 30 + 45 + 9 + 12 = 96
+    assert len(jobs) == 96
     coord_jobs = [job for job in jobs if job.mode == 'coordinates']
     # Coordinates available for every Swiss River pair (wired in mc since 2026-06-14)
     assert len(coord_jobs) == 9
@@ -56,6 +58,58 @@ def test_iter_jobs_default_matrix_size() -> None:
         'electricity',
     }
     assert all('seed2026' in job.folder_name for job in jobs)
+
+
+def test_timellm_enumerates_only_its_four_swiss_modes_and_no_leak() -> None:
+    """Regression for the timellm matrix registration.
+
+    Registering timellm (commits 3e1b307/5278556) had two failure modes an
+    isolated ``supported_modes_for_pair`` check missed and a real run surfaced:
+
+    1. timellm's text/capacity modes (entity_description, random_embedding) were
+       absent from the MODES tuple, so the enumerator dropped them silently and
+       the matrix produced only 2 of the 4 cells that ARE the study.
+    2. timellm was enumerated on every dataset, KeyError-ing on the missing
+       ('traffic', 'timellm') config.
+
+    This locks both: exactly the four modes, only on the three swiss datasets, and
+    neither timellm-only mode leaks into the transparent-ladder models.
+    """
+    jobs = iter_jobs()
+    timellm = [j for j in jobs if j.model == 'timellm']
+
+    # Swiss-only.
+    assert {j.dataset for j in timellm} == {
+        'swiss-river-1990',
+        'swiss-river-2010',
+        'swiss-river-zurich',
+    }
+    assert not [j for j in timellm if j.dataset in ('traffic', 'electricity')]
+
+    # Exactly the four Time-LLM modes on every swiss dataset (3 x 4 = 12 cells).
+    assert {j.mode for j in timellm} == {
+        'none',
+        'embedding',
+        'random_embedding',
+        'entity_description',
+    }
+    assert len(timellm) == 12
+
+    # The two timellm-only carriers must never appear on the transparent models.
+    for other in ('lstm', 'patchtst', 'dlinear'):
+        other_modes = {j.mode for j in jobs if j.model == other}
+        assert not (other_modes & {'entity_description', 'random_embedding'})
+
+
+def test_timellm_on_unsupported_dataset_fails_loudly() -> None:
+    """An explicit (unsupported-dataset, timellm) request must raise, not skip.
+
+    Silently returning zero jobs for a pair the caller explicitly asked for would
+    look like a successful no-op. The swiss-only restriction is enforced only for
+    explicit dataset+model requests; the default matrix skips the pair instead.
+    """
+    with pytest.raises(ValueError, match='not supported on dataset'):
+        iter_jobs(datasets=['traffic'], models=['timellm'], modes=['none'], seeds=[2026])
 
 
 def test_patchtst_embedding_override_forces_add_after_patch() -> None:

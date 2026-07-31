@@ -34,6 +34,15 @@ MODELS: tuple[str, ...] = (
 _SUPPORTED_MODES_BY_MODEL: dict[str, frozenset[str]] = {
     'timellm': frozenset({'none', 'entity_description', 'embedding', 'random_embedding'}),
 }
+
+#: Models restricted to a subset of datasets. A model absent here runs on every
+#: dataset (the lstm/patchtst/dlinear default). Time-LLM is a hydrology study here:
+#: only the swiss datasets have the configs, prompts and station descriptions it
+#: needs, so enumerating it on traffic/electricity would KeyError on the missing
+#: BASE_CONFIG_BY_PAIR entry (and, if a config existed, produce meaningless cells).
+_SUPPORTED_DATASETS_BY_MODEL: dict[str, frozenset[str]] = {
+    'timellm': frozenset({'swiss-river-1990', 'swiss-river-2010', 'swiss-river-zurich'}),
+}
 MODES: tuple[str, ...] = (
     'none',
     'embedding',
@@ -256,6 +265,19 @@ def iter_jobs(
     jobs: list[MatrixJob] = []
     for dataset in ds_values:
         for model in model_values:
+            # Skip pairs a model does not support (e.g. timellm is swiss-only) so
+            # the default matrix does not try to look up a config that does not
+            # exist. Explicitly requested-but-unsupported pairs are caught below.
+            supported_ds = _SUPPORTED_DATASETS_BY_MODEL.get(model)
+            if supported_ds is not None and dataset not in supported_ds:
+                if datasets is not None and models is not None:
+                    # The caller asked for this exact pair; fail loudly rather than
+                    # silently returning nothing for it.
+                    raise ValueError(
+                        f'Model {model!r} is not supported on dataset {dataset!r}; '
+                        f'supported: {sorted(supported_ds)}'
+                    )
+                continue
             base_config = BASE_CONFIG_BY_PAIR[(dataset, model)]
             for mode in mode_values:
                 if not is_mode_applicable(dataset, model, mode):
