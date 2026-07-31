@@ -255,6 +255,9 @@ def _write_results_json(
             'epochs': phase_caps.get('train_epochs', 'from_yaml'),
             'batch_size': phase_caps.get('batch_size', 'from_yaml'),
             'phase': args.phase,
+            # >0 means the loaders were truncated to this many batches: the cell is a
+            # debug artifact, NOT a real measurement. 0 = full data.
+            'max_iters_cap': args.max_iters,
         },
         # NOTE: build_entity_id_figures.collect_tags() looks for `denorm_rmse` (or
         # `rmse`) on swiss datasets and SKIPS the cell when neither is present, so
@@ -318,12 +321,16 @@ def run_cell(cell: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
             harness_args = _resolve_harness_paths(harness, harness_args)
             device = _harness_device()
             original_cwd = os.getcwd()
+            original_provider = harness.data_provider
+            if args.max_iters > 0:
+                _install_iteration_cap(harness, args.max_iters)
             os.chdir(harness.TIMELLM_ROOT)
             try:
                 harness.train(harness_args, device)
                 test_mse, test_mae = harness.evaluate(harness_args, device)
             finally:
                 os.chdir(original_cwd)
+                harness.data_provider = original_provider  # undo the monkeypatch
             metrics = {'mse': float(test_mse), 'mae': float(test_mae)}
         record['status'] = 'ok'
         record['metrics'] = metrics
@@ -422,6 +429,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument('--seeds', nargs='*', type=int, default=list(DEFAULT_SEEDS))
     p.add_argument('--run-tag', default=datetime.now().strftime('hydro-%Y%m%d-%H%M%S'))
     p.add_argument('--timeout-seconds', type=int, default=0, help='0 disables')
+    p.add_argument('--max-iters', type=int, default=0,
+                   help='0 disables. >0 truncates the train/val loaders to this many '
+                        'batches so a debug cell finishes in seconds (swiss-1990 is '
+                        '~41k iters/epoch otherwise). Recorded in results.json so a '
+                        'truncated cell is never mistaken for a real measurement.')
     p.add_argument('--resume', action='store_true', help='skip cells already ok in the manifest')
     return p
 
