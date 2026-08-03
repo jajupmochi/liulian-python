@@ -117,7 +117,15 @@ class ForecastTrainer:
             )
             # Time-LLM handles identity internally and reads the per-sample id from the
             # entity_ids kwarg (not x_mark). All its identity modes need the id passed.
-            or _idmode in {'random_embedding', 'soft_prompt', 'entity_description', 'text_embedding'}
+            or _idmode
+            in {
+                'random_embedding',
+                'soft_prompt',
+                'entity_description',
+                'text_embedding',
+                'onehot_embedding',
+                'sinusoidal_embedding',
+            }
         )
 
         # Data augmentation during training

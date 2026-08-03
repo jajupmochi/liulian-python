@@ -561,7 +561,15 @@ def build_model(config: Dict[str, Any], dataset: Any = None) -> Any:
     # column the per_entity loader fills with the station id (col 0 — the same source
     # EntityWrapper reads). timellm must NOT also be EntityWrapper-wrapped (see below).
     _TIMELLM_IDENTITY_MODES = frozenset(
-        {'embedding', 'random_embedding', 'soft_prompt', 'entity_description', 'text_embedding'}
+        {
+            'embedding',
+            'random_embedding',
+            'soft_prompt',
+            'entity_description',
+            'text_embedding',
+            'onehot_embedding',
+            'sinusoidal_embedding',
+        }
     )
     if model_name == 'timellm' and config.get('identifier_mode') in _TIMELLM_IDENTITY_MODES:
         if config.get('num_entities') is None:

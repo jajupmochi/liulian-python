@@ -124,6 +124,31 @@ class Model(nn.Module):
         else:
             self.entity_embedding = None
 
+        # Level-A2 transparent additive variants: a FIXED per-station feature (onehot or
+        # sinusoidal of the station index) projected by a small learnable Linear into
+        # patch-embedding space and ADDED to the patch embeddings — same additive site as
+        # numeric_embedding, but the source is a fixed non-learned code. Mirrors the
+        # transparent identifiers in the entity_identifier matrix, for the LLM path.
+        self.transparent_proj: Union[nn.Linear, None] = None
+        if self.identifier_mode in ('onehot_embedding', 'sinusoidal_embedding'):
+            import math
+
+            _n = getattr(configs, 'num_entities', None)
+            if _n is None:
+                raise ValueError(f'identifier_mode={self.identifier_mode!r} requires configs.num_entities')
+            _n = int(_n)
+            if self.identifier_mode == 'onehot_embedding':
+                feat = torch.eye(_n)  # (n, n)
+            else:
+                dim = int(getattr(configs, 'sinusoidal_dim', 16))
+                pos = torch.arange(_n).unsqueeze(1).float()
+                div = torch.exp(torch.arange(0, dim, 2).float() * (-math.log(10000.0) / dim))
+                feat = torch.zeros(_n, dim)
+                feat[:, 0::2] = torch.sin(pos * div)
+                feat[:, 1::2] = torch.cos(pos * div)
+            self.register_buffer('transparent_feat', feat)  # fixed, non-learned
+            self.transparent_proj = nn.Linear(feat.shape[1], int(configs.d_model))
+
         # Level-A `soft_prompt` (LEARNED identity, PREFIX position): a per-entity
         # block of learnable continuous tokens prepended to the LLM input sequence.
         # This is the "learned × prefix" cell of the representation×position 2x2 —
@@ -642,6 +667,11 @@ class Model(nn.Module):
                 self._text_emb_cache = self._build_text_emb_cache(enc_out.device)
             tvec = self.text_proj(self._text_emb_cache[self._station_ids])  # (B, d_model)
             enc_out = enc_out + tvec.unsqueeze(1)
+        # Level-A2 transparent (onehot / sinusoidal): add the projected fixed per-station
+        # feature to the patch embeddings.
+        if self.transparent_proj is not None and self._station_ids is not None:
+            tfeat = self.transparent_proj(self.transparent_feat[self._station_ids])  # (B, d_model)
+            enc_out = enc_out + tfeat.unsqueeze(1)
         enc_out = self.reprogramming_layer(
             enc_out, source_embeddings, source_embeddings
         )  # enc_out: [B*N_f, num_patches, d_llm]

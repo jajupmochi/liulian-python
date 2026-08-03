@@ -60,8 +60,8 @@ IMPLEMENTED_MODES: tuple[str, ...] = (
 PLANNED_MODES: tuple[str, ...] = ()
 
 #: Level A2 — sub-variants of numeric_embedding (which learned/fixed vector).
-IMPLEMENTED_A2: tuple[str, ...] = ('learnable', 'random')
-PLANNED_A2: tuple[str, ...] = ('onehot', 'sinusoidal', 'coordinates')
+IMPLEMENTED_A2: tuple[str, ...] = ('learnable', 'random', 'onehot', 'sinusoidal')
+PLANNED_A2: tuple[str, ...] = ('coordinates',)  # needs per-station coords wired from the dataset
 
 #: Level A1 — prompt richness for entity_description.
 IMPLEMENTED_A1: tuple[str, ...] = ('default',)
@@ -87,7 +87,13 @@ ARTIFACT_ROOT = PROJECT_ROOT / 'artifacts' / 'hydro_llm'
 #: How a Level-A mode maps onto the model's identifier_mode (+ A2 sub-variant).
 #: numeric_embedding+learnable -> identifier_mode 'embedding';
 #: numeric_embedding+random    -> identifier_mode 'random_embedding'.
-_A2_TO_IDENTIFIER: dict[str, str] = {'learnable': 'embedding', 'random': 'random_embedding'}
+_A2_TO_IDENTIFIER: dict[str, str] = {
+    'learnable': 'embedding',
+    'random': 'random_embedding',
+    'onehot': 'onehot_embedding',
+    'sinusoidal': 'sinusoidal_embedding',
+    'coordinates': 'coordinates_embedding',
+}
 
 
 def _identifier_mode_for(mode: str, sub: str) -> str:
