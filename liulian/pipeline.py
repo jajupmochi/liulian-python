@@ -450,13 +450,40 @@ def has_entity_descriptions(data: str) -> bool:
 def _load_entity_descriptions(config: Dict[str, Any]) -> list:
     """Per-station natural-language descriptions for timellm entity_description mode.
 
-    Loads the index-aligned list from experiments/swiss_river/configs/entity_descriptions.yaml
-    keyed by the data_provider key. Raises loudly if the dataset has no descriptions —
-    running entity_description without them would silently degrade to the `none` baseline,
-    a fake result. (Only swiss-river-1990 has real station text today; 2010/zurich must
-    have descriptions authored before entity_description can run on them.)
+    The Level-A1 ``prompt_richness`` axis selects HOW much text carries the
+    per-station identity (all index-aligned to the stations):
+
+    * ``minimal`` — a bare positional identifier ("measurement station number
+      k"), generated from ``num_entities``. It carries distinctness but no
+      semantics: the A1 control for "does richer text help beyond a bare id?".
+    * ``default`` / ``rich`` — the authored natural-language descriptions from
+      experiments/swiss_river/configs/entity_descriptions.yaml (real station
+      context). Raises loudly if the dataset has none — running
+      entity_description without them would silently degrade to the ``none``
+      baseline, a fake result. (Only swiss-river-1990 has authored text today.)
+
+    ``stats`` / ``coords`` richness are NOT implemented here: ``coords`` is
+    blocked on the coordinate data flow (topology is absent for these datasets)
+    and ``stats`` needs per-station training statistics wired in.
     """
     import yaml
+
+    richness = str(config.get('prompt_richness', 'default')).strip().lower()
+
+    if richness == 'minimal':
+        n = config.get('num_entities')
+        if not n:
+            raise ValueError(
+                "prompt_richness='minimal' requires num_entities (surfaced for "
+                'timellm identity modes); none was available.'
+            )
+        return [f'This is measurement station number {i + 1}.' for i in range(int(n))]
+
+    if richness not in ('default', 'rich'):
+        raise ValueError(
+            f"prompt_richness={richness!r} is not implemented; use 'minimal' or "
+            "'default'/'rich' (stats/coords are planned, see DELIVERY.md)."
+        )
 
     data = config.get('data', '')
     key = _ENTITY_DESC_KEY.get(data, data)

@@ -75,9 +75,13 @@ PLANNED_MODES: tuple[str, ...] = ()
 IMPLEMENTED_A2: tuple[str, ...] = ('learnable', 'random', 'onehot', 'sinusoidal')
 PLANNED_A2: tuple[str, ...] = ('coordinates',)  # needs per-station coords wired from the dataset
 
-#: Level A1 — prompt richness for entity_description.
-IMPLEMENTED_A1: tuple[str, ...] = ('default',)
-PLANNED_A1: tuple[str, ...] = ('minimal', 'rich', 'stats', 'coords')
+#: Level A1 — prompt richness for entity_description. `default` = the authored
+#: rich station text (entity_descriptions.yaml); `minimal` = a bare positional
+#: identifier ("station number k"), the control for "does richer text help
+#: beyond a distinct id?". `stats`/`coords` are planned (need per-station stats
+#: / the coordinate data flow, task #28).
+IMPLEMENTED_A1: tuple[str, ...] = ('default', 'minimal')
+PLANNED_A1: tuple[str, ...] = ('stats', 'coords')
 
 #: Orthogonal axis: LLM trainability (A1.1 is lora). All three implemented + verified.
 #: lora needs the `peft` package (installed locally 2026-08-03); a cluster lora sweep needs
@@ -210,6 +214,10 @@ def build_overrides(cell: dict[str, Any], args: argparse.Namespace) -> dict[str,
         'split_mode': 'per_entity',
         'hpo': bool(caps.get('hpo', False)),
     }
+    # Level-A1: for entity_description, the sub-variant IS the prompt richness
+    # (default/minimal); the pipeline's _load_entity_descriptions reads it.
+    if cell['mode'] == 'entity_description':
+        overrides['prompt_richness'] = cell['sub']
     if caps.get('hpo'):
         overrides['hpo_num_samples'] = args.hpo_num_samples or caps.get('hpo_num_samples')
     if caps.get('quick_test'):

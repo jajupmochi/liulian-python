@@ -11,8 +11,11 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from experiments.hydro_llm.run_matrix import build_cells
-from liulian.pipeline import has_entity_descriptions
+
+import pytest
+
+from experiments.hydro_llm.run_matrix import build_cells, build_overrides
+from liulian.pipeline import _load_entity_descriptions, has_entity_descriptions
 
 
 def _args(**over):
@@ -61,3 +64,64 @@ class TestBuildCellsGuardrail:
         cells = build_cells(_args(datasets=['swiss-river-1990']))
         assert {c['mode'] for c in cells} == {'none', 'entity_description', 'numeric_embedding'}
         assert len(cells) == 3
+
+
+class TestPromptRichnessA1:
+    """Level-A1 prompt richness for entity_description.
+
+    default = authored rich station text; minimal = a bare positional
+    identifier. The ablation asks whether richer text helps beyond a distinct
+    id, so the two MUST differ and minimal must still be distinct per station.
+    """
+
+    def test_minimal_is_distinct_positional_text(self):
+        out = _load_entity_descriptions({'data': 'swiss-river-1990', 'num_entities': 28, 'prompt_richness': 'minimal'})
+        assert len(out) == 28
+        assert out[0] != out[1]  # distinct per station
+        assert 'station number 1' in out[0]
+
+    def test_default_and_minimal_differ(self):
+        common = {'data': 'swiss-river-1990', 'num_entities': 28}
+        mn = _load_entity_descriptions({**common, 'prompt_richness': 'minimal'})
+        df = _load_entity_descriptions({**common, 'prompt_richness': 'default'})
+        assert mn != df
+
+    def test_minimal_requires_num_entities(self):
+        with pytest.raises(ValueError, match='num_entities'):
+            _load_entity_descriptions({'data': 'swiss-river-1990', 'prompt_richness': 'minimal'})
+
+    def test_unknown_richness_raises(self):
+        with pytest.raises(ValueError, match='not implemented'):
+            _load_entity_descriptions({'data': 'swiss-river-1990', 'num_entities': 28, 'prompt_richness': 'stats'})
+
+    def test_build_overrides_sets_prompt_richness_for_entity_description(self):
+        from types import SimpleNamespace
+
+        args = SimpleNamespace(
+            phase='dry',
+            hpo_num_samples=None,
+            train_epochs=None,
+            learning_rate=None,
+            patience=None,
+            max_train_samples=None,
+        )
+        cells = build_cells(
+            _args(datasets=['swiss-river-1990'], modes=['entity_description'], a1=['default', 'minimal'])
+        )
+        by_sub = {c['sub']: build_overrides(c, args) for c in cells}
+        assert by_sub['minimal']['prompt_richness'] == 'minimal'
+        assert by_sub['default']['prompt_richness'] == 'default'
+
+    def test_build_overrides_omits_prompt_richness_for_non_text_modes(self):
+        from types import SimpleNamespace
+
+        args = SimpleNamespace(
+            phase='dry',
+            hpo_num_samples=None,
+            train_epochs=None,
+            learning_rate=None,
+            patience=None,
+            max_train_samples=None,
+        )
+        cell = build_cells(_args(datasets=['swiss-river-1990'], modes=['none']))[0]
+        assert 'prompt_richness' not in build_overrides(cell, args)
