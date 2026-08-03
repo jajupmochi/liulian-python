@@ -210,6 +210,26 @@ Time-LLM-specific or general to reprogramming LLMs.
 
 ---
 
+## 3.1 Epoch / early-stopping policy (why NOT a fixed epoch count)
+
+Do NOT hardcode "the right number of epochs". Train with a generous cap + **early stopping
+on validation**, and let validation pick the best epoch — this is what the Time-LLM paper and
+this project's harness do: **train_epochs=30, patience=10** (the timellm_config.yaml default).
+
+- `--phase dev` (train_epochs=5) is for PIPELINE VALIDATION ONLY, not a scientific config and
+  not aligned with any paper. Evidence it is too few: on the dev Tier-0, `best_epoch=4` landed
+  at the 5-epoch cap ⟹ the model was still improving; early stopping never triggered.
+- The paper/harness-aligned BASELINE run uses the YAML's 30 epochs + patience 10:
+  `run_matrix.py --phase dev --train-epochs 30` (dev = no HPO, no quick_test; --train-epochs
+  overrides the 5-cap; patience 10 comes from the YAML). Early stopping selects the best epoch.
+- Recording the per-epoch validation curve is good practice (the pipeline logs it and reports
+  `best_epoch`/`best_val_score`); early stopping already encodes "the most appropriate epoch".
+- `--phase full` additionally runs Ray Tune HPO (50 trials) on top of the 30-epoch training —
+  that is for the final paper-grade numbers, at ~50× the cost.
+
+The dev-5 Tier-0 numbers below in §3 are validation-only and are SUPERSEDED by the 30-epoch
+run.
+
 ## 4. Execution order (dependency-sorted)
 
 1. **Code (tasks 1–5), NO cluster runs yet** → then ping user to DEBUG.

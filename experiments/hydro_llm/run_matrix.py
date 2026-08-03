@@ -207,6 +207,12 @@ def build_overrides(cell: dict[str, Any], args: argparse.Namespace) -> dict[str,
         overrides['quick_test'] = True
     if caps.get('train_epochs') is not None:
         overrides['train_epochs'] = caps['train_epochs']
+    # --train-epochs overrides the phase cap. Use it for the paper/harness-aligned baseline
+    # (30 epochs + patience from the YAML): early stopping then picks the best epoch on
+    # validation, so we never hardcode a converged epoch count. The dev phase's 5 epochs are
+    # for pipeline validation only (best_epoch landed at the 5-cap ⟹ not converged).
+    if args.train_epochs is not None:
+        overrides['train_epochs'] = args.train_epochs
     if args.max_train_samples is not None:
         overrides['max_train_samples'] = args.max_train_samples
     return overrides
@@ -258,6 +264,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help=f'llm_backbone. implemented: {IMPLEMENTED_BACKBONES}')
     p.add_argument('--seeds', nargs='*', type=int, default=list(DEFAULT_SEEDS))
     p.add_argument('--hpo-num-samples', type=int, default=None, help='override Ray Tune trial count')
+    p.add_argument('--train-epochs', type=int, default=None,
+                   help='override the phase epoch cap. Use 30 (+ YAML patience 10) for the '
+                        'paper/harness-aligned baseline; early stopping picks the best epoch.')
     p.add_argument('--max-train-samples', type=int, default=None, help='cap train samples (smoke)')
     p.add_argument('--run-tag', default=datetime.now().strftime('hydro-%Y%m%d-%H%M%S'))
     p.add_argument('--timeout-seconds', type=int, default=0, help='0 disables')
