@@ -111,8 +111,20 @@ def run_with_config(
     config_path: str,
     cli_overrides: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Run one experiment from config path + overrides and return summary."""
-    cfg = load_config(yaml_path=config_path, cli_overrides=cli_overrides or {})  # fixme: why not just use the saved config. this is a bit duplicated
+    """Run one experiment from config path + overrides and return summary.
+
+    This is the SINGLE config choke point for the pipeline entries: run.py
+    (single run), hydro_llm/run_matrix.py (Time-LLM matrix) and any caller of
+    run_with_config all resolve their config here, so ``load_config`` alone
+    defines precedence: ``cli_overrides > YAML > MODEL_DEFAULTS > DEFAULT_CONFIG``.
+    A YAML file passed as ``config_path`` can therefore override every default.
+
+    NOTE: entity_identifier/run.py (the older lstm/patchtst/dlinear matrix
+    entry) still merges its YAML into an argparse Namespace itself, parallel to
+    this path. That duplicate is intentional for now — deduping it would touch
+    the anchored non-LLM baselines — and is tracked as a separate refactor.
+    """
+    cfg = load_config(yaml_path=config_path, cli_overrides=cli_overrides or {})
     return run_experiment(cfg)
 
 
