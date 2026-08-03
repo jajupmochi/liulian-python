@@ -119,18 +119,22 @@ Backbone (`llm_backbone`) and Level-A mode are **matrix axes, not HPO knobs**.
 ## 2.3 Implementation status (as of 2026-08-03, all locally verified)
 
 CODE status of the axes (verification = builds + forwards + output differs from `none`,
-proving real injection; regression suite 16 passed / 1 skipped, unchanged):
+proving real injection; the entity-identifier pipeline suite is 16 passed / 1 skipped, and
+the non-e2e full suite is 738 passed / 0 failed after this round's additions — HPO 6,
+entity_description guardrail 5, A1 richness 6, TEMPO 8, AutoTimes 9, trainer-flatten 5):
 
 | axis | value | code | verified |
 |---|---|---|---|
 | Level A | none / entity_description / numeric_embedding / soft_prompt / text_embedding | ✅ | all differ from none |
 | A2 (embedding sub-variant) | learnable / random / onehot / sinusoidal | ✅ | fixed code injects (diff 3.08) |
-| A2 | coordinates | ⚪ | needs per-station coords wired from dataset topology |
-| A1 (prompt richness) | minimal / rich / +stats / +coords | ⚪ | needs authored per-richness description variants (data) |
+| A2 | coordinates | 🔴 BLOCKED | on task #28 — `build_dataset` returns `topology=None`/`coordinates=None` for swiss-1990 (measured 2026-08-03); the no-fake-zero guard would raise. ~15-line reuse of `_build_channel_features` once coords flow. |
+| A1 (prompt richness) | default / minimal | ✅ | `default`=authored rich text, `minimal`=bare positional id; verified distinct & != default (commit `adab88e`, 6 tests) |
+| A1 (prompt richness) | stats / coords | ⚪ / 🔴 | `stats` needs per-station training stats wired; `coords` blocked on #28 |
 | llm_tuning | frozen / ln_only | ✅ | ln_only unfreezes 19968 LayerNorm params |
-| llm_tuning | lora (A1.1) | 🔵 | code ready; needs `pip install peft` |
+| llm_tuning | lora (A1.1) | ✅ | peft installed; trainable 50.9M/132.8M verified (a cluster lora sweep is the only remaining part) |
 | llm_backbone | GPT2 / BERT | ✅ | BERT build+forward OK (vocab 30522) |
-| llm_backbone | LLAMA | 🔵 | code branch exists; 7B weights heavy, absent on cluster |
+| llm_backbone | LLAMA | 🔴 BLOCKED | on 7B weights (absent locally + on cluster); `llm_model: LLAMA` branch exists, needs a weights sync |
+| HPO | `timellm_swiss` space | ✅ | commit `0b929c3`; canonical-centered, dead-knob guard, 6 tests |
 
 Also landed: the entity_ids linchpin (all identity modes reach the model through the
 pipeline), a fail-loud tokenizer guard (a degenerate vocab now raises instead of silently
@@ -201,12 +205,15 @@ Same entry + pipeline, Time-LLM-identical wiring, **backbone swapped**:
 
 | model | ref | status | role |
 |---|---|---|---|
-| TEMPO | arXiv 2310.04948 | ⚪ | decomposition prompt LLM |
-| CALF / AutoTimes | — | ⚪ | cross-modal / autoregressive |
-| GPT4TS (OneFitsAll) | arXiv 2302.11939 | ⚪ | 🧪 negative control (no prompt/covariate path) |
+| GPT4TS (OneFitsAll) | arXiv 2302.11939 | ✅ `--arch gpt4ts` | 🧪 negative control (no prompt/covariate path); additive identity only |
+| TEMPO | arXiv 2310.04948 | ✅ `--arch tempo` (`974c658`) | decomposition (trend+seasonal) + shared frozen GPT-2, summed; additive identity; from-scratch adapter, smoke 2/2 ok, 8 tests |
+| AutoTimes | arXiv 2402.02370 | ✅ `--arch autotimes` (`8ab418f`) | autoregressive time tokens + causal frozen GPT-2, next-segment decode; additive identity; from-scratch adapter, smoke 2/2 ok, 9 tests |
+| CALF | arXiv 2403.07300 | ⚪ needs design | cross-modal alignment. NOT a pure backbone swap: its feature/output/gradient ALIGNMENT LOSSES belong in the TASK layer (tasks own losses). Scope the dual-branch forward here + the alignment loss as a task-side add-on before implementing. |
 
 Each runs the SAME Level-A modes where applicable → tests whether the identity effect is
-Time-LLM-specific or general to reprogramming LLMs.
+Time-LLM-specific or general to LLM-TS models. The three done models are all ADDITIVE-only
+(no prompt path), so their identity effect vs Time-LLM's prompt path is a clean contrast:
+does identity help through a numeric additive channel as well as through the LLM prompt?
 
 ---
 
