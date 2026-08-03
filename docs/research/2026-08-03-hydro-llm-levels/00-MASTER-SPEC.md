@@ -116,6 +116,30 @@ Backbone (`llm_backbone`) and Level-A mode are **matrix axes, not HPO knobs**.
 
 ---
 
+## 2.3 Implementation status (as of 2026-08-03, all locally verified)
+
+CODE status of the axes (verification = builds + forwards + output differs from `none`,
+proving real injection; regression suite 16 passed / 1 skipped, unchanged):
+
+| axis | value | code | verified |
+|---|---|---|---|
+| Level A | none / entity_description / numeric_embedding / soft_prompt / text_embedding | ✅ | all differ from none |
+| A2 (embedding sub-variant) | learnable / random / onehot / sinusoidal | ✅ | fixed code injects (diff 3.08) |
+| A2 | coordinates | ⚪ | needs per-station coords wired from dataset topology |
+| A1 (prompt richness) | minimal / rich / +stats / +coords | ⚪ | needs authored per-richness description variants (data) |
+| llm_tuning | frozen / ln_only | ✅ | ln_only unfreezes 19968 LayerNorm params |
+| llm_tuning | lora (A1.1) | 🔵 | code ready; needs `pip install peft` |
+| llm_backbone | GPT2 / BERT | ✅ | BERT build+forward OK (vocab 30522) |
+| llm_backbone | LLAMA | 🔵 | code branch exists; 7B weights heavy, absent on cluster |
+
+Also landed: the entity_ids linchpin (all identity modes reach the model through the
+pipeline), a fail-loud tokenizer guard (a degenerate vocab now raises instead of silently
+killing the prompt — this caught an incomplete local gpt2 AND bert cache), and the
+`_load_entity_descriptions` loader that raises for datasets without station text.
+
+CLUSTER note: the cluster caches only gpt2. BERT/LLAMA weights must be synced before a
+cluster backbone sweep. The gpt2 tokenizer/model on the cluster is complete (vocab 50257).
+
 ## 3. Experiment plan (task 6/7 — priorities, order, ablations)
 
 Status legend: ✅ done · 🔵 code-ready, not run · ⚪ not implemented · 🧪 ablation.
