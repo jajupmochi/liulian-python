@@ -67,11 +67,11 @@ PLANNED_A2: tuple[str, ...] = ('coordinates',)  # needs per-station coords wired
 IMPLEMENTED_A1: tuple[str, ...] = ('default',)
 PLANNED_A1: tuple[str, ...] = ('minimal', 'rich', 'stats', 'coords')
 
-#: Orthogonal axis: LLM trainability (A1.1 is lora). lora is implemented in the model but
-#: needs the peft package installed (it raises a clear ImportError otherwise), so it stays
-#: gated here until peft is added to the environment.
-IMPLEMENTED_TUNING: tuple[str, ...] = ('frozen', 'ln_only')
-PLANNED_TUNING: tuple[str, ...] = ('lora',)
+#: Orthogonal axis: LLM trainability (A1.1 is lora). All three implemented + verified.
+#: lora needs the `peft` package (installed locally 2026-08-03); a cluster lora sweep needs
+#: peft synced there too (raises a clear ImportError otherwise).
+IMPLEMENTED_TUNING: tuple[str, ...] = ('frozen', 'ln_only', 'lora')
+PLANNED_TUNING: tuple[str, ...] = ()
 
 #: Orthogonal axis: base LLM backbone (as in the original Time-LLM paper). GPT2 + BERT
 #: verified locally (build+forward). LLAMA's code branch exists but its 7B weights are heavy
