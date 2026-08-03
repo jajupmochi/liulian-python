@@ -102,13 +102,17 @@ DEFAULT_SEEDS: tuple[int, ...] = (2026,)
 #: Model architectures (task 5 SOTA share the same entry + pipeline + identity plumbing).
 #: gpt4ts (OneFitsAll, the negative control) supports only ADDITIVE identity modes — it has
 #: no prompt/reprogramming site — so prompt-family modes are rejected for it below.
-IMPLEMENTED_ARCHS: tuple[str, ...] = ('timellm', 'gpt4ts', 'tempo')
+IMPLEMENTED_ARCHS: tuple[str, ...] = ('timellm', 'gpt4ts', 'tempo', 'autotimes')
 _GPT4TS_MODES = frozenset({'none', 'numeric_embedding'})
-#: tempo (decomposition + frozen GPT-2) supports the SAME additive identity modes as gpt4ts
-#: (its identity enters additively per component); prompt-family modes are a planned extension.
+#: tempo (decomposition + frozen GPT-2) and autotimes (autoregressive time tokens) support
+#: the SAME additive identity modes as gpt4ts (identity enters additively); prompt-family
+#: modes are a planned extension for both.
 _TEMPO_MODES = frozenset({'none', 'numeric_embedding'})
+_AUTOTIMES_MODES = frozenset({'none', 'numeric_embedding'})
 #: additive-only archs -> their allowed Level-A modes (prompt-family modes rejected).
-_ADDITIVE_ONLY_ARCHS: dict[str, frozenset] = {'gpt4ts': _GPT4TS_MODES, 'tempo': _TEMPO_MODES}
+_ADDITIVE_ONLY_ARCHS: dict[str, frozenset] = {
+    'gpt4ts': _GPT4TS_MODES, 'tempo': _TEMPO_MODES, 'autotimes': _AUTOTIMES_MODES,
+}
 
 #: The pipeline-native timellm config (NOT the harness config).
 BASE_CONFIG = PROJECT_ROOT / 'experiments' / 'swiss_river' / 'timellm_config.yaml'
@@ -277,8 +281,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument('--phase', choices=['dry', 'smoke', 'dev', 'full'], default='dry',
                    help='dry=list; smoke=2ep no-HPO; dev=5ep no-HPO; full=real + Ray Tune HPO')
     p.add_argument('--arch', default='timellm', choices=IMPLEMENTED_ARCHS,
-                   help='model architecture; gpt4ts (negative control) and tempo '
-                        '(decomposition) are additive-modes only (no prompt path)')
+                   help='model architecture; gpt4ts (negative control), tempo '
+                        '(decomposition) and autotimes (autoregressive) are '
+                        'additive-modes only (no prompt path)')
     p.add_argument('--datasets', nargs='*', default=['swiss-river-1990'], choices=DATASETS)
     p.add_argument('--modes', nargs='*', default=['none'],
                    help=f'Level-A modes. implemented: {IMPLEMENTED_MODES}')
