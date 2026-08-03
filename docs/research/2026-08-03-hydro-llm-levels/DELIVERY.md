@@ -10,13 +10,18 @@ One page: what was built, what remains, how to debug it, how to run it. Full des
 | 1. ln_only explained | ✅ MASTER-SPEC §2.1 |
 | 2. harness deprecated | ✅ banner + runtime DeprecationWarning in `experiments/swiss_river/run_experiment.py` |
 | 3. entry = hydro_llm/run_matrix.py → pipeline (run_with_config) + Ray Tune HPO | ✅ end-to-end smoke |
+| 3. HPO space `timellm_swiss` (config-externalized) | ✅ committed `0b929c3`; d_model{16,32,64} d_ff{32,128,256} lr{1e-3,1e-2} llm_layers{3,6}, canonical-centered, dead-knob guard + 6 tests |
+| 3. config aligned to AUTHORITATIVE upstream (not deprecated harness) | ✅ `215b057`; d_model 32/d_ff 128/batch 32/patch 16 (Time-LLM ETTh1 + LSTM/PatchTST shared) |
+| 3. epoch policy decided by diagnostic | ✅ 30 + early stop suffices (both lr converge ~ep 8); `figs/epoch_diagnostic_1990_none.png`; lr 1e-3 > 1e-2 on swiss |
+| 3. single-loader contract documented | ✅ `3112476`; run_with_config→load_config is the one choke point |
 | 4. Level A (5 modes) | ✅ none / entity_description / numeric_embedding / soft_prompt / text_embedding |
 | 4. A2 (learnable/random/onehot/sinusoidal) | ✅ |
 | 4. llm_tuning frozen/ln_only | ✅ |
 | 4. multi-backbone GPT2/BERT | ✅ |
 | 4. llm_tuning lora (A1.1) | ✅ peft installed + verified (trainable 50.9M/132.8M) |
 | 5. GPT4TS (negative control, additive-only) | ✅ built on the SAME entry+pipeline, `--arch gpt4ts` |
-| 6. cluster Tier-0 (dev, gratis) | 🟡 running (t0c-1990 / t0c-2010zh) |
+| 6. entity_description availability guardrail | ✅ `ca38e89`; Tier-0 = 7 cells (2010/zurich entity_description auto-skipped) + 5 tests |
+| 6. cluster Tier-0 (real, aligned config) | 🟡 code ready + dry-run verified; awaiting user debug before gratis launch |
 
 Regression: `tests/runtime/test_entity_identifier_pipeline.py` 16 passed / 1 skipped
 (unchanged throughout). The 2×2 (representation × injection position) is complete.
@@ -59,10 +64,13 @@ The identity axes (Level A / A2) apply to each where a prompt or embedding site 
 GPT4TS (no prompt) supports only the embedding/additive modes → a clean test of whether the
 identity effect is Time-LLM-specific or general to LLM-TS models.
 
-**task 6 — cluster (after debug):** Tier 0 first (none / entity_description /
-numeric_embedding.learnable × swiss-1990/2010/zurich), then Tier 1 (soft_prompt /
-text_embedding / A2 ladder). All gratis, single seed 2026, via
-`experiments/hydro_llm/run_matrix.py --phase full` (Ray Tune HPO on).
+**task 6 — cluster (after debug):** Tier 0 first = **7 cells** (none / numeric_embedding.learnable
+× swiss-1990/2010/zurich + entity_description × swiss-1990 only — 2010/zurich have no station
+text, auto-skipped by the guardrail). Then Tier 1 (soft_prompt / text_embedding / A2 ladder).
+All gratis, single seed 2026, via `experiments/hydro_llm/run_matrix.py --phase full` (Ray Tune
+HPO on, `timellm_swiss` space). Decision (autorun): run WITH HPO (phase full), lean num_samples,
+since HPO is an explicit requirement; the epoch diagnostic already fixed the epoch budget at
+30 + early stop so trials are bounded.
 
 ## How to debug (PyCharm) — the core is ready NOW
 
