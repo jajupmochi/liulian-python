@@ -40,6 +40,7 @@ DATASETS="${DATASETS:?set DATASETS}"
 MODES="${MODES:?set MODES}"
 SEEDS="${SEEDS:-2026}"
 PHASE="${PHASE:-full}"   # full=Ray Tune HPO; dev=5ep no HPO (fast first baseline)
+TRAIN_EPOCHS="${TRAIN_EPOCHS:-}"   # override the phase epoch cap; e.g. 30 for the paper baseline
 
 echo "=== hydro-llm job: tag=$RUNTAG datasets=[$DATASETS] modes=[$MODES] seeds=[$SEEDS] ==="
 echo "node=$(hostname) date=$(date -Iseconds)"
@@ -58,12 +59,16 @@ export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1
 
 # --resume: on a requeue after the wall clock, cells already ok in the manifest are
 # skipped so only the unfinished ones re-run.
+EPOCH_ARG=()
+[ -n "$TRAIN_EPOCHS" ] && EPOCH_ARG=(--train-epochs "$TRAIN_EPOCHS")
+
 python experiments/hydro_llm/run_matrix.py \
   --phase "$PHASE" \
   --run-tag "$RUNTAG" \
   --datasets $DATASETS \
   --modes $MODES \
   --seeds $SEEDS \
+  "${EPOCH_ARG[@]}" \
   --resume
 
 echo "=== done: $(date -Iseconds) ==="
