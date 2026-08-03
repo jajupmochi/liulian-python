@@ -416,6 +416,39 @@ def _load_prompt_content(config: Dict[str, Any]) -> str:
     return 'Time series dataset for forecasting. Data includes monitoring stations with periodic observations.'
 
 
+_ENTITY_DESC_KEY = {
+    'swiss-river-1990': 'wt-swiss-1990',
+    'swiss-river-2010': 'wt-swiss-2010',
+    'swiss-river-zurich': 'wt-zurich',
+}
+
+
+def _load_entity_descriptions(config: Dict[str, Any]) -> list:
+    """Per-station natural-language descriptions for timellm entity_description mode.
+
+    Loads the index-aligned list from experiments/swiss_river/configs/entity_descriptions.yaml
+    keyed by the data_provider key. Raises loudly if the dataset has no descriptions —
+    running entity_description without them would silently degrade to the `none` baseline,
+    a fake result. (Only swiss-river-1990 has real station text today; 2010/zurich must
+    have descriptions authored before entity_description can run on them.)
+    """
+    import yaml
+
+    data = config.get('data', '')
+    key = _ENTITY_DESC_KEY.get(data, data)
+    desc_path = os.path.join(PROJECT_ROOT, 'experiments', 'swiss_river', 'configs', 'entity_descriptions.yaml')
+    with open(desc_path) as fh:
+        table = yaml.safe_load(fh) or {}
+    if key not in table:
+        raise ValueError(
+            f"identifier_mode='entity_description' but no descriptions for data={data!r} "
+            f'(key {key!r}) in {desc_path}. Add one description per station, or exclude this '
+            f'dataset from entity_description runs. Running without them would silently equal '
+            f'the `none` baseline.'
+        )
+    return [str(d) for d in table[key]]
+
+
 def build_model(config: Dict[str, Any], dataset: Any = None) -> Any:
     """Instantiate a forecasting model by name and wrap if needed.
 
@@ -576,6 +609,10 @@ def build_model(config: Dict[str, Any], dataset: Any = None) -> Any:
     # no internal identity path). Double-injecting would corrupt the signal.
     if model_name == 'timellm' and config.get('identifier_mode') in _TIMELLM_IDENTITY_MODES:
         model.entity_id_mark_col = config.get('entity_id_mark_col', 0)
+        # entity_description needs the per-station TEXT, or it silently degrades to the
+        # `none` baseline. Load it (raises loudly if the dataset has none).
+        if config.get('identifier_mode') == 'entity_description':
+            model.entity_descriptions = _load_entity_descriptions(config)
 
     # Wrap with entity embedding when configured.
     # PatchTST + add_after_patch is handled internally by the model.

@@ -402,6 +402,7 @@ class Model(nn.Module):
         x_mark_enc: Any,
         n_series: int,
         n_channels: int,
+        station_ids: Any = None,
     ) -> list:
         """Resolve the H4 entity description for each of the ``n_series`` flattened
         series (returns a length-``n_series`` list of ``str`` or ``None``).
@@ -423,6 +424,19 @@ class Model(nn.Module):
         if entity_descriptions is None:
             return [None] * n_series
         n_desc = len(entity_descriptions)
+        # Prefer the unified per-sample ids (station_ids = entity_ids kwarg or x_mark,
+        # resolved once in forecast). Fall back to the legacy x_mark read for callers
+        # that still pass only entity_id_mark_col.
+        if station_ids is not None:
+            ids = station_ids.reshape(-1).long().tolist()
+            if len(ids) != n_series:
+                raise ValueError(f'per-sample entity ids ({len(ids)}) != n_series ({n_series}).')
+            resolved = []
+            for i in ids:
+                if not 0 <= i < n_desc:
+                    raise ValueError(f'entity id {i} out of range for {n_desc} descriptions.')
+                resolved.append(entity_descriptions[i])
+            return resolved
         if entity_id_mark_col is not None:
             ids = x_mark_enc[:, 0, entity_id_mark_col].long().tolist()
             if len(ids) != n_series:
@@ -503,7 +517,12 @@ class Model(nn.Module):
         # loader (entity_id_mark_col); b % N is the fallback for a true
         # multi_channel layout. None -> byte-identical to the verified prompt.
         entity_desc_for = self._resolve_entity_descs(
-            self.entity_descriptions, self.entity_id_mark_col, x_mark_enc, x_enc.shape[0], N
+            self.entity_descriptions,
+            self.entity_id_mark_col,
+            x_mark_enc,
+            x_enc.shape[0],
+            N,
+            station_ids=self._station_ids,
         )
         prompt = []
         for b in range(x_enc.shape[0]):
