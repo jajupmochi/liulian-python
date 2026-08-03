@@ -14,9 +14,24 @@ One page: what was built, what remains, how to debug it, how to run it. Full des
 | 4. A2 (learnable/random/onehot/sinusoidal) | ✅ |
 | 4. llm_tuning frozen/ln_only | ✅ |
 | 4. multi-backbone GPT2/BERT | ✅ |
+| 4. llm_tuning lora (A1.1) | ✅ peft installed + verified (trainable 50.9M/132.8M) |
+| 5. GPT4TS (negative control, additive-only) | ✅ built on the SAME entry+pipeline, `--arch gpt4ts` |
+| 6. cluster Tier-0 (dev, gratis) | 🟡 running (t0c-1990 / t0c-2010zh) |
 
 Regression: `tests/runtime/test_entity_identifier_pipeline.py` 16 passed / 1 skipped
-(unchanged). The 2×2 (representation × injection position) is complete.
+(unchanged throughout). The 2×2 (representation × injection position) is complete.
+
+### Bugs found + fixed this build (6)
+
+1. `results.json` missing rmse → cells silently skipped by the figure builder.
+2. harness YAML silently clobbered every CLI override (`--train_epochs 1` ran 30).
+3. matrix regression: timellm enumerated on every dataset → KeyError (restricted to swiss).
+4. entity_description silently degraded to baseline in the pipeline (descriptions not loaded).
+5. the "text = zero effect" alarm = a broken LOCAL tokenizer (vocab 1); model is correct.
+6. pipeline mislabeled model CONSTRUCTION errors as "Unknown model".
+Plus two cluster-environment fixes surfaced by the first real run: `cache_dir` pointed at an
+empty project cache (→ default HF cache), and "Too many open files" (→ file_system sharing +
+`ulimit -n`).
 
 ## What remains (ordered)
 
