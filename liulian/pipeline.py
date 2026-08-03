@@ -603,14 +603,18 @@ def build_model(config: Dict[str, Any], dataset: Any = None) -> Any:
     # Dynamic import for all models
     _module_name = model_name
 
+    # Only a FAILED IMPORT (or a missing Model class) means the model name is unknown. A
+    # model that imports fine but fails to CONSTRUCT (e.g. a missing optional dependency like
+    # peft, or a bad config) must surface its REAL error, not be mislabeled "Unknown model".
     try:
         mod = importlib.import_module(f'liulian.models.torch.{_module_name}')
-        model = mod.Model(ns).float()
+        model_cls = mod.Model
     except (ImportError, ModuleNotFoundError, AttributeError) as exc:
         raise ValueError(
             f'Unknown model: {model_name!r}. Available: lstm, dlinear, timellm, '
             f'or any module under liulian.models.torch.*.'
         ) from exc
+    model = model_cls(ns).float()  # construction errors propagate with their real cause
 
     # timellm owns its identity internally — activate its per-sample id lookup and do
     # NOT wrap it with the external EntityWrapper (that is for models like LSTM that have
