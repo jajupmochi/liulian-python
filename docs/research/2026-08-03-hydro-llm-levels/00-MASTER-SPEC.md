@@ -208,7 +208,7 @@ Same entry + pipeline, Time-LLM-identical wiring, **backbone swapped**:
 | GPT4TS (OneFitsAll) | arXiv 2302.11939 | ✅ `--arch gpt4ts` | 🧪 negative control (no prompt/covariate path); additive identity only |
 | TEMPO | arXiv 2310.04948 | ✅ `--arch tempo` (`974c658`) | decomposition (trend+seasonal) + shared frozen GPT-2, summed; additive identity; from-scratch adapter, smoke 2/2 ok, 8 tests |
 | AutoTimes | arXiv 2402.02370 | ✅ `--arch autotimes` (`8ab418f`) | autoregressive time tokens + causal frozen GPT-2, next-segment decode; additive identity; from-scratch adapter, smoke 2/2 ok, 9 tests |
-| CALF | arXiv 2403.07300 | ⚪ needs design | cross-modal alignment. NOT a pure backbone swap: its feature/output/gradient ALIGNMENT LOSSES belong in the TASK layer (tasks own losses). Scope the dual-branch forward here + the alignment loss as a task-side add-on before implementing. |
+| CALF | arXiv 2403.07300 | ✅ `--arch calf` (`cdf0344`) | cross-modal DUAL-BRANCH forward: a cross-modal branch reprograms patches into the LLM word-embedding space (reuses timellm's ReprogrammingLayer) + a temporal branch, both through a shared frozen GPT-2, fused. Additive identity. From-scratch adapter; the feature/output/gradient ALIGNMENT LOSSES are a task-layer extension (NOT in the forward). Verified end-to-end (smoke 2/2 ok, both branches contribute, 7 tests). |
 
 Each runs the SAME Level-A modes where applicable → tests whether the identity effect is
 Time-LLM-specific or general to LLM-TS models. The three done models are all ADDITIVE-only
