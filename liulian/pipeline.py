@@ -624,7 +624,7 @@ def build_model(config: Dict[str, Any], dataset: Any = None) -> Any:
     )
     # Models that handle identity INTERNALLY (not via the external EntityWrapper): timellm
     # and gpt4ts both read the per-sample id from the entity_ids kwarg and inject additively.
-    _INTERNAL_IDENTITY_MODELS = frozenset({'timellm', 'gpt4ts'})
+    _INTERNAL_IDENTITY_MODELS = frozenset({'timellm', 'gpt4ts', 'tempo'})
     if model_name in _INTERNAL_IDENTITY_MODELS and config.get('identifier_mode') in _TIMELLM_IDENTITY_MODES:
         if config.get('num_entities') is None:
             _sids = getattr(dataset, 'station_ids', None) if dataset is not None else None
