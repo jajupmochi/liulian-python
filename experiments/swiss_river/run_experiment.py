@@ -1,4 +1,23 @@
-"""Swiss River forecasting experiment using Time-LLM model.
+""".. DEPRECATED:: 2026-08-03 — DO NOT use as an experiment entry.
+
+    ┌───────────────────────────────────────────────────────────────────────┐
+    │  RETIRED. This standalone harness is NO LONGER an experiment entry.     │
+    │                                                                         │
+    │  Use instead:  experiments/hydro_llm/run_matrix.py                      │
+    │  which drives the liulian pipeline (experiments.run.run_with_config):   │
+    │  the SAME train/valid/eval path as LSTM/PatchTST/DLinear, WITH Ray Tune │
+    │  HPO and per-station NaN masking — none of which this harness has.      │
+    │                                                                         │
+    │  Why retired: (1) no HPO here; (2) no NaN handling, so swiss-2010/zurich │
+    │  produce NaN metrics; (3) its numbers are not comparable with the other │
+    │  models because it is a different code path. See                        │
+    │  docs/research/2026-08-03-hydro-llm-levels/00-MASTER-SPEC.md §2, §5.     │
+    │                                                                         │
+    │  Kept ONLY as an official-Time-LLM reproduction reference. No matrix /   │
+    │  runner may import or call it.                                          │
+    └───────────────────────────────────────────────────────────────────────┘
+
+Swiss River forecasting experiment using Time-LLM model.
 
 This script follows the training loop from Time-LLM's run_main.py closely,
 adapted to work within the liulian project structure.
@@ -780,4 +799,18 @@ def main():
 
 
 if __name__ == '__main__':
+    import warnings
+
+    warnings.warn(
+        'experiments/swiss_river/run_experiment.py is DEPRECATED (2026-08-03) and is no '
+        'longer an experiment entry. Use experiments/hydro_llm/run_matrix.py (pipeline + '
+        'Ray Tune HPO + NaN masking). This harness is kept only as an official-Time-LLM '
+        'reproduction reference. See docs/research/2026-08-03-hydro-llm-levels/00-MASTER-SPEC.md.',
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    print(
+        '\n[DEPRECATED] This harness is retired as an experiment entry. '
+        'Use: python experiments/hydro_llm/run_matrix.py  (see 00-MASTER-SPEC.md)\n'
+    )
     main()
