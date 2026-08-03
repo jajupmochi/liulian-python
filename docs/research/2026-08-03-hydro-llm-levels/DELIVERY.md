@@ -68,11 +68,11 @@ Implement each as a `liulian/models/torch/<name>.py` with the SAME contract as t
 (`forward(x_enc, x_mark_enc, x_dec, x_mark_dec, entity_ids=None)`), register in
 `matrix`/`BASE_CONFIG_BY_PAIR`, and reuse the identity plumbing. Priority + role:
 
-| model | ref | role | note |
+| model | ref | role | status |
 |---|---|---|---|
-| GPT4TS (OneFitsAll) | arXiv 2302.11939 | 🧪 negative control | simplest: patch → frozen GPT-2 (LN+pos trainable) → linear head, NO prompt/reprogramming. Its "entity = channel index" has no covariate path, so identity effects there isolate the reprogramming interface. Do first. |
-| TEMPO | arXiv 2310.04948 | decomposition prompt LLM | trend/season/residual decomposition + soft prompt |
-| CALF / AutoTimes | — | cross-modal / autoregressive | |
+| GPT4TS (OneFitsAll) | arXiv 2302.11939 | 🧪 negative control | ✅ DONE — patch → frozen GPT-2 (LN+pos trainable) → linear head, NO prompt/reprogramming; additive identity only (`--arch gpt4ts`). |
+| TEMPO | arXiv 2310.04948 | decomposition + frozen LLM | ✅ DONE (`974c658`, `--arch tempo`) — series_decomp trend+seasonal, each component through a shared frozen GPT-2, summed. From-scratch adapter (2-component, not full STL); additive identity only, soft-prompt is a planned extension. Verified end-to-end (smoke 2/2 ok, 8 unit tests). |
+| CALF / AutoTimes | — | cross-modal / autoregressive | ⬜ TODO — next SOTA to add on the same entry+pipeline. |
 
 The identity axes (Level A / A2) apply to each where a prompt or embedding site exists;
 GPT4TS (no prompt) supports only the embedding/additive modes → a clean test of whether the
