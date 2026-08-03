@@ -10,6 +10,54 @@ import pytest
 
 from liulian.optim.base import OptimizationResult
 from liulian.optim.ray_optimizer import RayOptimizer, make_trainable
+from liulian.optim.search_spaces import resolve_search_space
+
+
+class TestTimeLLMSearchSpace:
+    """Mode-aware composition of the timellm_swiss HPO space.
+
+    Locks the dead-knob guard added when timellm_swiss was introduced: the
+    Time-LLM numeric embedding width IS d_model (tuned in the model space), so
+    a standalone ``embedding_size`` must never leak into the timellm space —
+    the same class of guard as patchtst + add_after_patch. Without the guard,
+    HPO would tune a parameter that cannot change the trained model.
+    """
+
+    CORE = {'learning_rate', 'd_model', 'd_ff', 'llm_layers'}
+
+    def _keys(self, **kw):
+        return set(resolve_search_space(**kw))
+
+    def test_none_is_the_four_core_knobs(self) -> None:
+        assert self._keys(model='timellm', data='swiss-river-1990', identifier_mode='none') == self.CORE
+
+    def test_embedding_mode_drops_dead_embedding_size(self) -> None:
+        # identifier_mode 'embedding' is what numeric_embedding+learnable maps to.
+        keys = self._keys(model='timellm', data='swiss-river-1990', identifier_mode='embedding')
+        assert 'embedding_size' not in keys, 'dead knob leaked into timellm space'
+        assert keys == self.CORE
+
+    def test_soft_prompt_adds_its_only_knob(self) -> None:
+        keys = self._keys(model='timellm', data='swiss-river-1990', identifier_mode='soft_prompt')
+        assert keys == self.CORE | {'soft_prompt_len'}
+
+    def test_text_modes_add_nothing(self) -> None:
+        for mode in ('entity_description', 'text_embedding', 'random_embedding', 'onehot_embedding'):
+            assert self._keys(model='timellm', data='swiss-river-1990', identifier_mode=mode) == self.CORE, mode
+
+    def test_lstm_embedding_still_has_embedding_size(self) -> None:
+        # Guard must NOT regress the lstm path, which genuinely tunes it.
+        assert 'embedding_size' in self._keys(model='lstm', data='swiss-river-1990', identifier_mode='embedding')
+
+    def test_canonical_values_present_in_grid(self) -> None:
+        space = resolve_search_space(model='timellm', data='swiss-river-1990')
+        # ray.tune.choice objects expose .categories; skip the value-level
+        # assertion if the sampler backend does not (keeps the test CPU-only
+        # and backend-agnostic — the key-level guarantees above still run).
+        for name, canonical in (('d_model', 32), ('d_ff', 128), ('learning_rate', 0.01), ('llm_layers', 6)):
+            cats = getattr(space[name], 'categories', None)
+            if cats is not None:
+                assert canonical in list(cats), f'{name} grid missing canonical {canonical}'
 
 
 class TestOptimizationResult:
