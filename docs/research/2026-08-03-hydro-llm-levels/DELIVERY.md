@@ -40,14 +40,26 @@ empty project cache (→ default HF cache), and "Too many open files" (→ file_
 
 ## What remains (ordered)
 
-**task 4 tail (Tier-1/2 ablations, not needed for the first cluster runs):**
-1. A2 `coordinates` — wire per-station coords from the dataset topology into an additive
-   feature (like onehot/sinusoidal but the feature = the station's lat/lon).
-2. A1 prompt richness (minimal / rich / +stats / +coords) — needs authored per-richness
-   description variants; a `prompt_richness` config then selects which components enter
-   `_compose_prompt`.
-3. lora (A1.1) — `pip install peft` (model code is ready; raises a clear ImportError now).
-4. LLAMA backbone — sync 7B weights to the cluster (code branch exists).
+**task 4 tail (Tier-1/2 ablations, not needed for the first cluster runs).**
+Classified by whether they are actionable now or blocked on an upstream resource
+(measured 2026-08-03):
+
+*Actionable + locally verifiable:*
+1. A1 prompt richness (minimal / rich / +stats) — author per-richness description
+   variants; a `prompt_richness` config selects which components enter `_compose_prompt`.
+   Verifiable with the local GPT-2 tokenizer (entity_descriptions exist for swiss-1990).
+2. lora (A1.1) — DONE (peft installed, trainable 50.9M verified); a cluster lora sweep
+   is the only remaining part.
+
+*BLOCKED on an upstream resource (do NOT implement blind — would be dead/fake work):*
+3. A2 `coordinates` — BLOCKED on task #28 (coords data flow). Measured: `build_dataset`
+   for swiss-river-1990 returns `topology=None` / `coordinates=None` (only 28 station_ids),
+   so the pipeline's `config['coordinates']` (read from `dataset.topology.coordinates`)
+   stays None and the no-fake-zero guard in `_build_channel_features` would RAISE. The
+   timellm code branch is a ~15-line reuse of `_build_channel_features(mode='coordinates')`,
+   but it cannot be verified or run until the dataset exposes real per-station coords.
+4. LLAMA backbone — BLOCKED on weights: the 7B checkpoint is not cached locally or on the
+   cluster. Code branch exists (`llm_model: LLAMA`); needs a weights sync first.
 
 **task 5 — other SOTA LLM-TS models (design; same entry + pipeline):**
 Implement each as a `liulian/models/torch/<name>.py` with the SAME contract as timellm
