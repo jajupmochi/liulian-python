@@ -67,9 +67,11 @@ PLANNED_A2: tuple[str, ...] = ('onehot', 'sinusoidal', 'coordinates')
 IMPLEMENTED_A1: tuple[str, ...] = ('default',)
 PLANNED_A1: tuple[str, ...] = ('minimal', 'rich', 'stats', 'coords')
 
-#: Orthogonal axis: LLM trainability (A1.1 is lora).
-IMPLEMENTED_TUNING: tuple[str, ...] = ('frozen',)
-PLANNED_TUNING: tuple[str, ...] = ('ln_only', 'lora')
+#: Orthogonal axis: LLM trainability (A1.1 is lora). lora is implemented in the model but
+#: needs the peft package installed (it raises a clear ImportError otherwise), so it stays
+#: gated here until peft is added to the environment.
+IMPLEMENTED_TUNING: tuple[str, ...] = ('frozen', 'ln_only')
+PLANNED_TUNING: tuple[str, ...] = ('lora',)
 
 #: Orthogonal axis: base LLM backbone (as in the original Time-LLM paper).
 IMPLEMENTED_BACKBONES: tuple[str, ...] = ('GPT2',)

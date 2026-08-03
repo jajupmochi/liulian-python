@@ -375,8 +375,41 @@ class Model(nn.Module):
                 f'every prompt tokenize to 0 tokens and silently kills the text pathway.'
             )
 
+        # llm_tuning axis (how much of the base LLM trains). 'frozen' is the original
+        # behaviour; 'ln_only' unfreezes only LayerNorm affine params (a cheap PEFT middle
+        # rung); 'lora' attaches low-rank adapters (needs peft). See 00-MASTER-SPEC.md §2.1.
+        self.llm_tuning: str = str(getattr(configs, 'llm_tuning', 'frozen')).lower()
         for param in self.llm_model.parameters():
             param.requires_grad = False
+        if self.llm_tuning == 'ln_only':
+            # Train only the LayerNorm scale/shift (γ, β). GPT-2: ln_1, ln_2, ln_f;
+            # generically any nn.LayerNorm parameter.
+            n_unfrozen = 0
+            for module in self.llm_model.modules():
+                if isinstance(module, nn.LayerNorm):
+                    for p in module.parameters():
+                        p.requires_grad = True
+                        n_unfrozen += p.numel()
+            print(f'[timellm] llm_tuning=ln_only: unfroze {n_unfrozen} LayerNorm params')
+        elif self.llm_tuning == 'lora':
+            try:
+                from peft import LoraConfig, get_peft_model
+            except ImportError as exc:
+                raise ImportError(
+                    "llm_tuning='lora' requires peft. Install it: pip install peft. "
+                    '(ln_only and frozen need no extra dependency.)'
+                ) from exc
+            lora_cfg = LoraConfig(
+                r=int(getattr(configs, 'lora_r', 4)),
+                lora_alpha=int(getattr(configs, 'lora_alpha', 8)),
+                target_modules=list(getattr(configs, 'lora_target_modules', ['c_attn'])),
+                lora_dropout=float(getattr(configs, 'lora_dropout', 0.05)),
+                bias='none',
+            )
+            self.llm_model = get_peft_model(self.llm_model, lora_cfg)
+            print(f'[timellm] llm_tuning=lora: r={lora_cfg.r} alpha={lora_cfg.lora_alpha}')
+        elif self.llm_tuning != 'frozen':
+            raise ValueError(f'unknown llm_tuning={self.llm_tuning!r}; expected frozen/ln_only/lora')
 
         if configs.prompt_domain:  # todo: what is this?
             self.description = configs.content
