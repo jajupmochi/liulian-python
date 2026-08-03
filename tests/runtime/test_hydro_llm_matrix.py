@@ -92,7 +92,7 @@ class TestPromptRichnessA1:
 
     def test_unknown_richness_raises(self):
         with pytest.raises(ValueError, match='not implemented'):
-            _load_entity_descriptions({'data': 'swiss-river-1990', 'num_entities': 28, 'prompt_richness': 'stats'})
+            _load_entity_descriptions({'data': 'swiss-river-1990', 'num_entities': 28, 'prompt_richness': 'bogus'})
 
     def test_build_overrides_sets_prompt_richness_for_entity_description(self):
         from types import SimpleNamespace
@@ -125,3 +125,52 @@ class TestPromptRichnessA1:
         )
         cell = build_cells(_args(datasets=['swiss-river-1990'], modes=['none']))[0]
         assert 'prompt_richness' not in build_overrides(cell, args)
+
+
+class TestPromptRichnessStats:
+    """Level-A1 `stats` richness: positional id + per-station TRAIN-only temperature stats."""
+
+    def test_stats_desc_formats_from_station_stats(self):
+        from liulian.pipeline import _load_entity_descriptions
+
+        stats = [{'mean': 0.4, 'std': 0.2, 'min': 0.0, 'max': 1.0}, {'mean': 0.6, 'std': 0.1, 'min': 0.1, 'max': 0.9}]
+        out = _load_entity_descriptions({'prompt_richness': 'stats', 'station_stats': stats})
+        assert len(out) == 2
+        assert out[0] != out[1]  # distinct per station
+        assert 'mean 0.40' in out[0] and 'mean 0.60' in out[1]
+
+    def test_stats_requires_station_stats(self):
+        from liulian.pipeline import _load_entity_descriptions
+
+        with pytest.raises(ValueError, match='station_stats'):
+            _load_entity_descriptions({'prompt_richness': 'stats'})
+
+    def test_compute_station_train_stats_is_leakage_safe(self):
+        # Stats must come from the TRAIN frame ONLY, never val/test.
+        import numpy as np
+
+        from liulian.config import load_config
+        from liulian.pipeline import _compute_station_train_stats, build_dataset
+
+        cfg = load_config(
+            'experiments/swiss_river/timellm_config.yaml',
+            cli_overrides={
+                'data': 'swiss-river-1990',
+                'identifier_mode': 'entity_description',
+                'split_mode': 'per_entity',
+            },
+        )
+        ds = build_dataset(cfg)
+        st = _compute_station_train_stats(ds)
+        assert st is not None and len(st) == len(ds.station_ids)
+        # the train-only mean must differ from the all-splits mean (proves train-only, not全体)
+        frames = ds._split_frames
+        s0 = ds.station_ids[0]
+        all_vals = np.concatenate([frames[k][f'{s0}_wt'].to_numpy(dtype=float) for k in frames])
+        all_mean = float(np.nanmean(all_vals))
+        assert abs(st[0]['mean'] - all_mean) > 1e-9  # train-only != all-splits
+
+    def test_stats_in_implemented_a1(self):
+        from experiments.hydro_llm.run_matrix import IMPLEMENTED_A1
+
+        assert 'stats' in IMPLEMENTED_A1

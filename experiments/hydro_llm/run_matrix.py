@@ -78,10 +78,11 @@ PLANNED_A2: tuple[str, ...] = ('coordinates',)  # needs per-station coords wired
 #: Level A1 — prompt richness for entity_description. `default` = the authored
 #: rich station text (entity_descriptions.yaml); `minimal` = a bare positional
 #: identifier ("station number k"), the control for "does richer text help
-#: beyond a distinct id?". `stats`/`coords` are planned (need per-station stats
-#: / the coordinate data flow, task #28).
-IMPLEMENTED_A1: tuple[str, ...] = ('default', 'minimal')
-PLANNED_A1: tuple[str, ...] = ('stats', 'coords')
+#: beyond a distinct id?"; `stats` = positional id + per-station TRAIN-only
+#: temperature statistics (leakage-safe). `coords` is planned (blocked on the
+#: coordinate data flow, task #28).
+IMPLEMENTED_A1: tuple[str, ...] = ('default', 'minimal', 'stats')
+PLANNED_A1: tuple[str, ...] = ('coords',)
 
 #: Orthogonal axis: LLM trainability (A1.1 is lora). All three implemented + verified.
 #: lora needs the `peft` package (installed locally 2026-08-03); a cluster lora sweep needs

@@ -447,6 +447,35 @@ def has_entity_descriptions(data: str) -> bool:
     return key in table
 
 
+def _compute_station_train_stats(dataset: Any) -> list | None:
+    """Per-station TRAIN-only target stats for the A1 `stats` prompt richness.
+
+    LEAKAGE-SAFE by construction: reads ONLY ``dataset._split_frames['train']`` (never
+    val/test) and the per-station ``'{station}_wt'`` water-temperature columns, index-aligned
+    to ``dataset.station_ids``. Returns a list of ``{mean, std, min, max}`` dicts, or ``None``
+    if the structure is absent or any station is missing/empty (so the caller fails loudly
+    rather than fabricating partial stats).
+    """
+    import numpy as np
+
+    frames = getattr(dataset, '_split_frames', None)
+    sids = getattr(dataset, 'station_ids', None)
+    if not frames or 'train' not in frames or not sids:
+        return None
+    train = frames['train']
+    out: list = []
+    for s in sids:
+        col = f'{s}_wt'
+        if col not in getattr(train, 'columns', []):
+            return None
+        v = train[col].to_numpy(dtype=float)
+        v = v[~np.isnan(v)]
+        if v.size == 0:
+            return None
+        out.append({'mean': float(v.mean()), 'std': float(v.std()), 'min': float(v.min()), 'max': float(v.max())})
+    return out
+
+
 def _load_entity_descriptions(config: Dict[str, Any]) -> list:
     """Per-station natural-language descriptions for timellm entity_description mode.
 
@@ -478,6 +507,20 @@ def _load_entity_descriptions(config: Dict[str, Any]) -> list:
                 'timellm identity modes); none was available.'
             )
         return [f'This is measurement station number {i + 1}.' for i in range(int(n))]
+
+    if richness == 'stats':
+        stats = config.get('station_stats')
+        if not stats:
+            raise ValueError(
+                "prompt_richness='stats' requires config['station_stats'] (per-station "
+                'TRAIN-only target stats, wired by the pipeline in build_model). None found.'
+            )
+        return [
+            f'This is measurement station number {i + 1}, with normalized water temperature '
+            f'mean {s["mean"]:.2f}, standard deviation {s["std"]:.2f}, ranging from '
+            f'{s["min"]:.2f} to {s["max"]:.2f}.'
+            for i, s in enumerate(stats)
+        ]
 
     if richness not in ('default', 'rich'):
         raise ValueError(
@@ -680,6 +723,10 @@ def build_model(config: Dict[str, Any], dataset: Any = None) -> Any:
         # degrade to baseline. Load it (raises loudly if the dataset has none). gpt4ts rejects
         # these prompt/text modes at build time, so this only fires for timellm.
         if config.get('identifier_mode') in ('entity_description', 'text_embedding'):
+            # A1 `stats` richness needs per-station TRAIN-only stats; compute them here
+            # (build_model has the dataset) and stash on config for _load_entity_descriptions.
+            if str(config.get('prompt_richness', 'default')).lower() == 'stats' and config.get('station_stats') is None:
+                config['station_stats'] = _compute_station_train_stats(dataset)
             model.entity_descriptions = _load_entity_descriptions(config)
 
     # Wrap with entity embedding when configured.
