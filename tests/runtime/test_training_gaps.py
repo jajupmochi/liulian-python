@@ -919,3 +919,43 @@ class TestSearchSpaces:
 
         with pytest.raises(ValueError, match='Unknown ASHA preset'):
             get_asha_preset('bogus')
+
+
+class TestFlattenEntityIdChunks:
+    """Regression for the predict() entity_ids flatten (trainer.py:646).
+
+    The eval loop collects each batch's entity_ids (batch[4]) into a list of
+    chunks, then flattens them for the per-entity inverse transform. A chunk
+    may be a tuple (some DataLoader collates yield tuples), and the old
+    ``sum(chunks, [])`` raised ``TypeError: can only concatenate list (not
+    "tuple") to list`` — crashing predict()+aggregate on those datasets
+    (surfaced by the swiss-river e2e test). _flatten_id_chunks must handle
+    both list and tuple chunks. Bug was data/collate-triggered latent
+    fragility, not a regression.
+    """
+
+    def test_tuple_chunks_flatten_without_error(self):
+        # This is the exact bug: tuple chunks. Old sum(...,[]) raised here.
+        from liulian.runtime.trainer import _flatten_id_chunks
+
+        assert _flatten_id_chunks([('a', 'b'), ('c',)]) == ['a', 'b', 'c']
+
+    def test_old_sum_expression_would_raise_on_tuples(self):
+        # Locks in WHY the fix is needed: the pre-fix expression is broken.
+        with pytest.raises(TypeError):
+            sum([('a', 'b'), ('c',)], [])  # noqa: RUF017 - documents the bug
+
+    def test_list_chunks_still_flatten(self):
+        from liulian.runtime.trainer import _flatten_id_chunks
+
+        assert _flatten_id_chunks([['a', 'b'], ['c']]) == ['a', 'b', 'c']
+
+    def test_mixed_list_and_tuple_chunks(self):
+        from liulian.runtime.trainer import _flatten_id_chunks
+
+        assert _flatten_id_chunks([['a'], ('b', 'c')]) == ['a', 'b', 'c']
+
+    def test_empty_input(self):
+        from liulian.runtime.trainer import _flatten_id_chunks
+
+        assert _flatten_id_chunks([]) == []

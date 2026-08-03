@@ -48,6 +48,17 @@ from liulian.utils.augmentation import apply_augmentations
 logger = logging.getLogger(__name__)
 
 
+def _flatten_id_chunks(chunks: List[Any]) -> List[Any]:
+    """Flatten per-batch entity-id chunks into one flat list.
+
+    Each chunk is one batch's ``entity_ids`` (``batch[4]``), collected across
+    the eval loop. A chunk may be a ``list`` OR a ``tuple`` depending on the
+    DataLoader's collate, so ``sum(chunks, [])`` is unsafe (``[] + tuple`` is a
+    TypeError). This comprehension flattens either element type uniformly.
+    """
+    return [x for chunk in chunks for x in chunk]
+
+
 class ForecastTrainer:
     """PyTorch training loop for time-series forecasting models.
 
@@ -619,7 +630,7 @@ class ForecastTrainer:
                     if isinstance(all_entity_ids[0], torch.Tensor):
                         inv_kwargs['entity_ids'] = torch.cat(all_entity_ids, dim=0)
                     elif isinstance(all_entity_ids[0], (list, tuple)):
-                        inv_kwargs['entity_ids'] = sum(all_entity_ids, [])
+                        inv_kwargs['entity_ids'] = _flatten_id_chunks(all_entity_ids)
                     else:
                         # numpy or other — try to concatenate
                         inv_kwargs['entity_ids'] = np.concatenate(all_entity_ids, axis=0)
@@ -643,7 +654,7 @@ class ForecastTrainer:
             if isinstance(all_entity_ids[0], torch.Tensor):
                 entity_ids_out = torch.cat(all_entity_ids, dim=0).detach().cpu().numpy()
             elif isinstance(all_entity_ids[0], (list, tuple)):
-                entity_ids_out = np.asarray(sum(all_entity_ids, []), dtype=object)
+                entity_ids_out = np.asarray(_flatten_id_chunks(all_entity_ids), dtype=object)
             else:
                 entity_ids_out = np.concatenate(all_entity_ids, axis=0)
 
