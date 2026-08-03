@@ -139,6 +139,20 @@ class Model(nn.Module):
         else:
             self.soft_prompt = None
 
+        # Level-A `text_embedding` (TEXT identity, ADDITIVE position): the 4th cell of the
+        # representation×position 2x2. The station's description is encoded into a VECTOR
+        # (mean-pooled frozen-LLM token embeddings — no new dependency) and projected into
+        # patch-embedding space, then ADDED to the patch embeddings — same injection site as
+        # numeric_embedding but the vector comes from TEXT instead of a learned table. Only a
+        # small projection is learnable; the text encoding is frozen. The per-entity cache is
+        # built lazily on first forward (needs the loaded tokenizer/LLM + the descriptions,
+        # which the pipeline sets after __init__).
+        if self.identifier_mode == 'text_embedding':
+            self.text_proj: Union[nn.Linear, None] = nn.Linear(int(configs.llm_dim), int(configs.d_model))
+            self._text_emb_cache: Any = None
+        else:
+            self.text_proj = None
+
         # Import transformers here to make it optional
         from transformers import (
             LlamaConfig,
@@ -588,6 +602,13 @@ class Model(nn.Module):
         # ids (B,) read from the x_mark column align row-for-row.
         if self.entity_embedding is not None and self._station_ids is not None:
             enc_out = enc_out + self.entity_embedding(self._station_ids).unsqueeze(1)
+        # Level-A text_embedding: add the projected text-derived per-station vector to the
+        # patch embeddings (TEXT source, ADDITIVE position). Cache is built once (frozen).
+        if self.text_proj is not None and self._station_ids is not None and self.entity_descriptions is not None:
+            if self._text_emb_cache is None:
+                self._text_emb_cache = self._build_text_emb_cache(enc_out.device)
+            tvec = self.text_proj(self._text_emb_cache[self._station_ids])  # (B, d_model)
+            enc_out = enc_out + tvec.unsqueeze(1)
         enc_out = self.reprogramming_layer(
             enc_out, source_embeddings, source_embeddings
         )  # enc_out: [B*N_f, num_patches, d_llm]
@@ -616,6 +637,24 @@ class Model(nn.Module):
         dec_out = self.normalize_layers(dec_out, 'denorm')
 
         return dec_out
+
+    def _build_text_emb_cache(self, device: Any) -> Any:
+        """Encode each station description into a fixed vector (num_entities, d_llm).
+
+        Uses the FROZEN backbone's own input embeddings, mean-pooled over the description's
+        tokens — no extra dependency, and constant because the backbone and text are fixed,
+        so it is computed once and cached. Only the downstream text_proj is learnable.
+        """
+        embed_layer = self.llm_model.get_input_embeddings()
+        vecs = []
+        with torch.no_grad():
+            for desc in self.entity_descriptions:
+                toks = self.tokenizer(
+                    [str(desc)], return_tensors='pt', padding=True, truncation=True, max_length=128
+                ).input_ids.to(device)
+                emb = embed_layer(toks)  # (1, n_tok, d_llm)
+                vecs.append(emb.mean(dim=1).squeeze(0))  # (d_llm,)
+        return torch.stack(vecs, dim=0).to(device)  # (num_entities, d_llm)
 
     def calcute_lags(self, x_enc):
         q_fft = torch.fft.rfft(x_enc.permute(0, 2, 1).contiguous(), dim=-1)

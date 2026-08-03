@@ -609,9 +609,10 @@ def build_model(config: Dict[str, Any], dataset: Any = None) -> Any:
     # no internal identity path). Double-injecting would corrupt the signal.
     if model_name == 'timellm' and config.get('identifier_mode') in _TIMELLM_IDENTITY_MODES:
         model.entity_id_mark_col = config.get('entity_id_mark_col', 0)
-        # entity_description needs the per-station TEXT, or it silently degrades to the
-        # `none` baseline. Load it (raises loudly if the dataset has none).
-        if config.get('identifier_mode') == 'entity_description':
+        # entity_description AND text_embedding both need the per-station TEXT (one injects
+        # it into the prompt, the other encodes it into an additive vector), or they silently
+        # degrade to baseline. Load it (raises loudly if the dataset has none).
+        if config.get('identifier_mode') in ('entity_description', 'text_embedding'):
             model.entity_descriptions = _load_entity_descriptions(config)
 
     # Wrap with entity embedding when configured.
