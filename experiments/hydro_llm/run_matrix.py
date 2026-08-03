@@ -73,9 +73,12 @@ PLANNED_A1: tuple[str, ...] = ('minimal', 'rich', 'stats', 'coords')
 IMPLEMENTED_TUNING: tuple[str, ...] = ('frozen', 'ln_only')
 PLANNED_TUNING: tuple[str, ...] = ('lora',)
 
-#: Orthogonal axis: base LLM backbone (as in the original Time-LLM paper).
-IMPLEMENTED_BACKBONES: tuple[str, ...] = ('GPT2',)
-PLANNED_BACKBONES: tuple[str, ...] = ('LLAMA', 'BERT')
+#: Orthogonal axis: base LLM backbone (as in the original Time-LLM paper). GPT2 + BERT
+#: verified locally (build+forward). LLAMA's code branch exists but its 7B weights are heavy
+#: and not on the cluster, so it stays gated. NOTE: BERT/LLAMA weights must be synced to the
+#: cluster (it currently caches only gpt2) before a cluster backbone sweep.
+IMPLEMENTED_BACKBONES: tuple[str, ...] = ('GPT2', 'BERT')
+PLANNED_BACKBONES: tuple[str, ...] = ('LLAMA',)
 
 DATASETS: tuple[str, ...] = ('swiss-river-1990', 'swiss-river-2010', 'swiss-river-zurich')
 DEFAULT_SEEDS: tuple[int, ...] = (2026,)
