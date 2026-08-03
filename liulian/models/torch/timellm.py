@@ -345,6 +345,22 @@ class Model(nn.Module):
             self.tokenizer.add_special_tokens({'pad_token': pad_token})
             self.tokenizer.pad_token = pad_token
 
+        # Fail loud on a degenerate tokenizer. An INCOMPLETE HF cache (config.json without
+        # vocab.json/merges.txt) under local_files_only loads a tokenizer with vocab size 1
+        # WITHOUT raising, so every prompt tokenizes to 0 tokens and the ENTIRE prompt
+        # pathway silently dies (empty prompt_embeddings) -- making entity_description
+        # indistinguishable from none. This guard turns that silent corruption into a crash.
+        _vocab = len(self.tokenizer)
+        if _vocab < 1000:
+            raise RuntimeError(
+                f'{configs.llm_model} tokenizer loaded with a degenerate vocab of {_vocab} '
+                f'(expected tens of thousands). The local HF cache is likely incomplete '
+                f'(config.json present but vocab/merges missing) under offline mode. Complete '
+                f'it, e.g. `python -c "from transformers import GPT2Tokenizer; '
+                f"GPT2Tokenizer.from_pretrained('openai-community/gpt2')\"`. A vocab of 1 makes "
+                f'every prompt tokenize to 0 tokens and silently kills the text pathway.'
+            )
+
         for param in self.llm_model.parameters():
             param.requires_grad = False
 
