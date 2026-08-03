@@ -991,7 +991,14 @@ def _resolve_from_yaml(model: str, data: str, identifier_mode: str, id_integrati
     space: Dict[str, Any] = {name: _spec_to_tune(spec) for name, spec in cfg['model_spaces'][key].items()}
     id_extra = cfg['identifier_spaces'].get(identifier_mode, {}) or {}
     has_emb = identifier_mode in ('embedding', 'embedding_idx')
-    skip_emb = model == 'patchtst' and has_emb and id_integration == 'add_after_patch'
+    # Dead-knob guard for a standalone embedding_size:
+    #   - patchtst + add_after_patch: internal embedding is fixed to d_model.
+    #   - timellm / gpt4ts: the numeric identity embedding is nn.Embedding(n, d_model),
+    #     so its width IS d_model (tuned in the model space) — a separate
+    #     embedding_size would never change the trained model.
+    skip_emb = (model == 'patchtst' and has_emb and id_integration == 'add_after_patch') or (
+        model in ('timellm', 'gpt4ts') and has_emb
+    )
     # Transparent-feature dims (DATA_LAYER_DIM_KEYS) are live knobs in BOTH
     # split modes: multi_channel rebuilds the wrapper per trial; per_entity
     # rebuilds the data loaders per trial (loaders_factory in

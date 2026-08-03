@@ -62,6 +62,29 @@ model_spaces:
     e_layers:      {dist: choice, values: [1, 2, 3]}
     dropout:       {dist: choice, values: [0.1, 0.2]}
 
+  # Time-LLM on swiss-river (per_entity, channel-independent N=1). CENTERED on
+  # the Time-LLM authors' canonical values (ETTh1 run script: d_model 32,
+  # d_ff 128, n_heads 8, llm_layers 6, lr 0.01) and each canonical value is
+  # INCLUDED in its grid, so HPO can recover the paper config or scale away
+  # from it. Deliberately SPARSE (3x3x2x2 = 36 points, ASHA prunes early) —
+  # the axes probe theoretical boundaries and dataset/model scaling, not a
+  # dense sweep.
+  #   - d_model / d_ff: capacity + reprogramming/head width (highest impact).
+  #   - learning_rate: {1e-3, 1e-2}; canonical 1e-2 plus the epoch-diagnostic
+  #     winner 1e-3 (swiss single-channel prefers the lower rate). 1e-3 also
+  #     overlaps the PatchTST-swiss upper bound -> partial cross-model alignment.
+  #   - llm_layers: {3, 6} probes "how much frozen LLM" the TS task needs.
+  # NOT tuned (SHARED with LSTM/PatchTST for a fair comparison, taken from the
+  # config): batch_size 32, seq_len 90, pred_len 7, patch_len 16, stride 8,
+  # train_epochs 30 + early stopping. n_heads fixed at the canonical 8 (low
+  # impact). factor is a DEAD knob for Time-LLM and is never tuned.
+  # ref: https://github.com/KimMeen/Time-LLM (scripts/TimeLLM_ETTh1.sh)
+  timellm_swiss:
+    learning_rate: {dist: choice, values: [0.001, 0.01]}   # canonical 0.01 + diagnostic-best 0.001
+    d_model:       {dist: choice, values: [16, 32, 64]}    # canonical 32; capacity scaling
+    d_ff:          {dist: choice, values: [32, 128, 256]}  # canonical 128; reprogramming/head width
+    llm_layers:    {dist: choice, values: [3, 6]}          # canonical 6; "how much LLM" boundary
+
   # DLinear — must EXACTLY mirror dlinear_space() to preserve anchored baselines.
   # batch_size stays TUNED here: the 2026-05 traffic/electricity baselines were
   # produced with it, and TSL_REQUIRED_HPARAMS (matrix.py) enforces coverage.
@@ -103,6 +126,25 @@ identifier_spaces:
   random:
     random_identifier_dim: {dist: randint, low: 1, high: 31}
 
+  # Time-LLM soft-prompt mode (a learned prefix prepended to the reprogrammed
+  # patch tokens). soft_prompt_len is the ONLY soft-prompt-specific knob; the
+  # prefix width is llm_dim (fixed by the backbone), so it is not tuned. Only
+  # Time-LLM uses this identifier_mode, so the key is inert for other models.
+  soft_prompt:
+    soft_prompt_len:       {dist: choice, values: [4, 8, 16]}
+  # Time-LLM numeric-embedding sub-variants map to these identifier_mode
+  # strings (see run_matrix._A2_TO_IDENTIFIER). They add NO tunable dim: the
+  # embedding/onehot/sinusoidal identity is projected to d_model, so the width
+  # is tied to d_model (tuned in the model space), not a standalone knob.
+  # Declared here as {} so the composition is explicit rather than a silent
+  # dict-miss default. embedding is handled by the skip logic in
+  # _resolve_from_yaml (dead-knob guard); the rest are naturally empty.
+  random_embedding:     {}
+  onehot_embedding:     {}
+  sinusoidal_embedding: {}
+  entity_description:   {}   # text identity — fixed description, nothing to tune
+  text_embedding:       {}   # frozen-LLM text embedding, projected to d_model
+
 # --------------------------------------------------------------------------- #
 # Resolution: (data prefix, model) -> base space key. Mode-INDEPENDENT.        #
 # First match wins. Omit `data` to match any dataset.                          #
@@ -111,6 +153,7 @@ resolution:
   - {data: swiss-river, model: lstm,     space: lstm_swiss}
   - {data: swiss-river, model: dlinear,  space: dlinear_swiss}
   - {data: swiss-river, model: patchtst, space: patchtst_swiss}
+  - {data: swiss-river, model: timellm,  space: timellm_swiss}
   - {model: lstm,                         space: lstm_general}
   - {model: dlinear,                      space: dlinear}
   - {model: patchtst,                     space: patchtst}
