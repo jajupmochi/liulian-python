@@ -213,6 +213,10 @@ def build_overrides(cell: dict[str, Any], args: argparse.Namespace) -> dict[str,
     # for pipeline validation only (best_epoch landed at the 5-cap ⟹ not converged).
     if args.train_epochs is not None:
         overrides['train_epochs'] = args.train_epochs
+    if args.learning_rate is not None:
+        overrides['learning_rate'] = args.learning_rate
+    if args.patience is not None:
+        overrides['patience'] = args.patience  # set high (>= train_epochs) to disable early stop
     if args.max_train_samples is not None:
         overrides['max_train_samples'] = args.max_train_samples
     return overrides
@@ -267,6 +271,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument('--train-epochs', type=int, default=None,
                    help='override the phase epoch cap. Use 30 (+ YAML patience 10) for the '
                         'paper/harness-aligned baseline; early stopping picks the best epoch.')
+    p.add_argument('--learning-rate', type=float, default=None,
+                   help='override lr (e.g. run the epoch diagnostic at lr 0.01 and 0.001).')
+    p.add_argument('--patience', type=int, default=None,
+                   help='override early-stopping patience. Set >= train_epochs to DISABLE early '
+                        'stopping (needed for the full epoch-vs-metric diagnostic curve).')
     p.add_argument('--max-train-samples', type=int, default=None, help='cap train samples (smoke)')
     p.add_argument('--run-tag', default=datetime.now().strftime('hydro-%Y%m%d-%H%M%S'))
     p.add_argument('--timeout-seconds', type=int, default=0, help='0 disables')

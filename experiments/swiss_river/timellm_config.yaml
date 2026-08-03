@@ -55,18 +55,23 @@ num_embeddings: null              # auto-detected from the dataset
 enc_in: 1                         # one series per sample (per-station univariate)
 dec_in: 1
 c_out: 1
-d_model: 16
-d_ff: 32
+# Model-capacity HPs: Time-LLM authors' canonical values (ETTh1 script: d_model 32, d_ff 128).
+# These are the HPO CENTER, not fixed finals — the timellm_swiss search space tunes around them.
+# Superseded the deprecated harness's arbitrary small values (16/32).
+d_model: 32                       # authors' canonical (was 16, from the deprecated harness)
+d_ff: 128                         # authors' canonical (was 32); head_nf = d_ff * patch_nums
 n_heads: 8
 e_layers: 2
 d_layers: 1
-patch_len: 16
-stride: 8
+patch_len: 16                     # SHARED with PatchTST (fair cross-model comparison)
+stride: 8                         # SHARED with PatchTST
 dropout: 0.1
 embed: timeF
 activation: gelu
 output_attention: false
 moving_avg: 25
+# factor is a DEAD knob for Time-LLM (Informer ProbSparse leftover; unused in timellm.py). Kept
+# only so the ETT-style config schema validates; changing it has ZERO effect.
 factor: 1
 
 # ── LLM backbone ────────────────────────────────────────────────────────
@@ -77,11 +82,16 @@ prompt_domain: 0
 # llm_tuning: frozen              # PLANNED: frozen | ln_only | lora (see timellm.py:334)
 
 # ── Training ────────────────────────────────────────────────────────────
-train_epochs: 30
-batch_size: 8
-eval_batch_size: 8
-learning_rate: 0.001
+train_epochs: 30                  # final runs use early stopping; the epoch diagnostic overrides to 100
+# batch_size SHARED with LSTM/PatchTST swiss (both 32) for a fair cross-model comparison.
+# Was 8 (deprecated harness); Time-LLM authors' ETTh1 used 24 — 32 aligns the model families.
+batch_size: 32
+eval_batch_size: 32
+learning_rate: 0.01               # Time-LLM authors' canonical (was 0.001); HPO tunes {1e-3,1e-2}
 patience: 10
+freq: d                           # swiss data is DAILY (harness used d). NOTE: timellm/gpt4ts use
+                                  # x_mark only for the entity id, so freq is inert here — set for
+                                  # correctness/alignment, not because it changes results.
 loss: MSE
 lradj: type1
 pct_start: 0.2

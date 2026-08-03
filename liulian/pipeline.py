@@ -1433,6 +1433,10 @@ def build_results_dict(
         history_summary = {
             'n_epochs': len(history),
             'final_train_loss': history[-1].get('train_loss'),
+            # Full per-epoch records (epoch / train_loss / val_* / test_*) so an epoch-vs-metric
+            # convergence curve can be plotted from results.json without parsing the log. Small
+            # (n_epochs * a few floats).
+            'epochs': history,
         }
 
     results: Dict[str, Any] = {

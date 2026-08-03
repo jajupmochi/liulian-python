@@ -41,6 +41,8 @@ MODES="${MODES:?set MODES}"
 SEEDS="${SEEDS:-2026}"
 PHASE="${PHASE:-full}"   # full=Ray Tune HPO; dev=5ep no HPO (fast first baseline)
 TRAIN_EPOCHS="${TRAIN_EPOCHS:-}"   # override the phase epoch cap; e.g. 30 for the paper baseline
+LR="${LR:-}"                       # override learning rate (epoch diagnostic: 0.01 / 0.001)
+PATIENCE="${PATIENCE:-}"           # override early-stop patience; >= epochs disables early stop
 
 echo "=== hydro-llm job: tag=$RUNTAG datasets=[$DATASETS] modes=[$MODES] seeds=[$SEEDS] ==="
 echo "node=$(hostname) date=$(date -Iseconds)"
@@ -59,8 +61,10 @@ export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1
 
 # --resume: on a requeue after the wall clock, cells already ok in the manifest are
 # skipped so only the unfinished ones re-run.
-EPOCH_ARG=()
-[ -n "$TRAIN_EPOCHS" ] && EPOCH_ARG=(--train-epochs "$TRAIN_EPOCHS")
+EXTRA_ARGS=()
+[ -n "$TRAIN_EPOCHS" ] && EXTRA_ARGS+=(--train-epochs "$TRAIN_EPOCHS")
+[ -n "$LR" ] && EXTRA_ARGS+=(--learning-rate "$LR")
+[ -n "$PATIENCE" ] && EXTRA_ARGS+=(--patience "$PATIENCE")
 
 python experiments/hydro_llm/run_matrix.py \
   --phase "$PHASE" \
@@ -68,7 +72,7 @@ python experiments/hydro_llm/run_matrix.py \
   --datasets $DATASETS \
   --modes $MODES \
   --seeds $SEEDS \
-  ${EPOCH_ARG[@]+"${EPOCH_ARG[@]}"} \
+  ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"} \
   --resume
 
 echo "=== done: $(date -Iseconds) ==="
