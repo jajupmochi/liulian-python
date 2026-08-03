@@ -124,6 +124,21 @@ class Model(nn.Module):
         else:
             self.entity_embedding = None
 
+        # Level-A `soft_prompt` (LEARNED identity, PREFIX position): a per-entity
+        # block of learnable continuous tokens prepended to the LLM input sequence.
+        # This is the "learned × prefix" cell of the representation×position 2x2 —
+        # the counterpart of entity_description (text × prefix) and numeric_embedding
+        # (learned × additive). Built only for this mode; None otherwise.
+        self.soft_prompt_len: int = int(getattr(configs, 'soft_prompt_len', 8))
+        if self.identifier_mode == 'soft_prompt':
+            _n_ent = getattr(configs, 'num_entities', None)
+            if _n_ent is None:
+                raise ValueError("identifier_mode='soft_prompt' requires configs.num_entities")
+            # (num_entities, soft_prompt_len, d_llm); small init like a prompt embedding.
+            self.soft_prompt = nn.Parameter(torch.randn(int(_n_ent), self.soft_prompt_len, int(configs.llm_dim)) * 0.02)
+        else:
+            self.soft_prompt = None
+
         # Import transformers here to make it optional
         from transformers import (
             LlamaConfig,
@@ -370,9 +385,13 @@ class Model(nn.Module):
 
         self.normalize_layers = Normalize(configs.enc_in, affine=False)
 
-    def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
+    def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None, entity_ids=None):
+        # entity_ids: (B,) per-sample station index. The pipeline trainer passes it as a
+        # kwarg (batch element), NOT inside x_mark. The harness instead put it in an
+        # x_mark column (entity_id_mark_col). forecast() accepts either and prefers the
+        # explicit kwarg.
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
-            dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)  # [B, pred_len, N_f]
+            dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec, entity_ids=entity_ids)
             return dec_out[:, -self.pred_len :, :]
         return None
 
@@ -457,7 +476,15 @@ class Model(nn.Module):
             f'top 5 lags are : {lags_str}<|<end_prompt>|>'
         )
 
-    def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
+    def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec, entity_ids=None):
+        # Unified per-sample station id source: prefer the explicit entity_ids kwarg
+        # (pipeline trainer path); fall back to the x_mark column (harness path). Either
+        # way _station_ids is a Long (B,) tensor or None (baseline / no id available).
+        self._station_ids = None
+        if entity_ids is not None:
+            self._station_ids = entity_ids.reshape(-1).long()
+        elif self.entity_id_mark_col is not None and x_mark_enc is not None:
+            self._station_ids = x_mark_enc[:, 0, self.entity_id_mark_col].long()
 
         x_enc = self.normalize_layers(x_enc, 'norm')  # x_enc: [B, T, N_f]
 
@@ -524,13 +551,20 @@ class Model(nn.Module):
         # (post-norm numeric identity). enc_out is [B*N, num_patches, d_model];
         # this harness is channel-independent (N=1) so B*N == B and the per-sample
         # ids (B,) read from the x_mark column align row-for-row.
-        if self.entity_embedding is not None and self.entity_id_mark_col is not None:
-            ids = x_mark_enc[:, 0, self.entity_id_mark_col].long()  # (B,)
-            enc_out = enc_out + self.entity_embedding(ids).unsqueeze(1)
+        if self.entity_embedding is not None and self._station_ids is not None:
+            enc_out = enc_out + self.entity_embedding(self._station_ids).unsqueeze(1)
         enc_out = self.reprogramming_layer(
             enc_out, source_embeddings, source_embeddings
         )  # enc_out: [B*N_f, num_patches, d_llm]
         llama_enc_out = torch.cat([prompt_embeddings, enc_out], dim=1)
+        # Level-A soft_prompt (LEARNED × PREFIX): prepend this station's learnable
+        # prefix tokens to the LLM input. Prepending (not appending) is safe because
+        # the output head below slices the LAST patch_nums positions, so the patch
+        # tokens keep their place. Per-sample id from the same x_mark column as the
+        # numeric identity; N=1 channel-independent so ids (B,) align row-for-row.
+        if self.soft_prompt is not None and self._station_ids is not None:
+            soft_tokens = self.soft_prompt[self._station_ids]  # (B, soft_prompt_len, d_llm)
+            llama_enc_out = torch.cat([soft_tokens, llama_enc_out], dim=1)
         # dec_out = self.llm_model(inputs_embeds=llama_enc_out.to(
         #     self.llm_model.dtype if hasattr(self.llm_model, 'dtype') else llama_enc_out.dtype
         # )).last_hidden_state  # [B*N_f, prompt_len + num_patches, d_llm]

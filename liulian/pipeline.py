@@ -521,6 +521,26 @@ def build_model(config: Dict[str, Any], dataset: Any = None) -> Any:
         config.setdefault('random_identifier_dim', config.get('random_identifier_dim', 16))
         config.setdefault('random_identifier_seed', config.get('random_identifier_seed', 2026))
 
+    # Time-LLM handles identity INTERNALLY (entity_embedding / soft_prompt / per-station
+    # prompt text), unlike LSTM which is wrapped externally by EntityWrapper. So for a
+    # timellm identity mode we surface num_entities onto config BEFORE the model is built
+    # (Model.__init__ reads configs.num_entities) and wire entity_id_mark_col = the x_mark
+    # column the per_entity loader fills with the station id (col 0 — the same source
+    # EntityWrapper reads). timellm must NOT also be EntityWrapper-wrapped (see below).
+    _TIMELLM_IDENTITY_MODES = frozenset(
+        {'embedding', 'random_embedding', 'soft_prompt', 'entity_description', 'text_embedding'}
+    )
+    if model_name == 'timellm' and config.get('identifier_mode') in _TIMELLM_IDENTITY_MODES:
+        if config.get('num_entities') is None:
+            _sids = getattr(dataset, 'station_ids', None) if dataset is not None else None
+            if _sids is None:
+                raise ValueError(
+                    'timellm identity mode requires num_entities, derivable from '
+                    'dataset.station_ids, but no dataset/station_ids was available.'
+                )
+            config['num_entities'] = len(_sids)
+        config.setdefault('entity_id_mark_col', 0)
+
     ns = SimpleNamespace(**config)
 
     # Pre-processing for LLM-based models
@@ -551,9 +571,19 @@ def build_model(config: Dict[str, Any], dataset: Any = None) -> Any:
             f'or any module under liulian.models.torch.*.'
         ) from exc
 
+    # timellm owns its identity internally — activate its per-sample id lookup and do
+    # NOT wrap it with the external EntityWrapper (that is for models like LSTM that have
+    # no internal identity path). Double-injecting would corrupt the signal.
+    if model_name == 'timellm' and config.get('identifier_mode') in _TIMELLM_IDENTITY_MODES:
+        model.entity_id_mark_col = config.get('entity_id_mark_col', 0)
+
     # Wrap with entity embedding when configured.
     # PatchTST + add_after_patch is handled internally by the model.
-    if config.get('identifier_mode') == 'embedding' and config.get('id_integration') != 'add_after_patch':
+    if (
+        model_name != 'timellm'
+        and config.get('identifier_mode') == 'embedding'
+        and config.get('id_integration') != 'add_after_patch'
+    ):
         num_emb = config.get('num_embeddings')  # todo: should embedding be refactored with other mode?
         if num_emb is None and dataset is not None:
             num_emb = len(dataset.station_ids)

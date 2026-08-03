@@ -54,8 +54,8 @@ from experiments.entity_identifier.run import _load_latest_status_by_job  # noqa
 # --------------------------------------------------------------------------
 
 #: Level-A peer modes. `numeric_embedding` is the renamed old `embedding`.
-IMPLEMENTED_MODES: tuple[str, ...] = ('none', 'entity_description', 'numeric_embedding')
-PLANNED_MODES: tuple[str, ...] = ('soft_prompt', 'text_embedding')
+IMPLEMENTED_MODES: tuple[str, ...] = ('none', 'entity_description', 'numeric_embedding', 'soft_prompt')
+PLANNED_MODES: tuple[str, ...] = ('text_embedding',)
 
 #: Level A2 — sub-variants of numeric_embedding (which learned/fixed vector).
 IMPLEMENTED_A2: tuple[str, ...] = ('learnable', 'random')
