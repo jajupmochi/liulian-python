@@ -423,6 +423,30 @@ _ENTITY_DESC_KEY = {
 }
 
 
+def _entity_descriptions_path() -> str:
+    return os.path.join(PROJECT_ROOT, 'experiments', 'swiss_river', 'configs', 'entity_descriptions.yaml')
+
+
+def has_entity_descriptions(data: str) -> bool:
+    """Whether ``data`` has authored station descriptions (non-raising checker).
+
+    Single source of truth for entity_description availability, shared with
+    :func:`_load_entity_descriptions` (which RAISES for a missing dataset).
+    Callers that enumerate experiment cells (e.g. the hydro-LLM matrix runner)
+    use this to SKIP entity_description on datasets without text, instead of
+    scheduling a cell that would only fail loudly at run time.
+    """
+    import yaml
+
+    key = _ENTITY_DESC_KEY.get(data, data)
+    try:
+        with open(_entity_descriptions_path()) as fh:
+            table = yaml.safe_load(fh) or {}
+    except FileNotFoundError:
+        return False
+    return key in table
+
+
 def _load_entity_descriptions(config: Dict[str, Any]) -> list:
     """Per-station natural-language descriptions for timellm entity_description mode.
 
@@ -436,7 +460,7 @@ def _load_entity_descriptions(config: Dict[str, Any]) -> list:
 
     data = config.get('data', '')
     key = _ENTITY_DESC_KEY.get(data, data)
-    desc_path = os.path.join(PROJECT_ROOT, 'experiments', 'swiss_river', 'configs', 'entity_descriptions.yaml')
+    desc_path = _entity_descriptions_path()
     with open(desc_path) as fh:
         table = yaml.safe_load(fh) or {}
     if key not in table:
