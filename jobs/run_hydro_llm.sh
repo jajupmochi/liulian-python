@@ -29,6 +29,12 @@
 
 set -euo pipefail
 
+# Raise the open-file limit: DataLoader workers + a long Time-LLM run exhaust the default
+# soft limit ("Too many open files"). Pairs with set_sharing_strategy('file_system') in the
+# runner. Cap at the hard limit so we never exceed it.
+ulimit -n "$(ulimit -Hn)" 2>/dev/null || ulimit -n 65536 2>/dev/null || true
+echo "open-file limit: $(ulimit -n)"
+
 RUNTAG="${RUNTAG:?set RUNTAG}"
 DATASETS="${DATASETS:?set DATASETS}"
 MODES="${MODES:?set MODES}"

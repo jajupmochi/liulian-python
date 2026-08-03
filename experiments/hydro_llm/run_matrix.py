@@ -40,6 +40,17 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+# Avoid "Too many open files" from the DataLoader workers on the cluster: the default
+# file_descriptor sharing strategy exhausts fds when many tensors are shared across workers
+# over a long run. file_system sharing is the standard fix (pairs with `ulimit -n` in the
+# sbatch script).
+try:
+    import torch.multiprocessing as _tmp
+
+    _tmp.set_sharing_strategy('file_system')
+except Exception:  # pragma: no cover - torch not importable in a dry listing
+    pass
+
 # Reuse the pipeline driver + scheduling skeleton already proven in the
 # entity-identifier runner. _run_in_process calls run_with_config (the pipeline).
 from experiments.entity_identifier.run import (  # noqa: E402
