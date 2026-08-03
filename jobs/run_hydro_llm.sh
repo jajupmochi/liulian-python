@@ -68,7 +68,7 @@ python experiments/hydro_llm/run_matrix.py \
   --datasets $DATASETS \
   --modes $MODES \
   --seeds $SEEDS \
-  "${EPOCH_ARG[@]}" \
+  ${EPOCH_ARG[@]+"${EPOCH_ARG[@]}"} \
   --resume
 
 echo "=== done: $(date -Iseconds) ==="
