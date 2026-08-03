@@ -44,10 +44,12 @@ empty project cache (→ default HF cache), and "Too many open files" (→ file_
 Classified by whether they are actionable now or blocked on an upstream resource
 (measured 2026-08-03):
 
-*Actionable + locally verifiable:*
-1. A1 prompt richness (minimal / rich / +stats) — author per-richness description
-   variants; a `prompt_richness` config selects which components enter `_compose_prompt`.
-   Verifiable with the local GPT-2 tokenizer (entity_descriptions exist for swiss-1990).
+*Done this round:*
+1. A1 prompt richness `default` / `minimal` — DONE (commit `adab88e`). `default` = authored
+   rich station text; `minimal` = bare positional id ("measurement station number k") from
+   num_entities. `_load_entity_descriptions` reads `prompt_richness`; run_matrix `--a1`
+   drives it. 6 tests; minimal verified distinct per station and != default. `stats` (needs
+   per-station training stats) and `coords` (blocked on #28) stay PLANNED.
 2. lora (A1.1) — DONE (peft installed, trainable 50.9M verified); a cluster lora sweep
    is the only remaining part.
 
