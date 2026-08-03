@@ -45,11 +45,11 @@ Classified by whether they are actionable now or blocked on an upstream resource
 (measured 2026-08-03):
 
 *Done this round:*
-1. A1 prompt richness `default` / `minimal` — DONE (commit `adab88e`). `default` = authored
-   rich station text; `minimal` = bare positional id ("measurement station number k") from
-   num_entities. `_load_entity_descriptions` reads `prompt_richness`; run_matrix `--a1`
-   drives it. 6 tests; minimal verified distinct per station and != default. `stats` (needs
-   per-station training stats) and `coords` (blocked on #28) stay PLANNED.
+1. A1 prompt richness `default` / `minimal` / `stats` — DONE. `default`=authored rich text,
+   `minimal`=bare positional id (`adab88e`), `stats`=id + per-station TRAIN-only temperature
+   mean/std/min/max, leakage-safe (`_compute_station_train_stats` reads only the train frame;
+   `309cc15`). run_matrix `--a1` drives it; end-to-end smoke verified. Only `coords` richness
+   stays blocked (on #28, the coordinate data flow).
 2. lora (A1.1) — DONE (peft installed, trainable 50.9M verified); a cluster lora sweep
    is the only remaining part.
 

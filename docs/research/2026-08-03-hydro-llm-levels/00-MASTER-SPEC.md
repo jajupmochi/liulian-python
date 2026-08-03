@@ -128,8 +128,8 @@ entity_description guardrail 5, A1 richness 6, TEMPO 8, AutoTimes 9, trainer-fla
 | Level A | none / entity_description / numeric_embedding / soft_prompt / text_embedding | ✅ | all differ from none |
 | A2 (embedding sub-variant) | learnable / random / onehot / sinusoidal | ✅ | fixed code injects (diff 3.08) |
 | A2 | coordinates | 🔴 BLOCKED | on task #28 — `build_dataset` returns `topology=None`/`coordinates=None` for swiss-1990 (measured 2026-08-03); the no-fake-zero guard would raise. ~15-line reuse of `_build_channel_features` once coords flow. |
-| A1 (prompt richness) | default / minimal | ✅ | `default`=authored rich text, `minimal`=bare positional id; verified distinct & != default (commit `adab88e`, 6 tests) |
-| A1 (prompt richness) | stats / coords | ⚪ / 🔴 | `stats` needs per-station training stats wired; `coords` blocked on #28 |
+| A1 (prompt richness) | default / minimal / stats | ✅ | `default`=authored rich text, `minimal`=bare positional id (`adab88e`), `stats`=id + per-station TRAIN-only temperature stats, leakage-safe (`309cc15`); all verified distinct + end-to-end smoke |
+| A1 (prompt richness) | coords | 🔴 BLOCKED | on #28 (same coordinate data flow as A2 coordinates) |
 | llm_tuning | frozen / ln_only | ✅ | ln_only unfreezes 19968 LayerNorm params |
 | llm_tuning | lora (A1.1) | ✅ | peft installed; trainable 50.9M/132.8M verified (a cluster lora sweep is the only remaining part) |
 | llm_backbone | GPT2 / BERT | ✅ | BERT build+forward OK (vocab 30522) |
