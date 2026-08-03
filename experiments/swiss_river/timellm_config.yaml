@@ -92,6 +92,10 @@ eval_denorm: true
 metrics: mse,mae,rmse
 
 # ── System ──────────────────────────────────────────────────────────────
+# null => use the DEFAULT HF cache (~/.cache/huggingface), which holds the LLM weights on
+# both local and cluster. The project default (config.py: <project>/cache) is only populated
+# locally, so forcing it made the cluster GPT2Model load fail ("no model.safetensors").
+cache_dir: null
 num_workers: 4
 checkpoints: ./checkpoints/
 itr: 1
