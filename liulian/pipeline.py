@@ -571,7 +571,10 @@ def build_model(config: Dict[str, Any], dataset: Any = None) -> Any:
             'sinusoidal_embedding',
         }
     )
-    if model_name == 'timellm' and config.get('identifier_mode') in _TIMELLM_IDENTITY_MODES:
+    # Models that handle identity INTERNALLY (not via the external EntityWrapper): timellm
+    # and gpt4ts both read the per-sample id from the entity_ids kwarg and inject additively.
+    _INTERNAL_IDENTITY_MODELS = frozenset({'timellm', 'gpt4ts'})
+    if model_name in _INTERNAL_IDENTITY_MODELS and config.get('identifier_mode') in _TIMELLM_IDENTITY_MODES:
         if config.get('num_entities') is None:
             _sids = getattr(dataset, 'station_ids', None) if dataset is not None else None
             if _sids is None:
@@ -619,18 +622,19 @@ def build_model(config: Dict[str, Any], dataset: Any = None) -> Any:
     # timellm owns its identity internally — activate its per-sample id lookup and do
     # NOT wrap it with the external EntityWrapper (that is for models like LSTM that have
     # no internal identity path). Double-injecting would corrupt the signal.
-    if model_name == 'timellm' and config.get('identifier_mode') in _TIMELLM_IDENTITY_MODES:
+    if model_name in _INTERNAL_IDENTITY_MODELS and config.get('identifier_mode') in _TIMELLM_IDENTITY_MODES:
         model.entity_id_mark_col = config.get('entity_id_mark_col', 0)
         # entity_description AND text_embedding both need the per-station TEXT (one injects
         # it into the prompt, the other encodes it into an additive vector), or they silently
-        # degrade to baseline. Load it (raises loudly if the dataset has none).
+        # degrade to baseline. Load it (raises loudly if the dataset has none). gpt4ts rejects
+        # these prompt/text modes at build time, so this only fires for timellm.
         if config.get('identifier_mode') in ('entity_description', 'text_embedding'):
             model.entity_descriptions = _load_entity_descriptions(config)
 
     # Wrap with entity embedding when configured.
     # PatchTST + add_after_patch is handled internally by the model.
     if (
-        model_name != 'timellm'
+        model_name not in _INTERNAL_IDENTITY_MODELS
         and config.get('identifier_mode') == 'embedding'
         and config.get('id_integration') != 'add_after_patch'
     ):

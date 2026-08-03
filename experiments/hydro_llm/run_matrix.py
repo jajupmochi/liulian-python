@@ -83,6 +83,12 @@ PLANNED_BACKBONES: tuple[str, ...] = ('LLAMA',)
 DATASETS: tuple[str, ...] = ('swiss-river-1990', 'swiss-river-2010', 'swiss-river-zurich')
 DEFAULT_SEEDS: tuple[int, ...] = (2026,)
 
+#: Model architectures (task 5 SOTA share the same entry + pipeline + identity plumbing).
+#: gpt4ts (OneFitsAll, the negative control) supports only ADDITIVE identity modes — it has
+#: no prompt/reprogramming site — so prompt-family modes are rejected for it below.
+IMPLEMENTED_ARCHS: tuple[str, ...] = ('timellm', 'gpt4ts')
+_GPT4TS_MODES = frozenset({'none', 'numeric_embedding'})
+
 #: The pipeline-native timellm config (NOT the harness config).
 BASE_CONFIG = PROJECT_ROOT / 'experiments' / 'swiss_river' / 'timellm_config.yaml'
 ARTIFACT_ROOT = PROJECT_ROOT / 'artifacts' / 'hydro_llm'
@@ -124,6 +130,14 @@ def _validate_axes(args: argparse.Namespace) -> None:
                 raise SystemExit(f'unknown {name}={v!r}; implemented: {impl}')
 
     _check('mode', args.modes, IMPLEMENTED_MODES, PLANNED_MODES)
+    if args.arch == 'gpt4ts':
+        bad = [m for m in args.modes if m not in _GPT4TS_MODES]
+        if bad:
+            raise SystemExit(
+                f'gpt4ts (negative control) has no prompt/reprogramming path; modes {bad} are '
+                f'not additive. gpt4ts supports only: {sorted(_GPT4TS_MODES)}. Run prompt/prefix '
+                f'modes on --arch timellm.'
+            )
     _check('a2', args.a2, IMPLEMENTED_A2, PLANNED_A2)
     _check('a1', args.a1, IMPLEMENTED_A1, PLANNED_A1)
     _check('tuning', args.tuning, IMPLEMENTED_TUNING, PLANNED_TUNING)
@@ -151,13 +165,14 @@ def build_cells(args: argparse.Namespace) -> list[dict[str, Any]]:
                                     a1 if mode == 'entity_description' else 'default')
                                 cells.append({
                                     'dataset': dataset,
+                                    'arch': args.arch,
                                     'mode': mode,
                                     'sub': sub,
                                     'tuning': tuning,
                                     'backbone': backbone,
                                     'seed': seed,
                                     'identifier_mode': _identifier_mode_for(mode, a2),
-                                    'job_key': f'{dataset}__{mode}.{sub}__{backbone}__{tuning}__seed{seed}',
+                                    'job_key': f'{args.arch}__{dataset}__{mode}.{sub}__{backbone}__{tuning}__seed{seed}',
                                 })
     return cells
 
@@ -166,7 +181,7 @@ def build_overrides(cell: dict[str, Any], args: argparse.Namespace) -> dict[str,
     """CLI-style overrides handed to run_with_config (the pipeline)."""
     caps = _phase_defaults(args.phase)
     overrides: dict[str, Any] = {
-        'model': 'timellm',
+        'model': cell['arch'],
         'data': cell['dataset'],
         'identifier_mode': cell['identifier_mode'],
         'llm_model': cell['backbone'],
@@ -195,7 +210,7 @@ def run_cell(cell: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
         'timestamp': datetime.now().isoformat(timespec='seconds'),
         'phase': args.phase,
         'run_tag': args.run_tag,
-        **{k: cell[k] for k in ('dataset', 'mode', 'sub', 'tuning', 'backbone', 'seed', 'job_key')},
+        **{k: cell[k] for k in ('arch', 'dataset', 'mode', 'sub', 'tuning', 'backbone', 'seed', 'job_key')},
         'overrides': overrides,
     }
     start = time.time()
@@ -217,6 +232,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--phase', choices=['dry', 'smoke', 'dev', 'full'], default='dry',
                    help='dry=list; smoke=2ep no-HPO; dev=5ep no-HPO; full=real + Ray Tune HPO')
+    p.add_argument('--arch', default='timellm', choices=IMPLEMENTED_ARCHS,
+                   help='model architecture; gpt4ts (negative control) is additive-modes only')
     p.add_argument('--datasets', nargs='*', default=['swiss-river-1990'], choices=DATASETS)
     p.add_argument('--modes', nargs='*', default=['none'],
                    help=f'Level-A modes. implemented: {IMPLEMENTED_MODES}')
