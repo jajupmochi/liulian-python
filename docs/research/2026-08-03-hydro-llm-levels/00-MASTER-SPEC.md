@@ -116,33 +116,37 @@ Backbone (`llm_backbone`) and Level-A mode are **matrix axes, not HPO knobs**.
 
 ---
 
-## 2.3 Implementation status (as of 2026-08-03, all locally verified)
+## 2.3 Implementation status (as of 2026-08-04, all locally verified)
 
 CODE status of the axes (verification = builds + forwards + output differs from `none`,
-proving real injection; the entity-identifier pipeline suite is 16 passed / 1 skipped, and
-the non-e2e full suite is 738 passed / 0 failed after this round's additions — HPO 6,
-entity_description guardrail 5, A1 richness 6, TEMPO 8, AutoTimes 9, trainer-flatten 5):
+proving real injection). Since the 2026-08-03 snapshot, three items that were marked BLOCKED
+are now DONE: **A2 coordinates wired** (the "no coord data" call was a false search — the
+coords were in `graph_*.pth` all along), **LLAMA weights downloaded** to the cluster, and the
+**config re-aligned to authoritative upstream** (Time-LLM ETTh1 canonical + swiss-benchmark
+data setup, not the deprecated harness). The entity-identifier pipeline suite is 33 passed /
+1 skipped (coords added 2), and the trainer suite added 3 (coordinates_embedding in
+`pass_entity_ids`).
 
 | axis | value | code | verified |
 |---|---|---|---|
 | Level A | none / entity_description / numeric_embedding / soft_prompt / text_embedding | ✅ | all differ from none |
 | A2 (embedding sub-variant) | learnable / random / onehot / sinusoidal | ✅ | fixed code injects (diff 3.08) |
-| A2 | coordinates | 🔴 BLOCKED | on task #28 — `build_dataset` returns `topology=None`/`coordinates=None` for swiss-1990 (measured 2026-08-03); the no-fake-zero guard would raise. ~15-line reuse of `_build_channel_features` once coords flow. |
+| A2 | coordinates | ✅ (`8b58f83`) | WIRED 2026-08-04 (earlier "BLOCKED" was a false search — coords live in `dataset/swiss_river/graph_*.pth`). `_load_topology` now fires for `coordinates_embedding`; feat (28,2) non-zero + 28 distinct rows (no-fake-zero guard passes); e2e smoke 1/1 ok; 2 tests. |
 | A1 (prompt richness) | default / minimal / stats | ✅ | `default`=authored rich text, `minimal`=bare positional id (`adab88e`), `stats`=id + per-station TRAIN-only temperature stats, leakage-safe (`309cc15`); all verified distinct + end-to-end smoke |
-| A1 (prompt richness) | coords | 🔴 BLOCKED | on #28 (same coordinate data flow as A2 coordinates) |
+| A1 (prompt richness) | coords | 🔵 code-partial | coordinate DATA now wired (`8b58f83`, same graph .pth source as A2 coordinates); only the text-formatting step (render (x,y) into the prompt) remains — no longer blocked on data |
 | llm_tuning | frozen / ln_only | ✅ | ln_only unfreezes 19968 LayerNorm params |
 | llm_tuning | lora (A1.1) | ✅ | peft installed; trainable 50.9M/132.8M verified (a cluster lora sweep is the only remaining part) |
 | llm_backbone | GPT2 / BERT | ✅ | BERT build+forward OK (vocab 30522) |
-| llm_backbone | LLAMA | 🔴 BLOCKED | on 7B weights (absent locally + on cluster); `llm_model: LLAMA` branch exists, needs a weights sync |
-| HPO | `timellm_swiss` space | ✅ | commit `0b929c3`; canonical-centered, dead-knob guard, 6 tests |
+| llm_backbone | LLAMA | ✅ | `huggyllama/llama-7b` weights downloaded to the cluster HF cache 2026-08-04 (13G, 2 safetensors shards); loads OK (hidden 4096, vocab 32000). `llm_model: LLAMA` branch ready; a cluster backbone sweep is the remaining part. |
+| HPO | `timellm_swiss` space | ✅ | commit `0b929c3`; canonical-centered ({d_model 16/32/64, d_ff 32/128/256, lr 1e-3/1e-2, llm_layers 3/6}), dead-knob guard (embedding_size skipped for timellm/gpt4ts), 6 tests. Epoch diagnostic: 30+early-stop suffices (both lr converge ~epoch 8); lr 1e-3 > canonical 1e-2 on swiss single-channel. |
 
 Also landed: the entity_ids linchpin (all identity modes reach the model through the
 pipeline), a fail-loud tokenizer guard (a degenerate vocab now raises instead of silently
 killing the prompt — this caught an incomplete local gpt2 AND bert cache), and the
 `_load_entity_descriptions` loader that raises for datasets without station text.
 
-CLUSTER note: the cluster caches only gpt2. BERT/LLAMA weights must be synced before a
-cluster backbone sweep. The gpt2 tokenizer/model on the cluster is complete (vocab 50257).
+CLUSTER note: the cluster caches gpt2 (complete, vocab 50257) AND now `huggyllama/llama-7b`
+(downloaded 2026-08-04, loads OK). BERT weights still need a sync before a cluster BERT sweep.
 
 ## 3. Experiment plan (task 6/7 — priorities, order, ablations)
 
@@ -150,11 +154,19 @@ Status legend: ✅ done · 🔵 code-ready, not run · ⚪ not implemented · �
 
 ### Tier 0 — flagship baselines (run FIRST on cluster, 3 swiss datasets)
 
+RUNNING on UBELIX gratis: job **11557210** (`hydro-tier0-2026-08-04b`), `--phase full`
+(Ray Tune HPO over `timellm_swiss`), single seed 2026. The `entity_description` guardrail
+auto-skips 2010/zurich (no station text) → **7 cells** (1990 all 3 modes; 2010/zurich none +
+numeric_embedding). As of the last poll cell 1 (1990 none) HPO is exploring the space
+(trials at d_ff∈{32,128,256}, d_model∈{16,32,64}, lr∈{1e-3,1e-2}, llm_layers∈{3,6}). Full
+data (163968 train windows) + 50 HPO trials is heavy; the 7-cell sweep likely spans multiple
+24h gratis windows (`--resume` continues on requeue).
+
 | # | cells | status | note |
 |---|---|---|---|
-| T0.1 | `none` × {1990,2010,zurich} | 🔵 | pipeline handles 2010/zurich NaN |
-| T0.2 | `entity_description` × 3 | 🔵 | text identity; descriptions only for 1990 → 2010/zurich need A1 rich-desc or run 1990-only |
-| T0.3 | `numeric_embedding` (learnable) × 3 | 🔵 | the ~−19% effect |
+| T0.1 | `none` × {1990,2010,zurich} | 🟡 running | pipeline handles 2010/zurich NaN |
+| T0.2 | `entity_description` × 1990 | 🟡 running | text identity; 2010/zurich auto-skipped (no station text) |
+| T0.3 | `numeric_embedding` (learnable) × 3 | 🟡 running | the ~−19% effect |
 
 > Prior harness numbers (seed 2026, NO HPO): 1990 none 0.014177, text 0.014485 (+2.2%),
 > learnable-emb 0.011433 (−19.4%), random-emb 0.011569 (−18.4%). These are SUPERSEDED by
@@ -167,7 +179,7 @@ Status legend: ✅ done · 🔵 code-ready, not run · ⚪ not implemented · �
 |---|---|---|---|
 | T1.1 | `soft_prompt` × 3 | ⚪→🔵 | the missing 2×2 cell (learned × prefix) |
 | T1.2 | `text_embedding` × 3 | ⚪→🔵 | text × additive cell |
-| T1.3 | A2 ladder: random / onehot / sinusoidal / coordinates × 3 | ⚪→🔵 | 🧪 distinctness-vs-capacity |
+| T1.3 | A2 ladder: random / onehot / sinusoidal / coordinates × 3 | 🔵 all code-ready | 🧪 distinctness-vs-capacity (coordinates wired `8b58f83`) |
 
 ### Tier 2 — orthogonal-axis ablations
 
@@ -237,17 +249,53 @@ this project's harness do: **train_epochs=30, patience=10** (the timellm_config.
 The dev-5 Tier-0 numbers below in §3 are validation-only and are SUPERSEDED by the 30-epoch
 run.
 
-## 4. Execution order (dependency-sorted)
+## 3.2 Debugging the REAL entry (`run_matrix.py`)
 
-1. **Code (tasks 1–5), NO cluster runs yet** → then ping user to DEBUG.
-2. task 3: rewire `hydro_llm/run_matrix.py` → pipeline + HPO space. **(foundational)**
-3. task 4: implement Level A modes (`soft_prompt`, `text_embedding`, rename→`numeric_embedding`),
-   Level A2 sub-variants, Level A1 prompt richness, A1.1 LoRA + `ln_only`, multi-backbone.
-4. task 5: other SOTA models as backbone-swapped adapters.
-5. task 2: mark the harness deprecated (done once nothing calls it).
-6. task 7: finalize docs (this file + per-level notes), mark done/not-done → ping user.
-7. task 6: cluster — Tier 0 first, then Tier 1, on the 3 swiss datasets.
-8. Final full write-up.
+Debug the actual matrix entry, not a custom script (a custom driver diverges from the real
+pipeline — e.g. it built different val/test loaders — so its breakpoints prove nothing).
+`run_matrix.py` executes each cell IN-PROCESS (`_run_in_process`), so PyCharm breakpoints hit
+in the driver + the post-HPO rebuild/retrain (main process).
+
+- **Fast debug config:** `experiments/swiss_river/debug.yaml` — aligned with
+  `timellm_config.yaml` but shrunk (64 train windows, 2 epochs). Load it through the real
+  entry via the `--config` passthrough (added `9b68db0`):
+
+  ```
+  python experiments/hydro_llm/run_matrix.py --config experiments/swiss_river/debug.yaml \
+      --phase full --arch timellm --datasets swiss-river-1990 --modes none \
+      --seeds 2026 --hpo-num-samples 2
+  ```
+  Verified: loads debug.yaml, applies its caps (max_train_samples 163968→64), enters real Ray
+  Tune HPO (`Starting HPO via RayOptimizer`, samples=2). `--config` defaults to
+  `timellm_config.yaml`, so real runs are unaffected.
+- **HPO orchestration breakpoints** (`build_optimizer`, `resolve_search_space`, ASHA,
+  best-config, rebuild/retrain): `--phase full`. Ray 2.x runs the per-trial trainable in
+  worker processes, so breakpoints INSIDE a trial do not hit — but a trial runs the SAME
+  `build_model`/`timellm.forecast`/`trainer.fit` as the post-HPO retrain (main process), so
+  breakpoint those there.
+- **Model/training breakpoints immediately** (no HPO wait): `--phase dev` — real pipeline,
+  direct main-process training, breakpoints in `build_model`/`forecast`/`fit` hit at once. Same
+  model code as an HPO trial, minus the HPO wrapper.
+- Switch the branch under test with `--modes` / `--a2` (e.g. `--modes numeric_embedding --a2
+  coordinates`).
+
+## 4. Execution order (dependency-sorted) — status as of 2026-08-04
+
+1. ✅ task 3: rewire `hydro_llm/run_matrix.py` → pipeline + HPO space. **(foundational)**
+2. ✅ task 4: Level A modes (`soft_prompt`/`text_embedding`/rename→`numeric_embedding`),
+   A2 sub-variants (incl. **coordinates**, wired 2026-08-04), A1 richness (default/minimal/stats;
+   coords text-format pending), A1.1 LoRA + `ln_only`, multi-backbone (GPT2/BERT/**LLAMA**).
+3. ✅ task 5: other SOTA (GPT4TS/TEMPO/AutoTimes/CALF) as backbone-swapped adapters.
+4. ✅ task 2: harness `run_experiment.py` marked deprecated (banner + runtime DeprecationWarning).
+5. ✅ CHECKPOINT: user pinged to debug (task 6 gate); user is debugging the `none` cell locally.
+6. 🟡 task 7: finalize docs (THIS file) — in progress this round.
+7. 🟡 task 6: cluster — **Tier 0 RUNNING** (job 11557210, 7 cells, `--phase full` HPO); Tier 1 next.
+8. ⚪ Final full write-up (after Tier 0/1 results land).
+
+Remaining tail (non-blocking, priority order): (a) Tier-0 results → the flagship baseline table;
+(b) Tier-1 the rest of Level A + A2 ladder incl. coordinates; (c) A1 `coords` text-formatting;
+(d) BERT weights sync + LLAMA/BERT backbone sweep; (e) Tier-2 ablations (tuning ladder, backbone
+sensitivity, A1 richness); (f) Tier-2.4 identity×trainability interaction (lowest priority).
 
 ---
 

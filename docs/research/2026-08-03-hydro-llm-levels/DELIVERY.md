@@ -1,4 +1,4 @@
-# Hydro-LLM levels — delivery & debug handoff (2026-08-03)
+# Hydro-LLM levels — delivery & debug handoff (2026-08-04)
 
 One page: what was built, what remains, how to debug it, how to run it. Full design in
 [00-MASTER-SPEC.md](00-MASTER-SPEC.md).
@@ -21,10 +21,13 @@ One page: what was built, what remains, how to debug it, how to run it. Full des
 | 4. llm_tuning lora (A1.1) | ✅ peft installed + verified (trainable 50.9M/132.8M) |
 | 5. GPT4TS (negative control, additive-only) | ✅ built on the SAME entry+pipeline, `--arch gpt4ts` |
 | 6. entity_description availability guardrail | ✅ `ca38e89`; Tier-0 = 7 cells (2010/zurich entity_description auto-skipped) + 5 tests |
-| 6. cluster Tier-0 (real, aligned config) | 🟡 code ready + dry-run verified; awaiting user debug before gratis launch |
+| 4. A2 coordinates | ✅ WIRED `8b58f83` — real CH1903 coords from `graph_*.pth`, 28 distinct, e2e 1/1 ok (the earlier "BLOCKED / no data" was a false search) |
+| 4. multi-backbone LLAMA | ✅ `huggyllama/llama-7b` weights downloaded to cluster (13G), load OK (hidden 4096, vocab 32000) |
+| 6. cluster Tier-0 (real, aligned config) | 🟡 RUNNING — job **11557210** `--phase full` HPO, 7 cells, cell 1 exploring `timellm_swiss` |
+| debug entry | ✅ `run_matrix.py --config debug.yaml` (`9b68db0`) — real matrix entry loads the fast debug config; verified enters Ray HPO |
 
-Regression: `tests/runtime/test_entity_identifier_pipeline.py` 16 passed / 1 skipped
-(unchanged throughout). The 2×2 (representation × injection position) is complete.
+Regression: `tests/runtime/test_entity_identifier_pipeline.py` 33 passed / 1 skipped
+(coords added 2). The 2×2 (representation × injection position) is complete.
 
 ### Bugs found + fixed this build (6)
 
@@ -53,15 +56,17 @@ Classified by whether they are actionable now or blocked on an upstream resource
 2. lora (A1.1) — DONE (peft installed, trainable 50.9M verified); a cluster lora sweep
    is the only remaining part.
 
-*BLOCKED on an upstream resource (do NOT implement blind — would be dead/fake work):*
-3. A2 `coordinates` — BLOCKED on task #28 (coords data flow). Measured: `build_dataset`
-   for swiss-river-1990 returns `topology=None` / `coordinates=None` (only 28 station_ids),
-   so the pipeline's `config['coordinates']` (read from `dataset.topology.coordinates`)
-   stays None and the no-fake-zero guard in `_build_channel_features` would RAISE. The
-   timellm code branch is a ~15-line reuse of `_build_channel_features(mode='coordinates')`,
-   but it cannot be verified or run until the dataset exposes real per-station coords.
-4. LLAMA backbone — BLOCKED on weights: the 7B checkpoint is not cached locally or on the
-   cluster. Code branch exists (`llm_model: LLAMA`); needs a weights sync first.
+*Previously "BLOCKED" — both now DONE (the block calls were wrong):*
+3. A2 `coordinates` — ✅ DONE `8b58f83`. The "no coord data" call was a FALSE search: the
+   coords were in `dataset/swiss_river/graph_*.pth` all along (x cols 0-1 = CH1903, col 2 =
+   station id). Earlier probes used `identifier_mode='none'`, which never loads the graph.
+   Now `_load_topology` fires for `coordinates_embedding`, the pipeline surfaces
+   `config['coordinates']`, and timellm builds the feature via `_build_channel_features`
+   (no-fake-zero guard passes: 28 distinct non-zero rows). e2e smoke 1/1 ok.
+4. LLAMA backbone — ✅ DONE. `huggyllama/llama-7b` (public re-upload, no gated license)
+   downloaded to the cluster HF cache 2026-08-04 (13G, 2 safetensors shards); loads OK
+   (hidden 4096, vocab 32000). A cluster LLAMA backbone sweep is the remaining part.
+   (A1 `coords` prompt-richness is the only coord-related item left: text-formatting only.)
 
 **task 5 — other SOTA LLM-TS models (design; same entry + pipeline):**
 Implement each as a `liulian/models/torch/<name>.py` with the SAME contract as timellm
@@ -87,17 +92,28 @@ HPO on, `timellm_swiss` space). Decision (autorun): run WITH HPO (phase full), l
 since HPO is an explicit requirement; the epoch diagnostic already fixed the epoch budget at
 30 + early stop so trials are bounded.
 
-## How to debug (PyCharm) — the core is ready NOW
+## How to debug (PyCharm) — the REAL entry, core ready NOW
+
+Debug `run_matrix.py` itself (a custom driver would diverge from the real pipeline). It runs
+each cell IN-PROCESS, so breakpoints hit in the driver + the post-HPO retrain (main process).
 
 ```
 Script:  experiments/hydro_llm/run_matrix.py
-Params:  --phase smoke --datasets swiss-river-1990 --modes none numeric_embedding soft_prompt --max-train-samples 200
-Workdir: <repo root>
-Python:  <repo>/.venv/bin/python
+Workdir: <repo root>              Python: <repo>/.venv/bin/python
+Env:     HF_HUB_OFFLINE=1;TRANSFORMERS_OFFLINE=1
 ```
 
-- `--phase smoke` = 2 epochs, no HPO, `num_workers=0` (breakpoints hit). `--max-train-samples`
-  caps data so a cell finishes in ~30 s.
+Pick the Params line for what you want to debug:
+
+- **Real HPO path (with the fast debug config):**
+  `--config experiments/swiss_river/debug.yaml --phase full --arch timellm --datasets swiss-river-1990 --modes none --seeds 2026 --hpo-num-samples 2`
+  — loads `debug.yaml` (64 train windows, 2 epochs), enters real Ray Tune HPO. Breakpoints hit
+  in `build_optimizer`/`resolve_search_space`/best-config/retrain. Ray 2.x runs each trial in a
+  worker process (breakpoints inside a trial don't hit there — but the retrain runs the same code).
+- **Model/training code immediately (no HPO wait):**
+  `--config experiments/swiss_river/debug.yaml --phase dev --arch timellm --datasets swiss-river-1990 --modes none`
+  — real pipeline, direct main-process training; breakpoints in `build_model`/`forecast`/`fit` hit at once.
+- Switch the branch under test with `--modes` / `--a2` (e.g. `--modes numeric_embedding --a2 coordinates`).
 - Breakpoints worth setting: `liulian/models/torch/timellm.py` `forecast()` — `self._station_ids`
   resolution, the identity injections (entity_embedding / soft_prompt / text_proj /
   transparent_proj), and `_compose_prompt`.
