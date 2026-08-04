@@ -110,6 +110,20 @@ class Model(nn.Module):
         # the H4 text identity. Built only for identifier_mode='embedding' (needs
         # configs.num_entities); None otherwise so other modes are unaffected.
         self.identifier_mode: str = getattr(configs, 'identifier_mode', 'none')
+
+        # Generalized Level-A1 prompt-content knobs (docs/research/2026-08-04-prompt-design/):
+        #   prompt_variant: which DESCRIPTION the prompt carries. 'none' = the whole text
+        #     prefix is SKIPPED (Time-LLM's own "w/o Prompt-as-Prefix" ablation arm);
+        #     minimal/canonical/domain select the prompt_bank variant (resolved by the
+        #     pipeline into configs.content — the model only distinguishes 'none' vs rest).
+        #   prompt_stats: which Input-statistics block: 'none' (omit), 'basic'
+        #     (min/max/median/trend), 'full' (basic + FFT top-5 lags = upstream verbatim).
+        self.prompt_variant: str = str(getattr(configs, 'prompt_variant', 'domain'))
+        self.prompt_stats: str = str(getattr(configs, 'prompt_stats', 'full'))
+        if self.prompt_variant not in ('none', 'minimal', 'canonical', 'domain'):
+            raise ValueError(f'prompt_variant must be none/minimal/canonical/domain, got {self.prompt_variant!r}')
+        if self.prompt_stats not in ('none', 'basic', 'full'):
+            raise ValueError(f'prompt_stats must be none/basic/full, got {self.prompt_stats!r}')
         if self.identifier_mode in ('embedding', 'random_embedding'):
             _n_ent = getattr(configs, 'num_entities', None)
             if _n_ent is None:
@@ -579,6 +593,7 @@ class Model(nn.Module):
         median_v: str,
         trend_up: bool,
         lags_str: str,
+        stats_mode: str = 'full',
     ) -> str:
         """Build one channel's Time-LLM text prompt.
 
@@ -588,16 +603,26 @@ class Model(nn.Module):
         preserves the V1/V2 bit-exact reproduction on the ``none`` path.
         """
         entity_str = f'Entity description: {entity_desc}; ' if entity_desc else ''
+        # Statistics block per the prompt_stats knob: 'full' = upstream-verbatim
+        # (min/max/median/trend + FFT top-5 lags), 'basic' drops the lags (isolates the
+        # frequency-domain contribution), 'none' drops the whole block.
+        if stats_mode == 'none':
+            stats_str = ''
+        else:
+            stats_str = (
+                'Input statistics: '
+                f'min value {min_v}, '
+                f'max value {max_v}, '
+                f'median value {median_v}, '
+                f'the trend of input is {"upward" if trend_up else "downward"}'
+            )
+            if stats_mode == 'full':
+                stats_str += f', top 5 lags are : {lags_str}'
         return (
             f'<|start_prompt|>Dataset description: {description}'
             f'Task description: forecast the next {pred_len} steps given the previous {seq_len} steps information; '
             f'{entity_str}'
-            'Input statistics: '
-            f'min value {min_v}, '
-            f'max value {max_v}, '
-            f'median value {median_v}, '
-            f'the trend of input is {"upward" if trend_up else "downward"}, '
-            f'top 5 lags are : {lags_str}<|<end_prompt>|>'
+            f'{stats_str}<|<end_prompt>|>'
         )
 
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec, entity_ids=None):
@@ -634,40 +659,48 @@ class Model(nn.Module):
             N,
             station_ids=self._station_ids,
         )
-        prompt = []
-        for b in range(x_enc.shape[0]):
-            min_values_str = str(min_values[b].tolist()[0])
-            max_values_str = str(max_values[b].tolist()[0])
-            median_values_str = str(medians[b].tolist()[0])
-            lags_values_str = str(lags[b].tolist())
-            entity_desc = entity_desc_for[b]
-            prompt_ = self._compose_prompt(
-                self.description,
-                entity_desc,
-                str(self.pred_len),
-                str(self.seq_len),
-                min_values_str,
-                max_values_str,
-                median_values_str,
-                bool(trends[b] > 0),
-                lags_values_str,
-            )
+        # prompt_variant='none' = the TRUE no-prompt arm (Time-LLM's "w/o Prompt-as-Prefix"
+        # ablation): skip composing/tokenizing/embedding the text prefix entirely.
+        prompt_embeddings = None
+        if self.prompt_variant != 'none':
+            prompt = []
+            for b in range(x_enc.shape[0]):
+                min_values_str = str(min_values[b].tolist()[0])
+                max_values_str = str(max_values[b].tolist()[0])
+                median_values_str = str(medians[b].tolist()[0])
+                lags_values_str = str(lags[b].tolist())
+                entity_desc = entity_desc_for[b]
+                prompt_ = self._compose_prompt(
+                    self.description,
+                    entity_desc,
+                    str(self.pred_len),
+                    str(self.seq_len),
+                    min_values_str,
+                    max_values_str,
+                    median_values_str,
+                    bool(trends[b] > 0),
+                    lags_values_str,
+                    stats_mode=self.prompt_stats,
+                )
 
-            prompt.append(prompt_)
+                prompt.append(prompt_)
 
         x_enc = x_enc.reshape(B, N, T).permute(0, 2, 1).contiguous()
 
-        if self.tokenizer is None or not callable(self.tokenizer):
-            raise RuntimeError(
-                'Tokenizer is not properly initialized or not callable. Please check LLM model and tokenizer setup.'
-            )
-        prompt_output = self.tokenizer(prompt, return_tensors='pt', padding=True, truncation=True, max_length=2048)
-        if not hasattr(prompt_output, 'input_ids'):
-            raise RuntimeError(
-                f"Tokenizer output does not have 'input_ids'. Type: {type(prompt_output)}. Please check tokenizer type and initialization."
-            )
-        prompt = prompt_output.input_ids
-        prompt_embeddings = self.llm_model.get_input_embeddings()(prompt.to(x_enc.device))  # (batch, prompt_token, dim)
+        if self.prompt_variant != 'none':
+            if self.tokenizer is None or not callable(self.tokenizer):
+                raise RuntimeError(
+                    'Tokenizer is not properly initialized or not callable. Please check LLM model and tokenizer setup.'
+                )
+            prompt_output = self.tokenizer(prompt, return_tensors='pt', padding=True, truncation=True, max_length=2048)
+            if not hasattr(prompt_output, 'input_ids'):
+                raise RuntimeError(
+                    f"Tokenizer output does not have 'input_ids'. Type: {type(prompt_output)}. Please check tokenizer type and initialization."
+                )
+            prompt = prompt_output.input_ids
+            prompt_embeddings = self.llm_model.get_input_embeddings()(
+                prompt.to(x_enc.device)
+            )  # (batch, prompt_token, dim)
 
         # [num_tokens, d_vocab]:
         source_embeddings = self.mapping_layer(self.word_embeddings.permute(1, 0)).permute(1, 0)
@@ -697,7 +730,9 @@ class Model(nn.Module):
         enc_out = self.reprogramming_layer(
             enc_out, source_embeddings, source_embeddings
         )  # enc_out: [B*N_f, num_patches, d_llm]
-        llama_enc_out = torch.cat([prompt_embeddings, enc_out], dim=1)
+        # prompt_variant='none': no text prefix — the LLM input is the reprogrammed
+        # patches alone (plus soft_prompt tokens below, when that mode is active).
+        llama_enc_out = torch.cat([prompt_embeddings, enc_out], dim=1) if prompt_embeddings is not None else enc_out
         # Level-A soft_prompt (LEARNED × PREFIX): prepend this station's learnable
         # prefix tokens to the LLM input. Prepending (not appending) is safe because
         # the output head below slices the LAST patch_nums positions, so the patch

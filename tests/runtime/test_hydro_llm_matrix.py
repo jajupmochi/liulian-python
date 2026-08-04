@@ -406,3 +406,84 @@ class TestDebugDefaultIsClusterSafe:
         if not m.DEBUGGING:
             assert args.config == str(m.BASE_CONFIG)
             assert 'debug' not in args.config
+
+
+class TestPromptContentIsReal:
+    """The swiss prompt_bank content must be the authored water-temperature text.
+
+    Regression for two bugs found 2026-08-04: (a) wt-swiss-1990.txt was an AI placeholder
+    ("This is just a sample text file..."); (b) prompt_domain: 0 made the model use
+    Time-LLM's hardcoded ETT (electricity) description for river data.
+    """
+
+    def test_prompt_bank_content_is_authored_not_placeholder(self):
+        from liulian.pipeline import _load_prompt_content
+
+        for d in ('swiss-river-1990', 'swiss-river-2010', 'swiss-river-zurich'):
+            c = _load_prompt_content({'data': d})
+            assert 'sample text file' not in c  # the placeholder
+            assert 'water temperature' in c     # the real domain
+            assert len(c.split()) <= 110        # <=~100-token principle
+
+    def test_config_enables_prompt_domain(self):
+        from liulian.config import load_config
+
+        cfg = load_config('experiments/swiss_river/timellm_config.yaml')
+        assert cfg['prompt_domain'] == 1  # 0 = hardcoded ETT text (the bug)
+
+
+class TestPromptVariantKnobs:
+    """Generalized Level-A1 prompt-content knobs (prompt_variant x prompt_stats).
+
+    Regression anchors: (a) full stats stays byte-identical to the upstream Time-LLM
+    template; (b) the trial-rebuild path (SimpleNamespace(**config)) constructs with
+    prompt_domain=1 — it crashed before content was written back into the config dict.
+    """
+
+    def test_variant_selects_bank_file(self):
+        from liulian.pipeline import _load_prompt_content
+
+        base = {'data': 'swiss-river-1990'}
+        assert 'snowmelt' in _load_prompt_content({**base, 'prompt_variant': 'domain'})
+        assert 'one day sample rate' in _load_prompt_content({**base, 'prompt_variant': 'minimal'})
+        assert _load_prompt_content({**base, 'prompt_variant': 'none'}) == ''
+
+    def test_missing_variant_file_raises(self):
+        from liulian.pipeline import _load_prompt_content
+
+        with pytest.raises(FileNotFoundError):
+            _load_prompt_content({'data': 'swiss-river-2010', 'prompt_variant': 'minimal'})
+
+    def test_full_stats_is_upstream_verbatim(self):
+        from liulian.models.torch.timellm import Model
+
+        p = Model._compose_prompt('D. ', None, '7', '90', '0.1', '0.9', '0.5', True, '[1, 2]', stats_mode='full')
+        assert p == (
+            '<|start_prompt|>Dataset description: D. '
+            'Task description: forecast the next 7 steps given the previous 90 steps information; '
+            'Input statistics: min value 0.1, max value 0.9, median value 0.5, '
+            'the trend of input is upward, top 5 lags are : [1, 2]<|<end_prompt>|>'
+        )
+
+    def test_basic_drops_lags_none_drops_stats(self):
+        from liulian.models.torch.timellm import Model
+
+        basic = Model._compose_prompt('D. ', None, '7', '90', '0.1', '0.9', '0.5', True, '[1]', stats_mode='basic')
+        none_ = Model._compose_prompt('D. ', None, '7', '90', '0.1', '0.9', '0.5', True, '[1]', stats_mode='none')
+        assert 'top 5 lags' not in basic and 'min value' in basic
+        assert 'Input statistics' not in none_ and 'Task description' in none_
+
+    def test_content_written_back_into_config(self):
+        # the HPO trial rebuilds the model from SimpleNamespace(**config); without content
+        # in the dict, prompt_domain=1 crashed every trial (masked as "unexpected kwarg").
+        from liulian.config import load_config
+        from liulian.pipeline import build_dataset, build_model
+
+        cfg = load_config(
+            'experiments/swiss_river/timellm_config.yaml',
+            cli_overrides={'data': 'swiss-river-1990', 'identifier_mode': 'none',
+                           'split_mode': 'per_entity', 'llm_layers': 1},
+        )
+        ds = build_dataset(cfg)
+        build_model(cfg, ds)
+        assert 'content' in cfg and 'water temperature' in cfg['content']

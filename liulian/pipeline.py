@@ -399,20 +399,41 @@ def auto_detect_enc_in(dataset: Any) -> int:
 
 
 def _load_prompt_content(config: Dict[str, Any]) -> str:
-    """Load prompt text file for LLM-based models (e.g. TimeLLM).
+    """Load the dataset-description text for LLM-based models (e.g. TimeLLM).
 
-    Falls back to a generic description when no file is found.
+    The generalized Level-A1 ``prompt_variant`` knob selects WHICH description
+    (docs/research/2026-08-04-prompt-design/00-PROMPT-DESIGN.md):
+
+    * ``domain``  (default) -> ``<key>.txt``      (P3: canonical + hydrology physics)
+    * ``canonical``          -> ``<key>.P0.txt``  (P0: Time-LLM ETT.txt-style)
+    * ``minimal``            -> ``<key>.P1.txt``  (P1: one-line domain ID)
+    * ``none``               -> ``''``            (the model skips the prompt prefix entirely)
+
+    A missing VARIANT file raises (an ablation arm must never silently run with the
+    wrong description); only a missing DEFAULT file falls back to the generic sentence
+    (non-swiss datasets without an authored bank entry).
     """
+    variant = str(config.get('prompt_variant', 'domain'))
+    if variant == 'none':
+        return ''
     prompt_map = {
         'swiss-river-1990': 'wt-swiss-1990',
         'swiss-river-2010': 'wt-swiss-2010',
         'swiss-river-zurich': 'wt-zurich',
     }
     fname = prompt_map.get(config.get('data', ''), config.get('data', ''))
-    prompt_path = os.path.join(PROJECT_ROOT, 'dataset', 'prompt_bank', f'{fname}.txt')
+    suffix = {'domain': '', 'canonical': '.P0', 'minimal': '.P1'}.get(variant)
+    if suffix is None:
+        raise ValueError(f'prompt_variant must be none/minimal/canonical/domain, got {variant!r}')
+    prompt_path = os.path.join(PROJECT_ROOT, 'dataset', 'prompt_bank', f'{fname}{suffix}.txt')
     if os.path.exists(prompt_path):
         with open(prompt_path) as fh:
             return fh.read()
+    if suffix:
+        raise FileNotFoundError(
+            f'prompt_variant={variant!r} requires {prompt_path} — author the variant file '
+            f'(see dataset/prompt_bank/wt-swiss-1990{suffix}.txt for the pattern).'
+        )
     return 'Time series dataset for forecasting. Data includes monitoring stations with periodic observations.'
 
 
@@ -693,9 +714,12 @@ def build_model(config: Dict[str, Any], dataset: Any = None) -> Any:
 
     ns = SimpleNamespace(**config)
 
-    # Pre-processing for LLM-based models
+    # Pre-processing for LLM-based models. Write content into BOTH the namespace and the
+    # config dict: the HPO trial rebuild (experiment.py) reconstructs the model from
+    # SimpleNamespace(**self.config), so content only on ns would crash every trial with
+    # prompt_domain=1 (configs.content AttributeError, masked by the **vars retry).
     if model_name == 'timellm':
-        ns.content = _load_prompt_content(config)
+        ns.content = config['content'] = _load_prompt_content(config)
 
     if config.get('id_integration') == 'add_after_patch':
         if not model_name == 'patchtst':
@@ -1143,8 +1167,6 @@ def run_experiment(config: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Experiment summary dictionary.
     """
-    from liulian.config import apply_quick_test
-
     t0 = time.time()
 
     # Check for deterministic mode
@@ -1159,6 +1181,8 @@ def run_experiment(config: Dict[str, Any]) -> Dict[str, Any]:
 
     # ── Quick-test overrides ────────────────────────────────────────
     if config.get('quick_test', False):
+        from liulian.config import apply_quick_test
+
         apply_quick_test(config)
 
     # ── Print experiment info ───────────────────────────────────────

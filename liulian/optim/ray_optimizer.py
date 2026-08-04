@@ -144,8 +144,19 @@ def make_trainable(
         else:
             try:
                 model = model_cls(args).float()
-            except (TypeError, AttributeError):
-                model = model_cls(**vars(args)).float()
+            except (TypeError, AttributeError) as first_exc:
+                # kwargs retry for models whose __init__ takes keyword args instead of a
+                # namespace. If the retry ALSO fails, chain the ORIGINAL error — otherwise a
+                # real construction bug (e.g. a missing configs attribute) is masked by the
+                # retry's confusing "unexpected keyword argument 'model'".
+                try:
+                    model = model_cls(**vars(args)).float()
+                except (TypeError, AttributeError) as retry_exc:
+                    raise RuntimeError(
+                        f'{model_cls.__name__}(args) failed with: {first_exc!r}; the kwargs '
+                        f'retry also failed with: {retry_exc!r}. The FIRST error is usually '
+                        f'the real cause (e.g. a missing attribute on the trial namespace).'
+                    ) from first_exc
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         # Keep trainer-level early stopping behavior from the base config
