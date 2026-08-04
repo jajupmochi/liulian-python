@@ -663,6 +663,7 @@ def build_model(config: Dict[str, Any], dataset: Any = None) -> Any:
             'text_embedding',
             'onehot_embedding',
             'sinusoidal_embedding',
+            'coordinates_embedding',
         }
     )
     # Models that handle identity INTERNALLY (not via the external EntityWrapper): timellm
@@ -678,6 +679,17 @@ def build_model(config: Dict[str, Any], dataset: Any = None) -> Any:
                 )
             config['num_entities'] = len(_sids)
         config.setdefault('entity_id_mark_col', 0)
+        # coordinates_embedding needs the per-station (x, y) from the dataset topology
+        # (graph .pth). Surface it + station_ids so the model builds a real coord feature
+        # (the no-fake-zero guard raises if any station is missing — never a zero fallback).
+        if config.get('identifier_mode') == 'coordinates_embedding':
+            _topo = getattr(dataset, 'topology', None)
+            if config.get('coordinates') is None:
+                config['coordinates'] = getattr(_topo, 'coordinates', None) if _topo is not None else None
+            if config.get('station_ids') is None:
+                _sids = getattr(dataset, 'station_ids', None)
+                if _sids is not None:
+                    config['station_ids'] = [str(s) for s in _sids]
 
     ns = SimpleNamespace(**config)
 

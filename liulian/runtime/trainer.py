@@ -136,6 +136,7 @@ class ForecastTrainer:
                 'text_embedding',
                 'onehot_embedding',
                 'sinusoidal_embedding',
+                'coordinates_embedding',
             }
         )
 

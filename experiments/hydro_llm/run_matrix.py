@@ -72,8 +72,8 @@ IMPLEMENTED_MODES: tuple[str, ...] = (
 PLANNED_MODES: tuple[str, ...] = ()
 
 #: Level A2 — sub-variants of numeric_embedding (which learned/fixed vector).
-IMPLEMENTED_A2: tuple[str, ...] = ('learnable', 'random', 'onehot', 'sinusoidal')
-PLANNED_A2: tuple[str, ...] = ('coordinates',)  # needs per-station coords wired from the dataset
+IMPLEMENTED_A2: tuple[str, ...] = ('learnable', 'random', 'onehot', 'sinusoidal', 'coordinates')
+PLANNED_A2: tuple[str, ...] = ()  # coordinates now wired from the dataset topology (graph .pth)
 
 #: Level A1 — prompt richness for entity_description. `default` = the authored
 #: rich station text (entity_descriptions.yaml); `minimal` = a bare positional

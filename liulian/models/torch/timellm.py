@@ -148,6 +148,28 @@ class Model(nn.Module):
                 feat[:, 1::2] = torch.cos(pos * div)
             self.register_buffer('transparent_feat', feat)  # fixed, non-learned
             self.transparent_proj = nn.Linear(feat.shape[1], int(configs.d_model))
+        elif self.identifier_mode == 'coordinates_embedding':
+            # Level-A2 `coordinates`: the FIXED per-station (x, y) geographic coordinate,
+            # normalized and projected into patch-embedding space (additive). The coords
+            # come from the dataset topology (graph .pth), surfaced onto configs by the
+            # pipeline. _build_channel_features has a no-fake-zero guard: it RAISES if any
+            # station is missing a coordinate (never a silent zero vector).
+            from liulian.models.torch.entity_mixin import _build_channel_features
+
+            _n = getattr(configs, 'num_entities', None)
+            if _n is None:
+                raise ValueError(f'identifier_mode={self.identifier_mode!r} requires configs.num_entities')
+            feat = _build_channel_features(
+                'coordinates',
+                int(_n),
+                coordinates=getattr(configs, 'coordinates', None),
+                station_ids=getattr(configs, 'station_ids', None),
+            )  # (n, 2), raises if a coord is missing
+            # normalize each coordinate axis to zero-mean/unit-std so raw CH1903 magnitudes
+            # (~1e5) do not swamp the projection.
+            feat = (feat - feat.mean(dim=0, keepdim=True)) / (feat.std(dim=0, keepdim=True) + 1e-6)
+            self.register_buffer('transparent_feat', feat)
+            self.transparent_proj = nn.Linear(feat.shape[1], int(configs.d_model))
 
         # Level-A `soft_prompt` (LEARNED identity, PREFIX position): a per-entity
         # block of learnable continuous tokens prepended to the LLM input sequence.

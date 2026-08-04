@@ -174,3 +174,33 @@ class TestPromptRichnessStats:
         from experiments.hydro_llm.run_matrix import IMPLEMENTED_A1
 
         assert 'stats' in IMPLEMENTED_A1
+
+
+class TestCoordinatesA2:
+    """A2 coordinates for timellm: real per-station CH1903 coords from the graph .pth."""
+
+    def test_coordinates_feature_is_real_and_distinct(self):
+        import torch
+
+        from liulian.config import load_config
+        from liulian.pipeline import build_dataset, build_model
+
+        cfg = load_config(
+            'experiments/swiss_river/timellm_config.yaml',
+            cli_overrides={'data': 'swiss-river-1990', 'identifier_mode': 'coordinates_embedding',
+                           'split_mode': 'per_entity', 'llm_layers': 1},
+        )
+        ds = build_dataset(cfg)
+        # topology (with coords) must load for the coordinates_embedding mode
+        assert ds.topology is not None and len(ds.topology.coordinates) == len(ds.station_ids)
+        m = build_model(cfg, ds)
+        feat = m.transparent_feat
+        assert tuple(feat.shape) == (len(ds.station_ids), 2)
+        assert not bool((feat == 0).all().item())          # not fake zeros
+        assert len({tuple(r) for r in feat.tolist()}) == len(ds.station_ids)  # distinct per station
+
+    def test_coordinates_in_implemented_a2(self):
+        from experiments.hydro_llm.run_matrix import IMPLEMENTED_A2, _identifier_mode_for
+
+        assert 'coordinates' in IMPLEMENTED_A2
+        assert _identifier_mode_for('numeric_embedding', 'coordinates') == 'coordinates_embedding'

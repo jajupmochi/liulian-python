@@ -197,7 +197,10 @@ class SwissRiverDataset(SpatialTempoDataset):
         # 'coordinates' identifier (station coords live in the graph file).
         # Before 2026-06-11 it was only loaded for graph modes, so the
         # coordinates identifier silently received an empty mapping.
-        if graph_mode != 'none' or identifier_mode == 'coordinates':
+        # 'coordinates' is the external-wrapper mode; 'coordinates_embedding' is the
+        # timellm/gpt4ts internal-identity coords mode — both read station coords from
+        # the graph file, so both must load the topology.
+        if graph_mode != 'none' or identifier_mode in ('coordinates', 'coordinates_embedding'):
             topology = self._load_topology(self._file_map[data_name]['graph'])
         else:
             topology = None
