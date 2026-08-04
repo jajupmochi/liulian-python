@@ -86,6 +86,10 @@ def main() -> None:
     ap.add_argument('--arch', default=None, help='override model arch (timellm / gpt4ts / tempo / autotimes / calf)')
     ap.add_argument('--no-hpo-sample', action='store_true',
                     help='use the base config as-is (skip sampling from the search space)')
+    ap.add_argument('--max-eval-samples', type=int, default=128,
+                    help='cap val/test to this many samples for a FAST debug loop (0 = full '
+                         'val/test, faithful but slow: swiss val ~29k, test ~48k windows). '
+                         'Only affects wall-clock, not which code runs — breakpoints hit either way.')
     args = ap.parse_args()
 
     from liulian.config import load_config
@@ -122,6 +126,27 @@ def main() -> None:
     loaders = build_loaders(dataset, config)
 
     import torch
+
+    # Cap val/test for a fast debug loop. fit() evaluates the FULL val/test every
+    # epoch (swiss: ~29k val / ~48k test windows) — minutes on a small GPU, which
+    # is why a naive debug run never prints an epoch. Truncating the eval loaders
+    # changes ONLY wall-clock, not which code paths run (breakpoints still hit).
+    if args.max_eval_samples and args.max_eval_samples > 0:
+        from torch.utils.data import DataLoader, Subset
+
+        def _cap(dl):
+            if dl is None:
+                return None
+            ds = dl.dataset
+            n = min(args.max_eval_samples, len(ds))
+            sub = Subset(ds, list(range(n)))
+            return DataLoader(sub, batch_size=dl.batch_size, shuffle=False, num_workers=0)
+
+        for k in ('val', 'test'):
+            if loaders.get(k) is not None:
+                loaders[k] = _cap(loaders[k])
+        print(f'[debug_hpo] capped val/test to {args.max_eval_samples} samples each for a fast '
+              f'debug loop (use --max-eval-samples 0 for full, faithful eval)')
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     trainer = ForecastTrainer(config=config, device=device)
