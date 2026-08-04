@@ -84,7 +84,11 @@ PLANNED_A2: tuple[str, ...] = ()  # coordinates now wired from the dataset topol
 #: is now wired (loaded from the graph .pth topology, same source as the A2
 #: coordinates embedding), so it only needs the text-formatting step that renders
 #: each station's (x, y) into the prompt — no longer blocked on the data flow.
-IMPLEMENTED_A1: tuple[str, ...] = ('default', 'minimal', 'stats')
+#: + distinguisher-vs-content arms (2026-08-04): `symbol` = meaningless unique code
+#: (the "text onehot", distinctness with ZERO semantics); `shuffled` = the authored rich
+#: texts DERANGED between stations (real content, wrong station — if shuffled ~= default
+#: the prompt identity is a pure distinguisher; if worse, factual content matters).
+IMPLEMENTED_A1: tuple[str, ...] = ('default', 'minimal', 'stats', 'symbol', 'shuffled')
 PLANNED_A1: tuple[str, ...] = ('coords',)
 
 #: Orthogonal axis: LLM trainability (A1.1 is lora). All three implemented + verified.
@@ -480,4 +484,5 @@ if __name__ == '__main__':
     # (`python run_matrix.py ...` via sbatch), which would silently default --config to the
     # 64-sample debug.yaml for a real run. Enable the debug default with HYDRO_DEBUG=1 (set it
     # in the PyCharm run config), which only affects your local debug session.
+    DEBUGGING = True  # debug fixme
     raise SystemExit(main())

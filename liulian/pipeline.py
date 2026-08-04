@@ -506,6 +506,11 @@ def _load_entity_descriptions(config: Dict[str, Any]) -> list:
     * ``minimal`` — a bare positional identifier ("measurement station number
       k"), generated from ``num_entities``. It carries distinctness but no
       semantics: the A1 control for "does richer text help beyond a bare id?".
+    * ``symbol`` — a MEANINGLESS unique code per station (the "text onehot"):
+      distinctness with zero semantics (not even ordinal). Fixed-seed codes.
+    * ``shuffled`` — the authored rich descriptions DERANGED between stations
+      (real, rich, but WRONG for every station; fixed-seed permutation). The
+      sharpest distinguisher-vs-content separator.
     * ``default`` / ``rich`` — the authored natural-language descriptions from
       experiments/swiss_river/configs/entity_descriptions.yaml (real station
       context). Raises loudly if the dataset has none — running
@@ -543,10 +548,53 @@ def _load_entity_descriptions(config: Dict[str, Any]) -> list:
             for i, s in enumerate(stats)
         ]
 
+    if richness == 'symbol':
+        # Distinguisher-only arm: a MEANINGLESS but unique code per station — the "text
+        # onehot". Unlike `minimal` it carries no ordinal/positional semantics either; if
+        # this matches `default`, the prompt identity works as a pure distinguisher.
+        # FIXED generator seed (not the run seed) so all model seeds share the same codes
+        # and the arm is comparable across seeds.
+        import random as _random
+
+        n = config.get('num_entities')
+        if not n:
+            raise ValueError("prompt_richness='symbol' requires num_entities; none was available.")
+        rng = _random.Random(20260804)
+        # Consonant-only codes: no digits, so a code can never coincide with a station
+        # NUMBER — zero ordinal leakage, pure symbols.
+        letters = 'BCDFGHJKLMNPQRSTVWXZ'
+        codes: set = set()
+        while len(codes) < int(n):
+            codes.add(''.join(rng.choice(letters) for _ in range(5)))
+        ordered = sorted(codes)
+        rng.shuffle(ordered)
+        return [f'This is measurement station {c}.' for c in ordered[: int(n)]]
+
+    if richness == 'shuffled':
+        # Wrong-but-distinct arm: the AUTHORED rich descriptions, deranged between stations
+        # (fixed-seed permutation with no fixed point — every station gets a REAL, rich, but
+        # WRONG description). The sharpest content-vs-distinguisher separator: if
+        # shuffled ~= default, the prompt's identity value is distinctness; if
+        # shuffled < default, the factual content genuinely matters.
+        import random as _random
+
+        base = _load_entity_descriptions({**config, 'prompt_richness': 'default'})
+        n = len(base)
+        if n < 2:
+            raise ValueError("prompt_richness='shuffled' needs >= 2 stations to derange.")
+        rng = _random.Random(20260804)
+        idx = list(range(n))
+        while True:  # rejection-sample a derangement (fast for n<=~100)
+            rng.shuffle(idx)
+            if all(i != j for i, j in enumerate(idx)):
+                break
+        return [base[j] for j in idx]
+
     if richness not in ('default', 'rich'):
         raise ValueError(
-            f"prompt_richness={richness!r} is not implemented; use 'minimal' or "
-            "'default'/'rich' (stats/coords are planned, see DELIVERY.md)."
+            f'prompt_richness={richness!r} is not implemented; use '
+            "'minimal'/'symbol'/'shuffled'/'stats' or 'default'/'rich' "
+            '(coords is planned, see DELIVERY.md).'
         )
 
     data = config.get('data', '')

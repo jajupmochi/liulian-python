@@ -487,3 +487,41 @@ class TestPromptVariantKnobs:
         ds = build_dataset(cfg)
         build_model(cfg, ds)
         assert 'content' in cfg and 'water temperature' in cfg['content']
+
+
+class TestDistinguisherVsContentArms:
+    """A1 `symbol` (text onehot: distinct, zero semantics) and `shuffled` (real rich text
+    deranged between stations: distinct, WRONG content). Together with `minimal` and
+    `default` they separate "the prompt works as a distinguisher" from "the factual
+    content matters". Both are fixed-seed deterministic so all model seeds share them.
+    """
+
+    BASE = {'data': 'swiss-river-1990', 'num_entities': 28}
+
+    def test_symbol_distinct_no_digits_deterministic(self):
+        from liulian.pipeline import _load_entity_descriptions as L
+
+        sym = L({**self.BASE, 'prompt_richness': 'symbol'})
+        assert len(sym) == 28 and len(set(sym)) == 28          # distinct per station
+        assert not any(ch.isdigit() for s in sym for ch in s)  # zero ordinal leakage
+        assert sym == L({**self.BASE, 'prompt_richness': 'symbol'})  # deterministic
+
+    def test_shuffled_is_derangement_of_default(self):
+        from liulian.pipeline import _load_entity_descriptions as L
+
+        shf = L({**self.BASE, 'prompt_richness': 'shuffled'})
+        dflt = L({**self.BASE, 'prompt_richness': 'default'})
+        assert sorted(shf) == sorted(dflt)                      # same content set (rich, real)
+        assert all(a != b for a, b in zip(shf, dflt))           # no station keeps its true text
+        assert shf == L({**self.BASE, 'prompt_richness': 'shuffled'})  # deterministic
+
+    def test_symbol_requires_num_entities(self):
+        from liulian.pipeline import _load_entity_descriptions as L
+
+        with pytest.raises(ValueError, match='num_entities'):
+            L({'data': 'swiss-river-1990', 'prompt_richness': 'symbol'})
+
+    def test_arms_registered_in_a1(self):
+        from experiments.hydro_llm.run_matrix import IMPLEMENTED_A1
+
+        assert 'symbol' in IMPLEMENTED_A1 and 'shuffled' in IMPLEMENTED_A1
