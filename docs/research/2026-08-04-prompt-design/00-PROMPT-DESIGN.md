@@ -243,3 +243,144 @@ compose cleanly in the existing matrix.
    pointing `prompt_path`-style config (future knob) or file swap; the ladder experiment
    uses them.
 
+
+## 8. Distinguisher vs content — the mechanism ablation (user question 2026-08-04)
+
+**Question**: does the per-station text prompt help because it DISTINGUISHES stations
+(a symbol the model can key on), or because its factual CONTENT carries usable knowledge
+— and does the answer change once LoRA lets the LLM adapt?
+
+### 8.1 Literature verdict (web-verified): the exact test is NOVEL
+
+The three ingredients exist separately; **no work combines them**:
+
+| ingredient | who did it | gap |
+|---|---|---|
+| remove-the-prompt ablation | Time-LLM ([2310.01728](https://arxiv.org/abs/2310.01728)) w/o-PaP; UniTime ([2310.09751](https://arxiv.org/abs/2310.09751)) w/o-instructions (+24% MSE) | all-or-nothing — identifier vs content CONFOUNDED |
+| random/misaligned TEXT control | TGTSF ([2405.13522](https://arxiv.org/abs/2405.13522)) random NEWS reverts to backbone; Fidel-TS ([2509.24789](https://arxiv.org/pdf/2509.24789)) misaligned exogenous text hurts | targets exogenous/news text, NOT static entity identifiers |
+| frozen-vs-tuned axis | Tan et al. NeurIPS 2024 ([2406.16964](https://arxiv.org/abs/2406.16964)) ablates the LLM (not the prompt); Qiu 2026 ([2602.14744](https://arxiv.org/abs/2602.14744)) LoRA-vs-full, not crossed with content | tuning never crossed with prompt-content variants |
+
+NLP analogs (the canonical framing): Min et al. EMNLP 2022 ([random labels ≈ gold labels
+in ICL](https://aclanthology.org/2022.emnlp-main.759/)) — format/distribution over content;
+Webson & Pavlick NAACL 2022 ([misleading templates learn as fast as good
+ones](https://aclanthology.org/2022.naacl-main.167/)) — even closer to "nonsense-but-
+distinct works". Nothing equivalent exists for TS entity prompts. (Caveat: English-language
+search; a buried appendix ablation cannot be fully excluded.)
+
+### 8.2 Our ladder (IMPLEMENTED, commit `0a86809`)
+
+`prompt_richness` arms, all fixed-seed deterministic (every model seed shares them):
+
+| arm | distinct? | semantics? | content true? | what it isolates |
+|---|---|---|---|---|
+| (`prompt_variant: none`) | — | — | — | no text prefix at all (w/o-PaP) |
+| `symbol` | ✅ | ❌ zero (consonant codes, no digits) | — | pure distinguisher ("text onehot") |
+| `minimal` | ✅ | ordinal only | ✅ | distinguisher + position |
+| `shuffled` | ✅ | ✅ rich | ❌ WRONG station (deranged) | content-TRUTH vs distinctness |
+| `default` | ✅ | ✅ rich | ✅ | full identity |
+| `stats` | ✅ | ✅ numeric summary | ✅ (train-only) | data-derived content |
+
+Readout logic: `shuffled ≈ default` ⟹ the prompt's value is distinctness (the Min/Webson
+result transplanted to TS); `shuffled < default` ⟹ factual content matters. `symbol ≈
+default` is the strongest distinguisher-only verdict. Crossed with `llm_tuning
+{frozen, lora}`: if LoRA shrinks the symbol/default gap, the LLM learns to exploit
+arbitrary tokens as keys (identity-as-frozen-interface-workaround — the same interaction
+logic as Tier 2.4 for numeric embeddings).
+
+**Numeric-side result already measured** (2026-08-02, swiss-1990, harness): learnable
+embedding −19.4% vs random embedding −18.4% ⟹ on the NUMERIC channel the effect is
+already known to be distinctness, not learned semantics. The text ladder asks the same
+question on the PROMPT channel, where the frozen LLM must route identity through
+pretrained semantics — which is why the answer could differ, and why the LoRA cross
+matters.
+
+### 8.3 Text vs numeric identifier — the mechanistic difference
+
+| | text (entity_description) | numeric (embedding family) |
+|---|---|---|
+| injection site | prompt PREFIX — influences every patch via attention | ADDITIVE bias directly on patch embeddings |
+| learnability (frozen LLM) | must route through pretrained token semantics | free learnable vector, end-to-end optimized |
+| measured (swiss-1990) | +2.2% (did not help) | −19.4% |
+| bridge cell | `text_embedding` mode = TEXT content through the ADDITIVE channel (decouples source from site) | — |
+
+## 9. Analysis plan — experimental + theoretical (web-researched 2026-08-04)
+
+### 9.1 The strategic finding
+
+The distinctness-vs-content question is ALREADY ANSWERED in two neighboring worlds, and
+nobody has bridged them through the TS-LLM prompt pathway:
+
+- **Hydrology (non-LLM)**: Li et al., WRR 2022, ["Regionalization in a Global Hydrologic
+  Deep Learning Model: From Physical Descriptors to Random Vectors"](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2021WR031794)
+  — replacing physical catchment descriptors with RANDOM VECTORS gives comparable (even
+  marginally better) performance in gauged settings ⟹ static attributes act largely as
+  unique INDEXES under pooled training; content matters only for transfer to ungauged
+  basins (boundary condition: Yu et al., WRR 2024,
+  [10.1029/2023WR035876](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2023WR035876)).
+- **NLP prompts**: Min et al. 2022 (random labels ≈ gold) + Webson & Pavlick 2022
+  (misleading templates learn as fast).
+- **Our slot**: test whether the index-regime result SURVIVES the LLM/prompt pathway
+  (frozen semantics-mediated routing) and the frozen/LoRA axis — plus a task-vector-style
+  patching analysis nobody has done in TS-LLM.
+
+### 9.2 What the field actually does (methods inventory)
+
+- **Ablation convention**: component-removal/substitution tables, no significance tests.
+  Gold standard = Tan et al. NeurIPS 2024 (w/o LLM / LLM2Attn / LLM2Trsf substitutions +
+  input-shuffle perturbation + compute accounting).
+- **Representation analysis**: UniTime t-SNE (domain clustering); S2IP-LLM embedding viz;
+  Kratzert et al. HESS 2019 ([EA-LSTM](https://hess.copernicus.org/articles/23/5089/2019/))
+  — k-means on the learned per-basin embedding, quality = fractional variance reduction of
+  13 hydrological signatures vs clustering raw attributes.
+- **Mechanism tools**: attention patch→prompt maps (arXiv
+  [2504.08808](https://arxiv.org/abs/2504.08808) analyzes Time-LLM attention + proposes a
+  Semantic Matching Index); attention rollout (Abnar & Zuidema 2020); Integrated Gradients
+  on prompt tokens; **activation patching / task vectors** (Hendel et al. EMNLP 2023
+  [In-Context Learning Creates Task Vectors](https://aclanthology.org/2023.findings-emnlp.624.pdf);
+  Todd et al. ICLR 2024 [Function Vectors](https://arxiv.org/abs/2310.15213));
+  **linear probing** (Lees et al. HESS 2022 — probes recover soil moisture/snow from LSTM
+  states); **CKA** (Kornblith et al. 2019 — unused in TS-LLM so far, cheap novelty).
+- **Statistics**: field reports mean±std at best. Diebold-Mariano (pairwise per-series) +
+  Friedman/Nemenyi CD diagrams (Demšar 2006) would EXCEED field practice at ~zero compute.
+  ≥5 seeds for headline claims (multi-seed is user-gated: HOLD until approved).
+
+### 9.3 The analysis menu (12 items, tagged [cost][type])
+
+| # | analysis | cost | type |
+|---|---|---|---|
+| A1 | Substitution ablation grid: real / random / SHUFFLED / no-ID per mode (Tan-style; shuffled = the decisive cell) | cheap | exp |
+| A2 | Wrong-content prompts vs true vs generic (Min-style; = our `shuffled`/`symbol` arms) | cheap | exp |
+| A3 | t-SNE/UMAP of entity embeddings + prompt hidden states, colored by basin/elevation/thermal regime | cheap | exp |
+| A4 | Kratzert signature-variance clustering: embedding clusters vs raw-metadata clusters on water-temp signatures (mean, amplitude, phase lag) | medium | exp |
+| A5 | Attention patch→identifier-token maps per layer × mode (2504.08808 tooling) | medium | exp |
+| A6 | **Identity-vector patching**: extract per-entity hidden vector, transplant A→B, measure forecast displacement; interpolate between stations (Hendel/Todd-style — likely novel in TS-LLM) | expensive | exp |
+| A7 | Linear probing: decode station id + attributes from intermediate reps, by depth × mode × frozen/LoRA (Lees-style) | medium | exp |
+| A8 | Layer-wise CKA between identity-mode variants (do mechanisms converge?) | medium | exp |
+| A9 | Random-ID embedding-dimension sweep vs the d ≳ log₂(N) random-feature prediction | cheap | exp+theory |
+| A10 | Index-vs-content formalization: log₂(N)-bit index argument + Johnson–Lindenstrauss/random features (Rahimi & Recht 2007) + MTL hard-sharing (Caruana 1997, Baxter 2000) + FiLM expressiveness ladder (shift-only embedding < prefix tokens < LoRA; Perez et al. 2018) | cheap | theory |
+| A11 | Held-out-station transfer: random-ID vs attribute-ID on stations EXCLUDED from training (the content-regime boundary; Yu et al. 2024) | medium | exp |
+| A12 | Significance layer: Diebold-Mariano per station-pair + Friedman/Nemenyi CD across cells | cheap | exp |
+
+### 9.4 Theoretical frames (for the paper's analysis section)
+
+1. **MTL/pooling**: identifier = per-task token in hard parameter sharing; gains scale
+   with task relatedness — matches identity helping entity-rich swiss but hurting ETTh1.
+2. **FiLM ladder**: additive embedding = shift-only (β) conditioning; prefix tokens =
+   attention-mediated input-dependent modulation; LoRA = weight modulation. Predicts WHEN
+   extra expressiveness pays.
+3. **Random features / JL**: random IDs work iff downstream needs only well-separated keys
+   ⟹ "distinctness suffices" formalized + a testable dimension threshold (A9).
+4. **Information view**: index = ≤log₂(N) bits; attribute content adds mutual information
+   with dynamics that is only USEFUL out-of-support (new stations) ⟹ in-support index
+   regime vs zero-shot content regime — exactly the A11 split.
+5. **ICL theory**: prompt-as-prefix = implicit Bayesian concept selection (Xie et al. 2022;
+   von Oswald et al. 2023) ⟹ predicts the entity prompt compresses to a patchable
+   conditioning vector (tested by A6).
+
+### 9.5 Priority order (proposal)
+
+Phase 1 (with Tier-0/1 results, ~zero extra compute): A1/A2 (the arms are already in the
+matrix), A12 (post-hoc statistics), A3 (one plotting script).
+Phase 2 (one extra analysis pass over trained checkpoints): A4, A5, A7, A9.
+Phase 3 (paper differentiators): A6 (patching), A8, A10 (theory section), A11 (needs a
+held-out-station split — a new data config).
