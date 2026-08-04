@@ -1,0 +1,1 @@
+Daily river water temperature data in degrees Celsius from Swiss hydrometric stations, one day sample rate.
