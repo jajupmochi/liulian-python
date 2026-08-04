@@ -959,3 +959,36 @@ class TestFlattenEntityIdChunks:
         from liulian.runtime.trainer import _flatten_id_chunks
 
         assert _flatten_id_chunks([]) == []
+
+
+class TestPassEntityIdsCoordinates:
+    """Regression: coordinates_embedding must be in the trainer's pass_entity_ids set.
+
+    timellm reads the per-sample station id from the entity_ids KWARG and indexes a
+    (num_stations, 2) coord table with it. If coordinates_embedding is NOT in
+    pass_entity_ids, the kwarg is not passed and the model falls back to the raw
+    station number from x_mark (e.g. 2091) -> index-out-of-bounds -> CUDA
+    device-side assert. This locks the fix (trainer.py) so coords cannot regress.
+    """
+
+    def test_coordinates_embedding_passes_entity_ids(self):
+        from liulian.runtime.trainer import ForecastTrainer
+
+        t = ForecastTrainer(config={
+            'pred_len': 1, 'show_progress': False,
+            'identifier_mode': 'coordinates_embedding',
+        })
+        assert t.pass_entity_ids is True
+
+    def test_other_timellm_transparent_modes_pass_entity_ids(self):
+        from liulian.runtime.trainer import ForecastTrainer
+
+        for mode in ('onehot_embedding', 'sinusoidal_embedding', 'random_embedding'):
+            t = ForecastTrainer(config={'pred_len': 1, 'show_progress': False, 'identifier_mode': mode})
+            assert t.pass_entity_ids is True, mode
+
+    def test_none_mode_does_not_pass_entity_ids(self):
+        from liulian.runtime.trainer import ForecastTrainer
+
+        t = ForecastTrainer(config={'pred_len': 1, 'show_progress': False, 'identifier_mode': 'none'})
+        assert t.pass_entity_ids is False
