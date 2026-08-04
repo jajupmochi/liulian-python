@@ -266,7 +266,7 @@ def run_cell(cell: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
     }
     start = time.time()
     rc, elapsed = _run_in_process(
-        config_path=BASE_CONFIG,
+        config_path=getattr(args, 'config', None) or BASE_CONFIG,
         overrides=overrides,
         cwd=PROJECT_ROOT,
         log_path=job_dir / 'run.log',
@@ -281,6 +281,10 @@ def run_cell(cell: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument('--config', default=str(BASE_CONFIG),
+                   help='base config yaml (default: the aligned timellm_config.yaml). Point it at '
+                        'experiments/swiss_river/debug.yaml to debug the matrix entry with a fast, '
+                        'self-contained config; CLI axis flags still override on top.')
     p.add_argument('--phase', choices=['dry', 'smoke', 'dev', 'full'], default='dry',
                    help='dry=list; smoke=2ep no-HPO; dev=5ep no-HPO; full=real + Ray Tune HPO')
     p.add_argument('--arch', default='timellm', choices=IMPLEMENTED_ARCHS,

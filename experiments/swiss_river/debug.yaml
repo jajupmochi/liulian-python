@@ -1,0 +1,123 @@
+# Time-LLM DEBUG config — a self-contained, fast HPO run for stepping through the
+# REAL pipeline + HPO code path. Aligned with experiments/swiss_river/timellm_config.yaml
+# (the authoritative-reference config), only shrunk for speed and switched into HPO mode.
+#
+# Load it through the REAL matrix entry (run_matrix.py --config), NO custom script.
+# run_matrix's --phase controls HPO on/off, so use --phase full to exercise the HPO
+# path; train_epochs / max_train_samples / hpo settings below are the fast base and
+# survive unless a CLI flag overrides them:
+#
+#     python experiments/hydro_llm/run_matrix.py --config experiments/swiss_river/debug.yaml \
+#         --phase full --arch timellm --datasets swiss-river-1990 --modes none \
+#         --seeds 2026 --hpo-num-samples 2
+#
+# (Also loadable via the single-run entry: python experiments/run.py --config
+#  experiments/swiss_river/debug.yaml — there the hpo: settings below apply as-is.)
+#
+# In PyCharm: Script = experiments/hydro_llm/run_matrix.py, Parameters = the args
+# after "run_matrix.py" above; Env = HF_HUB_OFFLINE=1;TRANSFORMERS_OFFLINE=1;
+# working dir = repo root; interpreter = .venv.
+#
+# Breakpoints hit (main process — run_matrix uses in-process execution):
+# run_matrix cell build, build_overrides, run_with_config, run_experiment,
+# build_optimizer, resolve_search_space, and the post-HPO rebuild+retrain
+# (build_model / timellm.forecast / trainer.fit). The per-trial Ray trials run in
+# worker processes (Ray 2.x), so breakpoints INSIDE a trial do not hit there — but
+# a trial runs the SAME build_model/forecast/fit as the post-HPO retrain, so
+# breakpoint those in the retrain. To hit the model/train code IMMEDIATELY without
+# HPO, run the same command with --phase dev (real pipeline, no HPO, direct train).
+#
+# Switch the branch under test with --modes / --a2 (or identifier_mode: below).
+
+# ── General ─────────────────────────────────────────────────────────────
+model: timellm
+seed: 2026
+quick_test: false
+eval_only: false
+
+# ── Data ────────────────────────────────────────────────────────────────
+data: swiss-river-1990
+seq_len: 90
+pred_len: 7
+label_len: 0
+features: M
+train_split: 0.8
+max_samples: null
+max_train_samples: 64           # DEBUG: tiny cap so a trial is a few seconds (raise for realistic curves)
+
+# ── Task & mode ─────────────────────────────────────────────────────────
+task: forecast
+split_mode: per_entity
+scaler: minmax
+use_current_x: true
+short_subsequence_method: drop
+
+# ── Identity (start with the clean baseline; switch to test a branch) ────
+# none | entity_description | embedding | random_embedding | onehot_embedding |
+# sinusoidal_embedding | coordinates_embedding | soft_prompt | text_embedding
+identifier_mode: none
+id_injection: model
+embedding_size: 16
+num_embeddings: null
+# prompt_richness: default      # for identifier_mode=entity_description: default|minimal|stats
+
+# ── Model architecture (Time-LLM authors' canonical, HPO-centered) ──────
+enc_in: 1
+dec_in: 1
+c_out: 1
+d_model: 32
+d_ff: 128
+n_heads: 8
+e_layers: 2
+d_layers: 1
+patch_len: 16
+stride: 8
+dropout: 0.1
+embed: timeF
+activation: gelu
+output_attention: false
+moving_avg: 25
+factor: 1
+
+# ── LLM backbone ────────────────────────────────────────────────────────
+llm_model: GPT2               # GPT2 | BERT | LLAMA
+llm_dim: 768
+llm_layers: 6
+prompt_domain: 0
+
+# ── Training (DEBUG: tiny) ──────────────────────────────────────────────
+train_epochs: 2               # DEBUG: 2 epochs per trial
+batch_size: 32
+eval_batch_size: 32
+learning_rate: 0.01
+patience: 2
+freq: d
+loss: MSE
+lradj: type1
+pct_start: 0.2
+use_amp: false
+
+# ── HPO (DEBUG: minimal Ray Tune) ───────────────────────────────────────
+hpo: true                     # trigger the REAL HPO code path
+hpo_num_samples: 2            # DEBUG: only 2 trials
+hpo_scheduler: asha
+hpo_grace_period: 1           # DEBUG: ASHA may stop a trial after 1 epoch
+hpo_reduction_factor: 2
+hpo_resources_cpu: 1
+hpo_resources_gpu: 0          # DEBUG on CPU; set 1 if you have a local GPU
+hpo_save_checkpoints: false   # DEBUG: skip checkpoint clutter
+hpo_local_mode: true          # sequential trials (Ray 2.x: num_cpus=1). For
+                              # breakpoints INSIDE a trial, use debug_hpo.py (B).
+
+# ── Evaluation ──────────────────────────────────────────────────────────
+eval_denorm: true
+metrics: mse,mae,rmse
+
+# ── System ──────────────────────────────────────────────────────────────
+cache_dir: null               # default HF cache (holds GPT-2 weights)
+num_workers: 0                # DEBUG: 0 so DataLoader runs in-process (breakpoints)
+checkpoints: ./checkpoints/
+itr: 1
+percent: 100
+des: swiss_river_timellm_debug
+show_progress: true
