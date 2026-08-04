@@ -484,5 +484,4 @@ if __name__ == '__main__':
     # (`python run_matrix.py ...` via sbatch), which would silently default --config to the
     # 64-sample debug.yaml for a real run. Enable the debug default with HYDRO_DEBUG=1 (set it
     # in the PyCharm run config), which only affects your local debug session.
-    DEBUGGING = True  # debug fixme
     raise SystemExit(main())

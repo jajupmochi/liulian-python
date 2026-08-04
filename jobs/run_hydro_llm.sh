@@ -44,6 +44,10 @@ TRAIN_EPOCHS="${TRAIN_EPOCHS:-}"   # override the phase epoch cap; e.g. 30 for t
 LR="${LR:-}"                       # override learning rate (epoch diagnostic: 0.01 / 0.001)
 PATIENCE="${PATIENCE:-}"           # override early-stop patience; >= epochs disables early stop
 HPO_NUM_SAMPLES="${HPO_NUM_SAMPLES:-}"  # override Ray Tune trial count (phase-full default 50)
+# EXPLICIT config (defense in depth): never rely on run_matrix's --config DEFAULT — a debug
+# toggle leaking into the synced tree once flipped the default to the 64-sample debug.yaml
+# and silently ran a whole Tier-0 with checkpoints disabled (job 11579994 cell 1, 2026-08-05).
+CONFIG="${CONFIG:-experiments/swiss_river/timellm_config.yaml}"
 
 echo "=== hydro-llm job: tag=$RUNTAG datasets=[$DATASETS] modes=[$MODES] seeds=[$SEEDS] ==="
 echo "node=$(hostname) date=$(date -Iseconds)"
@@ -69,6 +73,7 @@ EXTRA_ARGS=()
 [ -n "$HPO_NUM_SAMPLES" ] && EXTRA_ARGS+=(--hpo-num-samples "$HPO_NUM_SAMPLES")
 
 python experiments/hydro_llm/run_matrix.py \
+  --config "$CONFIG" \
   --phase "$PHASE" \
   --run-tag "$RUNTAG" \
   --datasets $DATASETS \
