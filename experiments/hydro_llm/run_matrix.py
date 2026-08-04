@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from datetime import datetime
@@ -101,6 +102,8 @@ PLANNED_BACKBONES: tuple[str, ...] = ('LLAMA',)
 
 DATASETS: tuple[str, ...] = ('swiss-river-1990', 'swiss-river-2010', 'swiss-river-zurich')
 DEFAULT_SEEDS: tuple[int, ...] = (2026,)
+#: run-control phases (dry=list only; smoke/dev=no HPO; full=Ray Tune HPO).
+_PHASES: tuple[str, ...] = ('dry', 'smoke', 'dev', 'full')
 
 #: Model architectures (task 5 SOTA share the same entry + pipeline + identity plumbing).
 #: gpt4ts (OneFitsAll, the negative control) supports only ADDITIVE identity modes — it has
@@ -123,6 +126,13 @@ _ADDITIVE_ONLY_ARCHS: dict[str, frozenset] = {
 BASE_CONFIG = PROJECT_ROOT / 'experiments' / 'swiss_river' / 'timellm_config.yaml'
 ARTIFACT_ROOT = PROJECT_ROOT / 'artifacts' / 'hydro_llm'
 DEBUG_CONFIG = PROJECT_ROOT / 'experiments' / 'hydro_llm' / 'configs' / 'debug.yaml'
+
+#: When True, the --config flag DEFAULTS to the fast debug.yaml (for a zero-arg PyCharm
+#: debug run). Module-scope so build_parser can read it on import (tests/programmatic use);
+#: default False so a real run (incl. the cluster's `python run_matrix.py ...`) defaults to
+#: the aligned BASE_CONFIG. Set HYDRO_DEBUG=1 (e.g. in the PyCharm run config) to enable it
+#: WITHOUT the __main__-only toggle that would also fire on the cluster.
+DEBUGGING = os.environ.get('HYDRO_DEBUG') == '1'
 
 #: How a Level-A mode maps onto the model's identifier_mode (+ A2 sub-variant).
 #: numeric_embedding+learnable -> identifier_mode 'embedding';
@@ -346,6 +356,19 @@ def _apply_config_defaults(args: argparse.Namespace) -> None:
     wins (it makes args.<x> non-None before this runs).
     """
     cfg = _config_dict(getattr(args, 'config', None) or BASE_CONFIG)
+    # Run-control params (run_matrix-only, never reach the pipeline) — so they MUST be
+    # resolved here, not in build_overrides. phase especially: with the old default 'dry',
+    # `run_matrix --config debug.yaml` returned at the dry-run guard and ran nothing.
+    if args.phase is None:
+        args.phase = cfg.get('phase') or 'dry'
+    if args.phase not in _PHASES:
+        raise SystemExit(f'phase must be one of {_PHASES}, got {args.phase!r} (from --phase or config `phase`)')
+    if args.run_tag is None:
+        args.run_tag = cfg.get('run_tag') or datetime.now().strftime('hydro-%Y%m%d-%H%M%S')
+    if args.timeout_seconds is None:
+        args.timeout_seconds = int(cfg.get('timeout_seconds', 0))
+    if not args.resume and cfg.get('resume'):
+        args.resume = True
     if args.arch is None:
         args.arch = cfg.get('model') or 'timellm'
     if args.datasets is None:
@@ -377,8 +400,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help='base config yaml (default: the aligned timellm_config.yaml). Point it at '
                         'experiments/swiss_river/debug.yaml to debug the matrix entry with a fast, '
                         'self-contained config; CLI axis flags still override on top.')
-    p.add_argument('--phase', choices=['dry', 'smoke', 'dev', 'full'], default='dry',
-                   help='dry=list; smoke=2ep no-HPO; dev=5ep no-HPO; full=real + Ray Tune HPO')
+    p.add_argument('--phase', choices=[*_PHASES, None], default=None,
+                   help='dry=list; smoke=2ep no-HPO; dev=5ep no-HPO; full=real + Ray Tune HPO. '
+                        'Default: config `phase`, else dry.')
     # Axis flags default to None so an omitted flag falls back to the --config value
     # (filled by _apply_config_defaults); an explicit flag makes the arg non-None and wins.
     p.add_argument('--arch', default=None, choices=[*IMPLEMENTED_ARCHS, None],
@@ -410,9 +434,11 @@ def build_parser() -> argparse.ArgumentParser:
                    help='override early-stopping patience. Set >= train_epochs to DISABLE early '
                         'stopping (needed for the full epoch-vs-metric diagnostic curve).')
     p.add_argument('--max-train-samples', type=int, default=None, help='cap train samples (smoke)')
-    p.add_argument('--run-tag', default=datetime.now().strftime('hydro-%Y%m%d-%H%M%S'))
-    p.add_argument('--timeout-seconds', type=int, default=0, help='0 disables')
-    p.add_argument('--resume', action='store_true', help='skip cells already ok in the manifest')
+    p.add_argument('--run-tag', default=None,
+                   help='default: config `run_tag`, else a hydro-<timestamp> tag')
+    p.add_argument('--timeout-seconds', type=int, default=None, help='0 disables; default: config or 0')
+    p.add_argument('--resume', action='store_true',
+                   help='skip cells already ok in the manifest (also enabled by config `resume: true`)')
     return p
 
 
@@ -450,5 +476,8 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == '__main__':
-    DEBUGGING = True
+    # NOTE: do NOT set DEBUGGING=True here — this block ALSO runs on the cluster
+    # (`python run_matrix.py ...` via sbatch), which would silently default --config to the
+    # 64-sample debug.yaml for a real run. Enable the debug default with HYDRO_DEBUG=1 (set it
+    # in the PyCharm run config), which only affects your local debug session.
     raise SystemExit(main())

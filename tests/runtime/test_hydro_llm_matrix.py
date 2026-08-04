@@ -180,15 +180,18 @@ class TestCoordinatesA2:
     """A2 coordinates for timellm: real per-station CH1903 coords from the graph .pth."""
 
     def test_coordinates_feature_is_real_and_distinct(self):
-        import torch
 
         from liulian.config import load_config
         from liulian.pipeline import build_dataset, build_model
 
         cfg = load_config(
             'experiments/swiss_river/timellm_config.yaml',
-            cli_overrides={'data': 'swiss-river-1990', 'identifier_mode': 'coordinates_embedding',
-                           'split_mode': 'per_entity', 'llm_layers': 1},
+            cli_overrides={
+                'data': 'swiss-river-1990',
+                'identifier_mode': 'coordinates_embedding',
+                'split_mode': 'per_entity',
+                'llm_layers': 1,
+            },
         )
         ds = build_dataset(cfg)
         # topology (with coords) must load for the coordinates_embedding mode
@@ -196,7 +199,7 @@ class TestCoordinatesA2:
         m = build_model(cfg, ds)
         feat = m.transparent_feat
         assert tuple(feat.shape) == (len(ds.station_ids), 2)
-        assert not bool((feat == 0).all().item())          # not fake zeros
+        assert not bool((feat == 0).all().item())  # not fake zeros
         assert len({tuple(r) for r in feat.tolist()}) == len(ds.station_ids)  # distinct per station
 
     def test_coordinates_in_implemented_a2(self):
@@ -214,6 +217,7 @@ class TestConfigOverridesDefaults:
 
     def _cfg(self, tmp_path, **keys):
         import yaml
+
         p = tmp_path / 'dbg.yaml'
         p.write_text(yaml.safe_dump(keys), encoding='utf-8')
         return str(p)
@@ -221,40 +225,117 @@ class TestConfigOverridesDefaults:
     def test_config_hpo_survives_non_full_phase(self, tmp_path):
         # config sets hpo:true; phase 'dev' would default hpo off -> config must win
         from experiments.hydro_llm.run_matrix import build_overrides
+
         cfg = self._cfg(tmp_path, hpo=True, hpo_num_samples=3, train_epochs=2)
-        cell = dict(arch='timellm', dataset='swiss-river-1990', mode='none', sub='default',
-                    tuning='frozen', backbone='GPT2', seed=2026, identifier_mode='none', job_key='k')
-        args = SimpleNamespace(phase='dev', config=cfg, hpo_num_samples=None, train_epochs=None,
-                               learning_rate=None, patience=None, max_train_samples=None)
+        cell = dict(
+            arch='timellm',
+            dataset='swiss-river-1990',
+            mode='none',
+            sub='default',
+            tuning='frozen',
+            backbone='GPT2',
+            seed=2026,
+            identifier_mode='none',
+            job_key='k',
+        )
+        args = SimpleNamespace(
+            phase='dev',
+            config=cfg,
+            hpo_num_samples=None,
+            train_epochs=None,
+            learning_rate=None,
+            patience=None,
+            max_train_samples=None,
+        )
         ov = build_overrides(cell, args)
         # config keys are NOT injected as overrides (so the yaml base provides them, unclobbered)
         assert 'hpo' not in ov and 'train_epochs' not in ov and 'hpo_num_samples' not in ov
 
     def test_phase_default_applies_when_config_silent(self, tmp_path):
         from experiments.hydro_llm.run_matrix import build_overrides
+
         cfg = self._cfg(tmp_path, model='timellm')  # no hpo/train_epochs keys
-        cell = dict(arch='timellm', dataset='swiss-river-1990', mode='none', sub='default',
-                    tuning='frozen', backbone='GPT2', seed=2026, identifier_mode='none', job_key='k')
-        args = SimpleNamespace(phase='full', config=cfg, hpo_num_samples=None, train_epochs=None,
-                               learning_rate=None, patience=None, max_train_samples=None)
+        cell = dict(
+            arch='timellm',
+            dataset='swiss-river-1990',
+            mode='none',
+            sub='default',
+            tuning='frozen',
+            backbone='GPT2',
+            seed=2026,
+            identifier_mode='none',
+            job_key='k',
+        )
+        args = SimpleNamespace(
+            phase='full',
+            config=cfg,
+            hpo_num_samples=None,
+            train_epochs=None,
+            learning_rate=None,
+            patience=None,
+            max_train_samples=None,
+        )
         ov = build_overrides(cell, args)
         assert ov.get('hpo') is True and ov.get('hpo_num_samples') == 50  # phase-full cap
 
     def test_explicit_cli_beats_config(self, tmp_path):
         from experiments.hydro_llm.run_matrix import build_overrides
+
         cfg = self._cfg(tmp_path, train_epochs=2)
-        cell = dict(arch='timellm', dataset='swiss-river-1990', mode='none', sub='default',
-                    tuning='frozen', backbone='GPT2', seed=2026, identifier_mode='none', job_key='k')
-        args = SimpleNamespace(phase='dev', config=cfg, hpo_num_samples=None, train_epochs=17,
-                               learning_rate=None, patience=None, max_train_samples=None)
+        cell = dict(
+            arch='timellm',
+            dataset='swiss-river-1990',
+            mode='none',
+            sub='default',
+            tuning='frozen',
+            backbone='GPT2',
+            seed=2026,
+            identifier_mode='none',
+            job_key='k',
+        )
+        args = SimpleNamespace(
+            phase='dev',
+            config=cfg,
+            hpo_num_samples=None,
+            train_epochs=17,
+            learning_rate=None,
+            patience=None,
+            max_train_samples=None,
+        )
         assert build_overrides(cell, args)['train_epochs'] == 17
+
+    def _axis_args(self, cfg, **over):
+        base = dict(
+            config=cfg,
+            phase=None,
+            run_tag=None,
+            timeout_seconds=None,
+            resume=False,
+            arch=None,
+            datasets=None,
+            modes=None,
+            a2=None,
+            a1=None,
+            tuning=None,
+            backbones=None,
+            seeds=None,
+        )
+        base.update(over)
+        return SimpleNamespace(**base)
 
     def test_apply_config_defaults_fills_omitted_axes(self, tmp_path):
         from experiments.hydro_llm.run_matrix import _apply_config_defaults
-        cfg = self._cfg(tmp_path, model='timellm', data='swiss-river-2010',
-                        llm_model='GPT2', llm_tuning='lora', seed=7, identifier_mode='random_embedding')
-        args = SimpleNamespace(config=cfg, arch=None, datasets=None, modes=None, a2=None,
-                               a1=None, tuning=None, backbones=None, seeds=None)
+
+        cfg = self._cfg(
+            tmp_path,
+            model='timellm',
+            data='swiss-river-2010',
+            llm_model='GPT2',
+            llm_tuning='lora',
+            seed=7,
+            identifier_mode='random_embedding',
+        )
+        args = self._axis_args(cfg)
         _apply_config_defaults(args)
         assert args.arch == 'timellm' and args.datasets == ['swiss-river-2010']
         assert args.tuning == ['lora'] and args.seeds == [7]
@@ -263,9 +344,65 @@ class TestConfigOverridesDefaults:
 
     def test_explicit_axis_flag_not_overwritten_by_config(self, tmp_path):
         from experiments.hydro_llm.run_matrix import _apply_config_defaults
+
         cfg = self._cfg(tmp_path, llm_tuning='lora')
-        args = SimpleNamespace(config=cfg, arch='gpt4ts', datasets=['swiss-river-1990'],
-                               modes=['none'], a2=['learnable'], a1=['default'],
-                               tuning=['frozen'], backbones=['GPT2'], seeds=[2026])
+        args = self._axis_args(
+            cfg,
+            arch='gpt4ts',
+            datasets=['swiss-river-1990'],
+            modes=['none'],
+            a2=['learnable'],
+            a1=['default'],
+            tuning=['frozen'],
+            backbones=['GPT2'],
+            seeds=[2026],
+        )
         _apply_config_defaults(args)
         assert args.tuning == ['frozen'] and args.arch == 'gpt4ts'  # explicit wins
+
+    def test_config_phase_drives_run(self, tmp_path):
+        # config sets phase:full -> _apply_config_defaults fills it (so `run_matrix --config`
+        # with no --phase actually RUNS instead of hitting the dry-run guard).
+        from experiments.hydro_llm.run_matrix import _apply_config_defaults
+
+        args = self._axis_args(self._cfg(tmp_path, phase='full', model='timellm'))
+        _apply_config_defaults(args)
+        assert args.phase == 'full'
+
+    def test_config_phase_defaults_to_dry_when_silent(self, tmp_path):
+        from experiments.hydro_llm.run_matrix import _apply_config_defaults
+
+        args = self._axis_args(self._cfg(tmp_path, model='timellm'))
+        _apply_config_defaults(args)
+        assert args.phase == 'dry'
+
+    def test_explicit_phase_beats_config(self, tmp_path):
+        from experiments.hydro_llm.run_matrix import _apply_config_defaults
+
+        args = self._axis_args(self._cfg(tmp_path, phase='full'), phase='smoke')
+        _apply_config_defaults(args)
+        assert args.phase == 'smoke'  # explicit --phase wins
+
+    def test_invalid_config_phase_raises(self, tmp_path):
+        from experiments.hydro_llm.run_matrix import _apply_config_defaults
+
+        args = self._axis_args(self._cfg(tmp_path, phase='bogus'))
+        with pytest.raises(SystemExit):
+            _apply_config_defaults(args)
+
+
+class TestDebugDefaultIsClusterSafe:
+    """DEBUGGING must be module-scope (build_parser importable) and default OFF so a real
+    `python run_matrix.py` (incl. the cluster's sbatch) does NOT default to the 64-sample
+    debug.yaml. It was a NameError + a silent debug-config-in-production risk before the fix.
+    """
+
+    def test_build_parser_importable_and_defaults_to_base_config(self):
+        import experiments.hydro_llm.run_matrix as m
+        # DEBUGGING is defined at module scope (no NameError when build_parser runs on import)
+        assert hasattr(m, 'DEBUGGING')
+        args = m.build_parser().parse_args([])  # would NameError before the fix
+        # without HYDRO_DEBUG, the default config is the aligned BASE_CONFIG, not debug.yaml
+        if not m.DEBUGGING:
+            assert args.config == str(m.BASE_CONFIG)
+            assert 'debug' not in args.config
