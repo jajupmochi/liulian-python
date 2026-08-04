@@ -43,6 +43,7 @@ PHASE="${PHASE:-full}"   # full=Ray Tune HPO; dev=5ep no HPO (fast first baselin
 TRAIN_EPOCHS="${TRAIN_EPOCHS:-}"   # override the phase epoch cap; e.g. 30 for the paper baseline
 LR="${LR:-}"                       # override learning rate (epoch diagnostic: 0.01 / 0.001)
 PATIENCE="${PATIENCE:-}"           # override early-stop patience; >= epochs disables early stop
+HPO_NUM_SAMPLES="${HPO_NUM_SAMPLES:-}"  # override Ray Tune trial count (phase-full default 50)
 
 echo "=== hydro-llm job: tag=$RUNTAG datasets=[$DATASETS] modes=[$MODES] seeds=[$SEEDS] ==="
 echo "node=$(hostname) date=$(date -Iseconds)"
@@ -65,6 +66,7 @@ EXTRA_ARGS=()
 [ -n "$TRAIN_EPOCHS" ] && EXTRA_ARGS+=(--train-epochs "$TRAIN_EPOCHS")
 [ -n "$LR" ] && EXTRA_ARGS+=(--learning-rate "$LR")
 [ -n "$PATIENCE" ] && EXTRA_ARGS+=(--patience "$PATIENCE")
+[ -n "$HPO_NUM_SAMPLES" ] && EXTRA_ARGS+=(--hpo-num-samples "$HPO_NUM_SAMPLES")
 
 python experiments/hydro_llm/run_matrix.py \
   --phase "$PHASE" \
