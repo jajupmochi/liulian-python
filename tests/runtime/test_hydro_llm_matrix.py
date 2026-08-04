@@ -204,3 +204,68 @@ class TestCoordinatesA2:
 
         assert 'coordinates' in IMPLEMENTED_A2
         assert _identifier_mode_for('numeric_embedding', 'coordinates') == 'coordinates_embedding'
+
+
+class TestConfigOverridesDefaults:
+    """--config file params auto-override phase/argparse defaults; explicit CLI wins.
+
+    Precedence: explicit CLI flag > --config file value > phase default.
+    """
+
+    def _cfg(self, tmp_path, **keys):
+        import yaml
+        p = tmp_path / 'dbg.yaml'
+        p.write_text(yaml.safe_dump(keys), encoding='utf-8')
+        return str(p)
+
+    def test_config_hpo_survives_non_full_phase(self, tmp_path):
+        # config sets hpo:true; phase 'dev' would default hpo off -> config must win
+        from experiments.hydro_llm.run_matrix import build_overrides
+        cfg = self._cfg(tmp_path, hpo=True, hpo_num_samples=3, train_epochs=2)
+        cell = dict(arch='timellm', dataset='swiss-river-1990', mode='none', sub='default',
+                    tuning='frozen', backbone='GPT2', seed=2026, identifier_mode='none', job_key='k')
+        args = SimpleNamespace(phase='dev', config=cfg, hpo_num_samples=None, train_epochs=None,
+                               learning_rate=None, patience=None, max_train_samples=None)
+        ov = build_overrides(cell, args)
+        # config keys are NOT injected as overrides (so the yaml base provides them, unclobbered)
+        assert 'hpo' not in ov and 'train_epochs' not in ov and 'hpo_num_samples' not in ov
+
+    def test_phase_default_applies_when_config_silent(self, tmp_path):
+        from experiments.hydro_llm.run_matrix import build_overrides
+        cfg = self._cfg(tmp_path, model='timellm')  # no hpo/train_epochs keys
+        cell = dict(arch='timellm', dataset='swiss-river-1990', mode='none', sub='default',
+                    tuning='frozen', backbone='GPT2', seed=2026, identifier_mode='none', job_key='k')
+        args = SimpleNamespace(phase='full', config=cfg, hpo_num_samples=None, train_epochs=None,
+                               learning_rate=None, patience=None, max_train_samples=None)
+        ov = build_overrides(cell, args)
+        assert ov.get('hpo') is True and ov.get('hpo_num_samples') == 50  # phase-full cap
+
+    def test_explicit_cli_beats_config(self, tmp_path):
+        from experiments.hydro_llm.run_matrix import build_overrides
+        cfg = self._cfg(tmp_path, train_epochs=2)
+        cell = dict(arch='timellm', dataset='swiss-river-1990', mode='none', sub='default',
+                    tuning='frozen', backbone='GPT2', seed=2026, identifier_mode='none', job_key='k')
+        args = SimpleNamespace(phase='dev', config=cfg, hpo_num_samples=None, train_epochs=17,
+                               learning_rate=None, patience=None, max_train_samples=None)
+        assert build_overrides(cell, args)['train_epochs'] == 17
+
+    def test_apply_config_defaults_fills_omitted_axes(self, tmp_path):
+        from experiments.hydro_llm.run_matrix import _apply_config_defaults
+        cfg = self._cfg(tmp_path, model='timellm', data='swiss-river-2010',
+                        llm_model='GPT2', llm_tuning='lora', seed=7, identifier_mode='random_embedding')
+        args = SimpleNamespace(config=cfg, arch=None, datasets=None, modes=None, a2=None,
+                               a1=None, tuning=None, backbones=None, seeds=None)
+        _apply_config_defaults(args)
+        assert args.arch == 'timellm' and args.datasets == ['swiss-river-2010']
+        assert args.tuning == ['lora'] and args.seeds == [7]
+        # identifier_mode random_embedding reverse-maps to numeric_embedding + random
+        assert args.modes == ['numeric_embedding'] and args.a2 == ['random']
+
+    def test_explicit_axis_flag_not_overwritten_by_config(self, tmp_path):
+        from experiments.hydro_llm.run_matrix import _apply_config_defaults
+        cfg = self._cfg(tmp_path, llm_tuning='lora')
+        args = SimpleNamespace(config=cfg, arch='gpt4ts', datasets=['swiss-river-1990'],
+                               modes=['none'], a2=['learnable'], a1=['default'],
+                               tuning=['frozen'], backbones=['GPT2'], seeds=[2026])
+        _apply_config_defaults(args)
+        assert args.tuning == ['frozen'] and args.arch == 'gpt4ts'  # explicit wins

@@ -143,6 +143,18 @@ def _identifier_mode_for(mode: str, sub: str) -> str:
     return mode  # none / entity_description / soft_prompt / text_embedding pass through
 
 
+#: Reverse of _identifier_mode_for: a config's resolved `identifier_mode` -> the matrix
+#: (Level-A mode, A2 sub-variant). Used to fill --modes/--a2 from the config file when the
+#: user omits those flags (so a self-contained config drives the whole cell).
+_MODE_FROM_IDENTIFIER: dict[str, tuple[str, str]] = {
+    **{ident: ('numeric_embedding', sub) for sub, ident in _A2_TO_IDENTIFIER.items()},
+    'none': ('none', 'learnable'),
+    'entity_description': ('entity_description', 'learnable'),
+    'soft_prompt': ('soft_prompt', 'learnable'),
+    'text_embedding': ('text_embedding', 'learnable'),
+}
+
+
 def _validate_axes(args: argparse.Namespace) -> None:
     """Fail loudly on any axis value whose model-side support is not implemented.
 
@@ -225,9 +237,34 @@ def build_cells(args: argparse.Namespace) -> list[dict[str, Any]]:
     return cells
 
 
+def _config_dict(config_path: Any) -> dict[str, Any]:
+    """Top-level keys of the --config yaml (empty on any read/parse failure).
+
+    Used so that a param CONFIGURED IN THE CONFIG FILE is not silently clobbered by a
+    phase default: any key the config sets takes precedence over the phase cap (an
+    explicit CLI flag still wins over both).
+    """
+    try:
+        import yaml
+
+        with open(config_path, encoding='utf-8') as fh:
+            data = yaml.safe_load(fh) or {}
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
 def build_overrides(cell: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
-    """CLI-style overrides handed to run_with_config (the pipeline)."""
+    """CLI-style overrides handed to run_with_config (the pipeline).
+
+    Precedence for tunable params: explicit CLI flag > --config file > phase default.
+    Structural matrix-axis params (model/data/identifier_mode/backbone/tuning/seed) always
+    come from the cell — they DEFINE the swept cell, so the config never overrides them.
+    """
     caps = _phase_defaults(args.phase)
+    cfg = _config_dict(getattr(args, 'config', None) or BASE_CONFIG)
+
+    # Structural cell axes (always from the cell — these are the sweep definition).
     overrides: dict[str, Any] = {
         'model': cell['arch'],
         'data': cell['dataset'],
@@ -236,22 +273,31 @@ def build_overrides(cell: dict[str, Any], args: argparse.Namespace) -> dict[str,
         'llm_tuning': cell['tuning'],
         'seed': cell['seed'],
         'split_mode': 'per_entity',
-        'hpo': bool(caps.get('hpo', False)),
     }
     # Level-A1: for entity_description, the sub-variant IS the prompt richness
     # (default/minimal); the pipeline's _load_entity_descriptions reads it.
     if cell['mode'] == 'entity_description':
         overrides['prompt_richness'] = cell['sub']
-    if caps.get('hpo'):
-        overrides['hpo_num_samples'] = args.hpo_num_samples or caps.get('hpo_num_samples')
-    if caps.get('quick_test'):
+
+    # Phase-derived defaults — injected ONLY where the config file does not set the key, so
+    # any param configured in --config auto-overrides the phase default (CLI flags win below).
+    if 'hpo' not in cfg:
+        overrides['hpo'] = bool(caps.get('hpo', False))
+    hpo_on = bool(cfg.get('hpo', overrides.get('hpo', False)))
+    if hpo_on and 'hpo_num_samples' not in cfg and caps.get('hpo_num_samples') is not None:
+        overrides['hpo_num_samples'] = caps['hpo_num_samples']
+    if caps.get('quick_test') and 'quick_test' not in cfg:
         overrides['quick_test'] = True
-    if caps.get('train_epochs') is not None:
+    # --train-epochs (CLI) > config train_epochs > phase cap. Use 30 (+ YAML patience) for the
+    # paper/harness-aligned baseline; early stopping then picks the best epoch on validation, so
+    # we never hardcode a converged epoch count. The dev phase's 5 epochs are pipeline-validation
+    # only (best_epoch landed at the 5-cap ⟹ not converged).
+    if caps.get('train_epochs') is not None and 'train_epochs' not in cfg:
         overrides['train_epochs'] = caps['train_epochs']
-    # --train-epochs overrides the phase cap. Use it for the paper/harness-aligned baseline
-    # (30 epochs + patience from the YAML): early stopping then picks the best epoch on
-    # validation, so we never hardcode a converged epoch count. The dev phase's 5 epochs are
-    # for pipeline validation only (best_epoch landed at the 5-cap ⟹ not converged).
+
+    # Explicit CLI flags win over BOTH the config file and the phase default.
+    if args.hpo_num_samples is not None:
+        overrides['hpo_num_samples'] = args.hpo_num_samples
     if args.train_epochs is not None:
         overrides['train_epochs'] = args.train_epochs
     if args.learning_rate is not None:
@@ -290,30 +336,70 @@ def run_cell(cell: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
     return record
 
 
+def _apply_config_defaults(args: argparse.Namespace) -> None:
+    """Fill any matrix-axis flag the user did NOT pass from the --config file (in place).
+
+    Axis flags default to None in the parser; when omitted, the value comes from the config
+    file's corresponding key, else the hard-coded fallback. So EVERY param set in --config
+    (model / data / llm_model / llm_tuning / seed / identifier_mode, plus the tunable knobs
+    handled in build_overrides) auto-overrides the defaults, while an explicit CLI flag still
+    wins (it makes args.<x> non-None before this runs).
+    """
+    cfg = _config_dict(getattr(args, 'config', None) or BASE_CONFIG)
+    if args.arch is None:
+        args.arch = cfg.get('model') or 'timellm'
+    if args.datasets is None:
+        args.datasets = [cfg['data']] if cfg.get('data') else ['swiss-river-1990']
+    if args.tuning is None:
+        args.tuning = [cfg['llm_tuning']] if cfg.get('llm_tuning') else ['frozen']
+    if args.backbones is None:
+        args.backbones = [cfg['llm_model']] if cfg.get('llm_model') else ['GPT2']
+    if args.seeds is None:
+        args.seeds = [int(cfg['seed'])] if cfg.get('seed') is not None else list(DEFAULT_SEEDS)
+    if args.modes is None:
+        ident = cfg.get('identifier_mode')
+        if ident:
+            mode, sub = _MODE_FROM_IDENTIFIER.get(ident, (ident, 'learnable'))
+            args.modes = [mode]
+            if mode == 'numeric_embedding' and args.a2 is None:
+                args.a2 = [sub]
+        else:
+            args.modes = ['none']
+    if args.a2 is None:
+        args.a2 = ['learnable']
+    if args.a1 is None:
+        args.a1 = ['default']
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument('--config', default=(str(DEBUG_CONFIG) if DEBUGGING else (BASE_CONFIG)),
+    p.add_argument('--config', default=(str(DEBUG_CONFIG) if DEBUGGING else str(BASE_CONFIG)),
                    help='base config yaml (default: the aligned timellm_config.yaml). Point it at '
                         'experiments/swiss_river/debug.yaml to debug the matrix entry with a fast, '
                         'self-contained config; CLI axis flags still override on top.')
     p.add_argument('--phase', choices=['dry', 'smoke', 'dev', 'full'], default='dry',
                    help='dry=list; smoke=2ep no-HPO; dev=5ep no-HPO; full=real + Ray Tune HPO')
-    p.add_argument('--arch', default='timellm', choices=IMPLEMENTED_ARCHS,
-                   help='model architecture; gpt4ts (negative control), tempo '
-                        '(decomposition), autotimes (autoregressive) and calf '
-                        '(cross-modal dual-branch) are additive-identity only')
-    p.add_argument('--datasets', nargs='*', default=['swiss-river-1990'], choices=DATASETS)
-    p.add_argument('--modes', nargs='*', default=['none'],
-                   help=f'Level-A modes. implemented: {IMPLEMENTED_MODES}')
-    p.add_argument('--a2', nargs='*', default=['learnable'],
+    # Axis flags default to None so an omitted flag falls back to the --config value
+    # (filled by _apply_config_defaults); an explicit flag makes the arg non-None and wins.
+    p.add_argument('--arch', default=None, choices=[*IMPLEMENTED_ARCHS, None],
+                   help='model architecture (default: config `model`, else timellm); gpt4ts '
+                        '(negative control), tempo (decomposition), autotimes (autoregressive) '
+                        'and calf (cross-modal dual-branch) are additive-identity only')
+    p.add_argument('--datasets', nargs='*', default=None, choices=DATASETS,
+                   help='default: config `data`, else swiss-river-1990')
+    p.add_argument('--modes', nargs='*', default=None,
+                   help=f'Level-A modes (default: from config `identifier_mode`, else none). '
+                        f'implemented: {IMPLEMENTED_MODES}')
+    p.add_argument('--a2', nargs='*', default=None,
                    help=f'numeric_embedding sub-variant. implemented: {IMPLEMENTED_A2}')
-    p.add_argument('--a1', nargs='*', default=['default'],
+    p.add_argument('--a1', nargs='*', default=None,
                    help=f'entity_description prompt richness. implemented: {IMPLEMENTED_A1}')
-    p.add_argument('--tuning', nargs='*', default=['frozen'],
-                   help=f'llm_tuning. implemented: {IMPLEMENTED_TUNING}')
-    p.add_argument('--backbones', nargs='*', default=['GPT2'],
-                   help=f'llm_backbone. implemented: {IMPLEMENTED_BACKBONES}')
-    p.add_argument('--seeds', nargs='*', type=int, default=list(DEFAULT_SEEDS))
+    p.add_argument('--tuning', nargs='*', default=None,
+                   help=f'llm_tuning (default: config `llm_tuning`, else frozen). implemented: {IMPLEMENTED_TUNING}')
+    p.add_argument('--backbones', nargs='*', default=None,
+                   help=f'llm_backbone (default: config `llm_model`, else GPT2). implemented: {IMPLEMENTED_BACKBONES}')
+    p.add_argument('--seeds', nargs='*', type=int, default=None,
+                   help='default: config `seed`, else 2026')
     p.add_argument('--hpo-num-samples', type=int, default=None, help='override Ray Tune trial count')
     p.add_argument('--train-epochs', type=int, default=None,
                    help='override the phase epoch cap. Use 30 (+ YAML patience 10) for the '
@@ -332,6 +418,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    _apply_config_defaults(args)  # fill omitted axis flags from the --config file
     _validate_axes(args)
     cells = build_cells(args)
     manifest = ARTIFACT_ROOT / args.run_tag / 'manifest.jsonl'
