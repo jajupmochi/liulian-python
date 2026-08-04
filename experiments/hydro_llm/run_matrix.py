@@ -79,8 +79,10 @@ PLANNED_A2: tuple[str, ...] = ()  # coordinates now wired from the dataset topol
 #: rich station text (entity_descriptions.yaml); `minimal` = a bare positional
 #: identifier ("station number k"), the control for "does richer text help
 #: beyond a distinct id?"; `stats` = positional id + per-station TRAIN-only
-#: temperature statistics (leakage-safe). `coords` is planned (blocked on the
-#: coordinate data flow, task #28).
+#: temperature statistics (leakage-safe). `coords` is planned: the coordinate DATA
+#: is now wired (loaded from the graph .pth topology, same source as the A2
+#: coordinates embedding), so it only needs the text-formatting step that renders
+#: each station's (x, y) into the prompt — no longer blocked on the data flow.
 IMPLEMENTED_A1: tuple[str, ...] = ('default', 'minimal', 'stats')
 PLANNED_A1: tuple[str, ...] = ('coords',)
 
@@ -120,6 +122,7 @@ _ADDITIVE_ONLY_ARCHS: dict[str, frozenset] = {
 #: The pipeline-native timellm config (NOT the harness config).
 BASE_CONFIG = PROJECT_ROOT / 'experiments' / 'swiss_river' / 'timellm_config.yaml'
 ARTIFACT_ROOT = PROJECT_ROOT / 'artifacts' / 'hydro_llm'
+DEBUG_CONFIG = PROJECT_ROOT / 'experiments' / 'hydro_llm' / 'configs' / 'debug.yaml'
 
 #: How a Level-A mode maps onto the model's identifier_mode (+ A2 sub-variant).
 #: numeric_embedding+learnable -> identifier_mode 'embedding';
@@ -176,9 +179,17 @@ def _validate_axes(args: argparse.Namespace) -> None:
 def build_cells(args: argparse.Namespace) -> list[dict[str, Any]]:
     """Enumerate the matrix cells for the requested axes.
 
-    A2 only varies for numeric_embedding; A1 only varies for entity_description. For the
-    other modes those axes are pinned to a single 'default' so the product does not
-    explode into duplicate identical cells.
+    Level taxonomy (see the IMPLEMENTED_* constants above for the full definitions):
+      * Level A  = the peer identity MODES (none / entity_description /
+        numeric_embedding / soft_prompt / text_embedding).
+      * Level A2 = sub-variants of the numeric_embedding mode — WHICH per-station
+        vector is injected (learnable / random / onehot / sinusoidal / coordinates).
+      * Level A1 = prompt-richness variants of the entity_description mode — HOW rich
+        the injected text is (default authored text / minimal positional id / stats).
+
+    So A2 only varies WITHIN numeric_embedding and A1 only varies WITHIN
+    entity_description; for every other mode both axes are pinned to a single
+    'default' so the cartesian product does not explode into duplicate identical cells.
     """
     cells: list[dict[str, Any]] = []
     for dataset in args.datasets:
@@ -281,7 +292,7 @@ def run_cell(cell: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument('--config', default=str(BASE_CONFIG),
+    p.add_argument('--config', default=(str(DEBUG_CONFIG) if DEBUGGING else (BASE_CONFIG)),
                    help='base config yaml (default: the aligned timellm_config.yaml). Point it at '
                         'experiments/swiss_river/debug.yaml to debug the matrix entry with a fast, '
                         'self-contained config; CLI axis flags still override on top.')
@@ -352,4 +363,5 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == '__main__':
+    DEBUGGING = True
     raise SystemExit(main())
