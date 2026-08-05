@@ -1,3 +1,5 @@
+> **Language:** English | [中文](00-MASTER-SPEC.zh.md)
+
 # Hydro-LLM identity study — master spec (LOCKED architecture)
 
 > Single source of truth for the entity-identity × Time-LLM × hydrology study.

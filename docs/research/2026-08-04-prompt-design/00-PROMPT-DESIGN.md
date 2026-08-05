@@ -1,3 +1,5 @@
+> **Language:** English | [中文](00-PROMPT-DESIGN.zh.md)
+
 # Time-LLM prompt design for the Swiss river datasets
 
 Status: DRAFT (research round 2026-08-04). Trigger: the swiss `prompt_bank` content was

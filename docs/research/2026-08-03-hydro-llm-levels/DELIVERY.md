@@ -1,3 +1,5 @@
+> **Language:** English | [中文](DELIVERY.zh.md)
+
 # Hydro-LLM levels — delivery & debug handoff (2026-08-04)
 
 One page: what was built, what remains, how to debug it, how to run it. Full design in
