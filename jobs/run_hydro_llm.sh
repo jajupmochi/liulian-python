@@ -19,7 +19,7 @@
 #SBATCH --partition=gpu
 #SBATCH --qos=job_gratis
 #SBATCH --gres=gpu:rtx4090:1
-#SBATCH --time=24:00:00
+#SBATCH --time=96:00:00
 #SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=10G
 #SBATCH --mail-type=ALL

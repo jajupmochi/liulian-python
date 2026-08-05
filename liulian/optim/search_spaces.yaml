@@ -83,7 +83,12 @@ model_spaces:
     learning_rate: {dist: choice, values: [0.001, 0.01]}   # canonical 0.01 + diagnostic-best 0.001
     d_model:       {dist: choice, values: [16, 32, 64]}    # canonical 32; capacity scaling
     d_ff:          {dist: choice, values: [32, 128, 256]}  # canonical 128; reprogramming/head width
-    llm_layers:    {dist: choice, values: [3, 6]}          # canonical 6; "how much LLM" boundary
+    # 12 = FULL GPT-2 depth (paper Table 6: GPT-2(12) beats GPT-2(6) by 2.7% on THEIR
+    # benchmarks; FSCA found 4-6 optimal — contested, so let validation decide). Only
+    # meaningful for backbones with >= 12 layers; the current matrix runs GPT2 (12 total).
+    # NOTE cluster sync deferred: do NOT change the space mid-run — apply at the next
+    # Tier boundary (running Tier-0 cells sampled from {3,6}).
+    llm_layers:    {dist: choice, values: [3, 6, 12]}      # canonical 6; full GPT-2 12
 
   # DLinear — must EXACTLY mirror dlinear_space() to preserve anchored baselines.
   # batch_size stays TUNED here: the 2026-05 traffic/electricity baselines were
