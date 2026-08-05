@@ -1,0 +1,121 @@
+# Tier-0 ETT-DESCRIPTION CONTROL config — identical to timellm_config.yaml EXCEPT
+# prompt_domain: 0, which makes Time-LLM use its hardcoded ETT (electricity) description.
+# Purpose: the "irrelevant dataset description" control arm of the prompt ladder, run with
+# the SAME 24-sample HPO as the promptfix arm for a fair comparison (the original job
+# 11557210 used 50 samples and TIMED OUT at 0/7 cells — superseded by this config).
+# Swiss River — Time-LLM (frozen GPT-2 reprogramming), MAIN PIPELINE version
+#
+# This is the pipeline-native counterpart of the standalone harness config
+# (configs/swiss_river.yaml). It exists so Time-LLM runs through the SAME
+# liulian.pipeline path as LSTM/PatchTST/DLinear, which is what lets their
+# numbers be compared without an architecture mismatch.
+#
+# Hyper-parameters below are copied from the harness config so the two paths
+# are compared like-for-like. The go/no-go check for this migration is whether
+# `identifier_mode: none` here reproduces the harness's published
+# MSE 0.01457 +- 0.00022 (n=3, seeds 2021/2022/2023).
+#
+# Usage:
+#   liulian run experiments/swiss_river/timellm_config.yaml
+#   python experiments/entity_identifier/run.py --models timellm --modes none
+
+# ── General ─────────────────────────────────────────────────────────────
+model: timellm
+# 2026 = the project matrix standard (matrix.DEFAULT_SEEDS, default_config.yaml).
+# Time-LLM must share this seed with LSTM/PatchTST/DLinear or the cross-model
+# comparison is unfair (research-critic Q3). The published Time-LLM harness cells
+# used seed 2021 (n=3: 2021/2022/2023); that number is a separate reproduction
+# reference, not the value that belongs in this project's unified model table.
+seed: 2026
+quick_test: false
+eval_only: false
+
+# ── Data ────────────────────────────────────────────────────────────────
+data: swiss-river-1990            # swiss-river-1990 | swiss-river-2010 | swiss-river-zurich
+seq_len: 90
+pred_len: 7
+label_len: 0
+features: M
+train_split: 0.8
+max_samples: null
+
+# ── Task & mode ─────────────────────────────────────────────────────────
+task: forecast
+# per_entity: one shared model, each sample is one station's window. This is the
+# same construction the Time-LLM harness uses (a ConcatDataset of per-station
+# windowed datasets), which is why the two paths are expected to agree.
+split_mode: per_entity
+scaler: minmax                    # matches the harness/LSTM swiss setting
+use_current_x: true
+short_subsequence_method: drop
+
+# ── Identity ────────────────────────────────────────────────────────────
+# none | entity_description (text) | embedding (numeric) | random_embedding (capacity control)
+identifier_mode: none
+id_injection: model
+embedding_size: 16                # = d_model; the embedding is added to patch embeddings
+num_embeddings: null              # auto-detected from the dataset
+
+# ── Model architecture (mirrors configs/swiss_river.yaml) ───────────────
+enc_in: 1                         # one series per sample (per-station univariate)
+dec_in: 1
+c_out: 1
+# Model-capacity HPs: Time-LLM authors' canonical values (ETTh1 script: d_model 32, d_ff 128).
+# These are the HPO CENTER, not fixed finals — the timellm_swiss search space tunes around them.
+# Superseded the deprecated harness's arbitrary small values (16/32).
+d_model: 32                       # authors' canonical (was 16, from the deprecated harness)
+d_ff: 128                         # authors' canonical (was 32); head_nf = d_ff * patch_nums
+n_heads: 8
+e_layers: 2
+d_layers: 1
+patch_len: 16                     # SHARED with PatchTST (fair cross-model comparison)
+stride: 8                         # SHARED with PatchTST
+dropout: 0.1
+embed: timeF
+activation: gelu
+output_attention: false
+moving_avg: 25
+# factor is a DEAD knob for Time-LLM (Informer ProbSparse leftover; unused in timellm.py). Kept
+# only so the ETT-style config schema validates; changing it has ZERO effect.
+factor: 1
+
+# ── LLM backbone ────────────────────────────────────────────────────────
+llm_model: GPT2                   # GPT2 | LLAMA | BERT
+llm_dim: 768
+llm_layers: 6
+# 1 => the dataset description comes from dataset/prompt_bank/<key>.txt (authored swiss
+# water-temperature text, P3 variant — see docs/research/hydro-llm-2026-08/02-PROMPT-DESIGN.md).
+# 0 was a BUG for swiss: it used Time-LLM's hardcoded ETT (electricity) description.
+prompt_domain: 0
+# llm_tuning: frozen              # PLANNED: frozen | ln_only | lora (see timellm.py:334)
+
+# ── Training ────────────────────────────────────────────────────────────
+train_epochs: 30                  # final runs use early stopping; the epoch diagnostic overrides to 100
+# batch_size SHARED with LSTM/PatchTST swiss (both 32) for a fair cross-model comparison.
+# Was 8 (deprecated harness); Time-LLM authors' ETTh1 used 24 — 32 aligns the model families.
+batch_size: 32
+eval_batch_size: 32
+learning_rate: 0.01               # Time-LLM authors' canonical (was 0.001); HPO tunes {1e-3,1e-2}
+patience: 10
+freq: d                           # swiss data is DAILY (harness used d). NOTE: timellm/gpt4ts use
+                                  # x_mark only for the entity id, so freq is inert here — set for
+                                  # correctness/alignment, not because it changes results.
+loss: MSE
+lradj: type1
+pct_start: 0.2
+use_amp: false
+
+# ── Evaluation ──────────────────────────────────────────────────────────
+eval_denorm: true
+metrics: mse,mae,rmse
+
+# ── System ──────────────────────────────────────────────────────────────
+# null => use the DEFAULT HF cache (~/.cache/huggingface), which holds the LLM weights on
+# both local and cluster. The project default (config.py: <project>/cache) is only populated
+# locally, so forcing it made the cluster GPT2Model load fail ("no model.safetensors").
+cache_dir: null
+num_workers: 4
+checkpoints: ./checkpoints/
+itr: 1
+percent: 100
+des: swiss_river_timellm
