@@ -131,6 +131,7 @@ sensitivity, A1 richness); (f) Tier-2.4 identity×trainability interaction (lowe
 | 1.6 | UniTime as second native-2×2 backbone | ~30–70 | GPT4TS/TimeMoE are cheaper substitutes if budget-bound |
 | 2.5 | Chronos(-2) zero-shot negative control | ~1 | "how far without learned entity embeddings" |
 | 2.4 | CAMELS-CH-Chem (86 hourly Swiss stations) | data 1–2 d | ⚠ station-ID alignment vs our 28 first (self-leakage) |
+| 1.11 | extend `timellm_swiss` llm_layers {3,6} → {3,6,12} (GPT-2 full depth) | +0 (same HPO budget) | official argparse DEFAULT is 6 but the PAPER scripts run llama_layers=32 (FULL backbone) — so "use the full backbone" is the paper-faithful arm; do NOT change the space mid-run (running Tier-0 cells sampled from {3,6}); apply at the next tier/rerun |
 
 ## 5. Results ledger (fill as cells land)
 
