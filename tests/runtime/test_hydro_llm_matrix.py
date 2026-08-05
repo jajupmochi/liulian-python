@@ -525,3 +525,55 @@ class TestDistinguisherVsContentArms:
         from experiments.hydro_llm.run_matrix import IMPLEMENTED_A1
 
         assert 'symbol' in IMPLEMENTED_A1 and 'shuffled' in IMPLEMENTED_A1
+
+
+class TestIdentityModeConsistency:
+    """The timellm identity-mode set exists in THREE places that must agree:
+
+    1. pipeline._TIMELLM_IDENTITY_MODES (build_model: surfaces num_entities etc.)
+    2. trainer pass_entity_ids (a mode missing there falls back to raw station numbers
+       in x_mark and CUDA-asserts — the coordinates_embedding bug of 2026-08-04)
+    3. run_matrix _A2_TO_IDENTIFIER values + prompt-family passthrough modes
+
+    This test locks the three together so a future mode cannot drift.
+    """
+
+    EXPECTED = {
+        'embedding', 'random_embedding', 'soft_prompt', 'entity_description',
+        'text_embedding', 'onehot_embedding', 'sinusoidal_embedding', 'coordinates_embedding',
+    }
+
+    @staticmethod
+    def _pipeline_set():
+        import re
+
+        import liulian.pipeline as pl
+
+        src = open(pl.__file__).read()
+        m = re.search(r"_TIMELLM_IDENTITY_MODES = frozenset\(\s*\{([^}]*)\}", src)
+        return set(re.findall(r"'([a-z_]+)'", m.group(1)))
+
+    @staticmethod
+    def _trainer_set():
+        import re
+
+        import liulian.runtime.trainer as tr
+
+        src = open(tr.__file__).read()
+        m = re.search(r"or _idmode\s*\n\s*in \{([^}]*)\}", src)
+        # 'embedding' reaches the model via use_entity_embedding, not this literal set
+        return set(re.findall(r"'([a-z_]+)'", m.group(1))) | {'embedding'}
+
+    @staticmethod
+    def _matrix_set():
+        from experiments.hydro_llm.run_matrix import _A2_TO_IDENTIFIER, IMPLEMENTED_MODES
+
+        return set(_A2_TO_IDENTIFIER.values()) | {
+            m for m in IMPLEMENTED_MODES if m not in ('none', 'numeric_embedding')
+        }
+
+    def test_three_sets_agree(self):
+        p, t, x = self._pipeline_set(), self._trainer_set(), self._matrix_set()
+        assert p == self.EXPECTED, f'pipeline drifted: {p ^ self.EXPECTED}'
+        assert t == self.EXPECTED, f'trainer drifted: {t ^ self.EXPECTED}'
+        assert x == self.EXPECTED, f'run_matrix drifted: {x ^ self.EXPECTED}'

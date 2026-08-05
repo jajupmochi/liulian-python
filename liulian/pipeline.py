@@ -339,6 +339,14 @@ _PATCHTST_TRANSPARENT_ADD_AFTER_PATCH_MODES = frozenset({'onehot', 'sinusoidal',
 def _transparent_injection_kind(config: Dict[str, Any]) -> str | None:
     """Where the MODEL wrapper injects transparent identifiers, or ``None``.
 
+    Why "transparent": these identifier features (onehot / coordinates /
+    sinusoidal / random) are FIXED, non-learned, human-inspectable vectors —
+    you can read exactly what each station receives (its one-hot slot, its
+    real CH1903 coordinates, its sinusoidal code) — as opposed to a LEARNED
+    ``nn.Embedding``, whose per-station vector is an opaque trained artifact.
+    Transparent = the identity signal is visible data, not model parameters;
+    only a small projection on top of it may be trained.
+
     With ``id_injection='model'`` + a transparent mode the dataset emits only
     base features and a model-layer wrapper adds the fixed per-station block,
     rebuilt per HPO trial. The wrapper differs by split:
@@ -723,6 +731,12 @@ def build_model(config: Dict[str, Any], dataset: Any = None) -> Any:
     # (Model.__init__ reads configs.num_entities) and wire entity_id_mark_col = the x_mark
     # column the per_entity loader fills with the station id (col 0 — the same source
     # EntityWrapper reads). timellm must NOT also be EntityWrapper-wrapped (see below).
+    #
+    # CONSISTENCY CONTRACT: this set MUST agree with (a) the trainer's pass_entity_ids
+    # timellm set (runtime/trainer.py — a mode missing there falls back to raw station
+    # numbers in x_mark and CUDA-asserts, the coordinates_embedding bug of 2026-08-04)
+    # and (b) run_matrix._A2_TO_IDENTIFIER values + prompt-family passthrough modes.
+    # Locked by tests/runtime/test_hydro_llm_matrix.py::TestIdentityModeConsistency.
     _TIMELLM_IDENTITY_MODES = frozenset(
         {
             'embedding',
