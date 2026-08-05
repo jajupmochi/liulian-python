@@ -168,6 +168,30 @@ reprogramming 用于河流/湖泊水温预测：零命中。** 相邻但不构�
   是姊妹论文的证据；Time-LLM 的加性注入位点按设计就在归一化之后
   （[01 §2](01-ARCHITECTURE-SPEC.md)）。
 
+### 3.5 综述定位核查 (2026-08-05 — 完整通读四篇综述)
+
+四篇 LLM-TS 综述（S1 [2402.01801](https://arxiv.org/abs/2402.01801) IJCAI'24、S2
+[2509.11575](https://arxiv.org/abs/2509.11575) TMLR'26 reasoning/agentic、S3
+[Zenodo 17492801](https://doi.org/10.5281/zenodo.17492801) prompts-to-agents、S4
+[2505.02583](https://arxiv.org/abs/2505.02583) IJCAI'25 cross-modality）已被逐字
+通读，并将本文的五条新颖性主张与其合计约 450 条引用进行了核对——完整笔记 +
+引用清单见 [05-SURVEY-NOTES.md](05-SURVEY-NOTES.md)。结论：**五条主张全部成立**；
+其中两条获得了论文中**必须引用并加以区分**的近邻工作：
+
+- 主张 (a)：CiK 的 context-on/off 协议、Tang et al. 2025 的 prompt 策略、
+  LLM-Prompt——没有一项在 entity 层面把 DEGRADED content 与 tuning regime
+  交叉考察；
+- 主张 (e)："context parroting"（Zhang & Gilpin 2505.11349）= 复制可预测的
+  CONTENT；本文指的是不携带任何可预测内容的 INDEX 信息。
+
+发现的最近邻工作（需在论文中加以区分）：DP-GPT4MTS（dual stats+soft
+prompts）、NNCL-TLLM（text prototypes × ln_only）、LLM-DSK（海洋领域知识
+prompt——唯一的环境类 prompt-content 工作）、Gurnee & Tegmark 2310.02207
+（frozen LLM 内部存在线性的地理表征——本文 `coordinates` 分支的理论支撑）。
+从综述中采纳的定位术语（pipeline stage、P_S/P_C prompt 类型、
+alignment-vs-fusion、`P = T_ctx(·, C, E)` 的 E-slot 形式化表达）——详见
+05 §2/§5。
+
 ## 4. 预注册假设（双向的——被推翻的分支同样具有可发表性）
 
 | # | 假设 | 若成立 | **若被推翻（同样值得报告）** |
