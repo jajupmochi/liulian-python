@@ -171,6 +171,28 @@ an open gap).
   the sibling-paper evidence; Time-LLM's additive site is post-normalization by design
   ([01 §2](01-ARCHITECTURE-SPEC.md)).
 
+### 3.5 Survey positioning pass (2026-08-05 — four surveys read in full)
+
+Four LLM-TS surveys (S1 [2402.01801](https://arxiv.org/abs/2402.01801) IJCAI'24, S2
+[2509.11575](https://arxiv.org/abs/2509.11575) TMLR'26 reasoning/agentic, S3
+[Zenodo 17492801](https://doi.org/10.5281/zenodo.17492801) prompts-to-agents, S4
+[2505.02583](https://arxiv.org/abs/2505.02583) IJCAI'25 cross-modality) were read
+cover-to-cover and our five novelty claims checked against their ~450 combined refs —
+full notes + citation list in [05-SURVEY-NOTES.md](05-SURVEY-NOTES.md). Net: **all five
+claims stand**; two acquired named neighbors the paper MUST cite and differentiate:
+
+- claim (a): CiK context-on/off protocol, Tang et al. 2025 prompt strategies, LLM-Prompt —
+  none crosses DEGRADED content × tuning regime at entity level;
+- claim (e): "context parroting" (Zhang & Gilpin 2505.11349) = copying forecastable
+  CONTENT; ours = INDEX information with no forecastable content.
+
+Nearest relatives found (differentiate in the paper): DP-GPT4MTS (dual stats+soft
+prompts), NNCL-TLLM (text prototypes × ln_only), LLM-DSK (ocean domain-knowledge prompts
+— the only environmental prompt-content work), Gurnee & Tegmark 2310.02207 (frozen LLMs
+hold linear geographic representations — the grounding for our `coordinates` arm).
+Positioning vocabulary adopted from the surveys (pipeline stage, P_S/P_C prompt types,
+alignment-vs-fusion, the `P = T_ctx(·, C, E)` E-slot formalism) — see 05 §2/§5.
+
 ## 4. Pre-registered hypotheses (two-sided — the null branches are publishable too)
 
 | # | hypothesis | if confirmed | **if refuted (equally reportable)** |
