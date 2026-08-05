@@ -927,7 +927,9 @@ def build_model(config: Dict[str, Any], dataset: Any = None) -> Any:
             )
 
     n_params = sum(p.numel() for p in model.parameters())
-    logger.info('Model: %s  (%.1fK params)', model_name, n_params / 1e3)
+    from liulian.utils.format import format_param_count
+
+    logger.info('Model: %s  (%s params)', model_name, format_param_count(n_params))
 
     return model
 
@@ -1390,12 +1392,10 @@ def _count_parameters(model: Any) -> Dict[str, int]:
 
 
 def _format_param_count(n: int) -> str:
-    """Format a parameter count with K/M suffix."""
-    if n >= 1_000_000:
-        return f'{n / 1_000_000:.2f}M'
-    if n >= 1_000:
-        return f'{n / 1_000:.1f}K'
-    return str(n)
+    """Format a parameter count (delegates to the shared T/G/M/K formatter)."""
+    from liulian.utils.format import format_param_count
+
+    return format_param_count(n)
 
 
 def print_experiment_info(config: Dict[str, Any]) -> None:

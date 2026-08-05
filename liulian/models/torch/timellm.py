@@ -447,7 +447,9 @@ class Model(nn.Module):
                     for p in module.parameters():
                         p.requires_grad = True
                         n_unfrozen += p.numel()
-            print(f'[timellm] llm_tuning=ln_only: unfroze {n_unfrozen} LayerNorm params')
+            from liulian.utils.format import format_param_count
+
+            print(f'[timellm] llm_tuning=ln_only: unfroze {format_param_count(n_unfrozen)} LayerNorm params')
         elif self.llm_tuning == 'lora':
             try:
                 from peft import LoraConfig, get_peft_model
@@ -464,11 +466,15 @@ class Model(nn.Module):
                 bias='none',
             )
             self.llm_model = get_peft_model(self.llm_model, lora_cfg)
-            print(f'[timellm] llm_tuning=lora: r={lora_cfg.r} alpha={lora_cfg.lora_alpha}')
+            from liulian.utils.format import format_param_count
+
+            _n_lora = sum(p.numel() for p in self.llm_model.parameters() if p.requires_grad)
+            print(f'[timellm] llm_tuning=lora: r={lora_cfg.r} alpha={lora_cfg.lora_alpha} '
+                  f'trainable={format_param_count(_n_lora)}')
         elif self.llm_tuning != 'frozen':
             raise ValueError(f'unknown llm_tuning={self.llm_tuning!r}; expected frozen/ln_only/lora')
 
-        if configs.prompt_domain:  # todo: what is this?
+        if configs.prompt_domain:
             self.description = configs.content
         else:
             self.description = 'The Electricity Transformer Temperature (ETT) is a crucial indicator in the electric power long-term deployment.'
