@@ -17,6 +17,7 @@
 | [03-ANALYSIS-PLAN.md](03-ANALYSIS-PLAN.md) | 核心分析文档：12 项实验菜单、理论框架、可视化 × 理论、贝叶斯/UQ、agent 方法、指标标准 | 分析结果/撰写分析章节时 |
 | [04-EXPERIMENT-STATUS.md](04-EXPERIMENT-STATUS.md) | 实时更新文档：层级（tiers）、集群作业、含 GPU-h 的排队任务、结果台账 | 查看/记录运行状态时 |
 | [05-SURVEY-NOTES.md](05-SURVEY-NOTES.md) | 完整通读的四篇 LLM-TS 综述：定位坐标、5 条主张的新颖性结论、引用清单、可借鉴之处 | 撰写相关工作 / 核查新颖性时 |
+| [06-KNOWLEDGE-VS-FITTING.md](06-KNOWLEDGE-VS-FITTING.md) | "知识还是曲线拟合？"——六条文献线索 + 12 项测试组合（parroting 基线、相似度相关性、物理探针） | 设计/解读机制类分析时 |
 | [figs/](figs/) | epoch 诊断图等 | — |
 
 ## 一段话概览当前状态 (2026-08-05)
