@@ -20,6 +20,7 @@ Usage (called by :class:`Experiment`, but can also be used standalone)::
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import sys
@@ -113,6 +114,17 @@ class ForecastTrainer:
         self.metric_names = self._parse_metric_names(self.config.get('metrics', ['rmse', 'mae', 'nse']))
         self.show_progress = bool(self.config.get('show_progress', True))
         self.nan_mask_loss = bool(self.config.get('nan_mask_loss', False))
+        # Training precision: 'fp32' (default — preserves the bit-exact Time-LLM
+        # verification anchor) or 'bf16' = MIXED precision (compute in bfloat16, master
+        # weights fp32; bf16 needs no GradScaler) — the Time-LLM-official setting
+        # (`accelerate launch --mixed_precision bf16` + ds_config bf16.enabled).
+        # ONE knob, two routes: without accelerate -> torch.autocast in this trainer;
+        # with use_accelerator -> Accelerate manages it. The effective route is
+        # resolved right after the accelerator is built (below), so the two
+        # mixed-precision contexts never stack.
+        self.precision = str(self.config.get('precision', 'fp32')).strip().lower()
+        if self.precision not in ('fp32', 'bf16'):
+            raise ValueError(f"precision must be 'fp32' or 'bf16', got {self.precision!r}")
         self.teacher_forcing = str(self.config.get('teacher_forcing', 'label')).strip().lower()
         self.eval_denorm = bool(self.config.get('eval_denorm', False))
         _idmode = str(self.config.get('identifier_mode', 'none')).strip().lower()
@@ -154,6 +166,22 @@ class ForecastTrainer:
         self.accelerator = build_accelerator(self.config)
         if self.accelerator is not None:
             self.device = self.accelerator.device
+
+        # Resolve the EFFECTIVE precision route now that the accelerator exists,
+        # and state it LOUDLY in the run output. bf16 autocast needs CUDA; when
+        # the accelerator is active it OWNS mixed precision (build_accelerator
+        # maps this same `precision` knob), so trainer-level autocast stays off
+        # to avoid stacking two mixed-precision contexts.
+        self._autocast_enabled = self.precision == 'bf16' and self.device.type == 'cuda' and self.accelerator is None
+        if self.accelerator is not None:
+            route = f'managed by accelerate (mixed_precision={self.accelerator.mixed_precision})'
+        elif self._autocast_enabled:
+            route = 'bf16 autocast mixed precision, Time-LLM-official-aligned'
+        elif self.precision == 'bf16':
+            route = 'bf16 requested but no CUDA available -> running full fp32'
+        else:
+            route = 'full fp32, bit-exact verification anchor'
+        print(f'[trainer] precision: {self.precision} ({route})')
 
         # Public state populated after fit()
         self.history: List[Dict[str, float]] = []
@@ -465,9 +493,15 @@ class ForecastTrainer:
                 fwd_kwargs: Dict[str, Any] = {}
                 if self.pass_entity_ids and batch_entity_idx is not None:
                     fwd_kwargs['entity_ids'] = batch_entity_idx
-                outputs = model(batch_x, batch_x_mark, dec_inp, batch_y_mark, **fwd_kwargs)
+                with self._autocast_ctx():
+                    outputs = model(batch_x, batch_x_mark, dec_inp, batch_y_mark, **fwd_kwargs)
                 if isinstance(outputs, tuple):
                     outputs = outputs[0]
+                # Under bf16 autocast the outputs are bfloat16; upcast before
+                # metrics/denorm — numpy (EntityScaler.inverse_transform) cannot
+                # take bf16, and the failure would be swallowed by the debug-level
+                # except below. No-op under fp32.
+                outputs = outputs.float()
 
                 f_dim = -1 if cfg.get('features') == 'MS' else 0
                 outputs = outputs[:, -pred_len:, f_dim:]
@@ -595,11 +629,12 @@ class ForecastTrainer:
                 fwd_kwargs: Dict[str, Any] = {}
                 if self.pass_entity_ids and batch_entity_idx is not None:
                     fwd_kwargs['entity_ids'] = batch_entity_idx
-                outputs = model(batch_x, batch_x_mark, dec_inp, batch_y_mark, **fwd_kwargs)
+                with self._autocast_ctx():
+                    outputs = model(batch_x, batch_x_mark, dec_inp, batch_y_mark, **fwd_kwargs)
                 if isinstance(outputs, tuple):
                     outputs = outputs[0]
 
-                outputs = outputs[:, -pred_len:, f_dim:].cpu()
+                outputs = outputs[:, -pred_len:, f_dim:].float().cpu()
                 targets = batch_y[:, -pred_len:, f_dim:]
 
                 all_preds.append(outputs)
@@ -730,16 +765,19 @@ class ForecastTrainer:
             fwd_kwargs: Dict[str, Any] = {}
             if self.pass_entity_ids and batch_entity_idx is not None:
                 fwd_kwargs['entity_ids'] = batch_entity_idx
-            outputs = model(batch_x, batch_x_mark, dec_inp, batch_y_mark, **fwd_kwargs)
-            if isinstance(outputs, tuple):
-                outputs = outputs[0]
+            # bf16 mixed precision wraps forward + loss (autocast upcasts
+            # mse_loss to fp32 internally); master weights & backward stay fp32.
+            with self._autocast_ctx():
+                outputs = model(batch_x, batch_x_mark, dec_inp, batch_y_mark, **fwd_kwargs)
+                if isinstance(outputs, tuple):
+                    outputs = outputs[0]
 
-            f_dim = -1 if cfg.get('features') == 'MS' else 0
-            outputs = outputs[:, -pred_len:, f_dim:]
-            targets = batch_y[:, -pred_len:, f_dim:]
+                f_dim = -1 if cfg.get('features') == 'MS' else 0
+                outputs = outputs[:, -pred_len:, f_dim:]
+                targets = batch_y[:, -pred_len:, f_dim:]
 
-            # --- NaN-masked loss ---
-            loss = self._masked_loss(criterion, outputs, targets)
+                # --- NaN-masked loss ---
+                loss = self._masked_loss(criterion, outputs, targets)
             losses.append(loss.item())
 
             if self.accelerator is not None:
@@ -799,6 +837,20 @@ class ForecastTrainer:
                 return criterion(outputs[mask], targets[mask])
             return torch.tensor(0.0, device=outputs.device, requires_grad=True)
         return criterion(outputs, targets)
+
+    def _autocast_ctx(self) -> contextlib.AbstractContextManager:
+        """bf16 autocast context for the forward(+loss) sites.
+
+        Active only when ``precision='bf16'`` AND CUDA AND no accelerator
+        (see ``__init__``); otherwise a ``nullcontext`` so the default fp32
+        path is byte-identical to the pre-knob behaviour (the Time-LLM
+        bit-exact verification anchor). bf16 keeps fp32 master weights and
+        needs no GradScaler, matching Time-LLM's
+        ``accelerate launch --mixed_precision bf16`` setup.
+        """
+        if self._autocast_enabled:
+            return torch.autocast(device_type='cuda', dtype=torch.bfloat16)
+        return contextlib.nullcontext()
 
     # ------------------------------------------------------------------
     # Metric/loss/progress helpers

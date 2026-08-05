@@ -13,6 +13,10 @@
 #
 # Free-tier guardrails (never change without explicit authorisation):
 #   --account=gratis  --qos=job_gratis  --gres=gpu:rtx4090:1  (max 2x4090 or 1xh100)
+#
+# Memory-bound cells (LLAMA arm, llm_layers=12 retrains): override the GPU at submit
+# time — CLI beats the header, account/qos stay gratis (1x H100 96 GB is gratis-legal):
+#   sbatch --gres=gpu:h100:1 --cpus-per-task=8 jobs/run_hydro_llm.sh
 
 #SBATCH --job-name=hydrollm
 #SBATCH --account=gratis

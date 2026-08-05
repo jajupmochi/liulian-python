@@ -257,6 +257,65 @@ this project's harness do: **train_epochs=30, patience=10** (the timellm_config.
 The dev-5 Tier-0 numbers below in §3 are validation-only and are SUPERSEDED by the 30-epoch
 run.
 
+## 6.5 Precision & parallelization (2026-08-05)
+
+### Precision: ONE knob, `precision: fp32|bf16`
+
+Time-LLM-official trains under **bf16 MIXED precision** (bfloat16 compute, fp32 master
+weights, no GradScaler), NOT pure-bf16 weights. Provenance:
+
+- `accelerate launch --multi_gpu --mixed_precision bf16` —
+  [scripts/TimeLLM_ETTh1.sh L14](https://github.com/KimMeen/Time-LLM/blob/main/scripts/TimeLLM_ETTh1.sh)
+- `"bf16": {"enabled": true, "auto_cast": true}` —
+  [ds_config_zero2.json](https://github.com/KimMeen/Time-LLM/blob/main/ds_config_zero2.json)
+- model-internal `x_enc.to(torch.bfloat16)` cast —
+  [models/TimeLLM.py](https://github.com/KimMeen/Time-LLM/blob/main/models/TimeLLM.py)
+
+Our implementation (`liulian/runtime/trainer.py`): the `precision` config knob routes to
+`torch.autocast(device_type='cuda', dtype=torch.bfloat16)` around the three forward(+loss)
+sites (train / evaluate / predict). Rules:
+
+- **`fp32` default** — a byte-identical no-op (`nullcontext`); preserves the bit-exact
+  Time-LLM verification anchor (§2.4).
+- **`bf16`** — enabled only on CUDA; on CPU it falls back to fp32 LOUDLY. The effective
+  route is always printed: `[trainer] precision: ... (...)`.
+- When the accelerator (below) is active, **accelerate owns mixed precision** — the same
+  `precision` knob maps to `Accelerator(mixed_precision=...)` in
+  `liulian/runtime/accelerator.py`, and trainer-level autocast is disabled so the two
+  never stack.
+- The hydro-LLM configs (`timellm_config.yaml`, `tier0_ettcontrol.yaml`) set
+  `precision: bf16` = fully Time-LLM-official-aligned, ~halves activation memory.
+- **Tier-boundary sync rule**: precision (like search-space edits) must NOT change
+  mid-tier — all cells of one comparison share one precision.
+
+### Parallelization: HF Accelerate + DeepSpeed ZeRO-2 (designed, INERT by default)
+
+Time-LLM's "parallelization tool" is HuggingFace **Accelerate** with **DeepSpeed ZeRO-2**.
+The liulian counterpart already sits at the right layer — **runtime**, beside the trainer:
+
+- `liulian/runtime/accelerator.py` — `build_accelerator(config)`; keys `use_accelerator`
+  (default **false** ⟹ inert), `mixed_precision` (auto-follows `precision`),
+  `deepspeed_config` (path), `find_unused_params`.
+- `ForecastTrainer` already calls `accelerator.prepare(model, optim, train_loader, sched)`
+  in `fit()` and `accelerator.backward(loss)` — nothing else in the pipeline needs to know.
+- The official ZeRO-2 JSON is vendored byte-identical at
+  `experiments/hydro_llm/configs/ds_config_zero2.json`; activate with
+  `use_accelerator: true` + `deepspeed_config: experiments/hydro_llm/configs/ds_config_zero2.json`
+  and launch via `accelerate launch` (a bare `python` run degenerates to single-process,
+  which is harmless but pointless).
+
+**HPO adaptation rule (why it stays off):** Ray Tune parallelizes ACROSS trials (each trial
+= 1 GPU); accelerate/DDP parallelizes WITHIN one training run. They compete for the same
+GPUs and accelerate's multi-process launch does not compose with Ray's trial workers — so:
+HPO sweeps → Ray trial-parallelism, `use_accelerator` off; accelerate is reserved for
+single-run big-model cells (the LLAMA-7B arm, post-HPO retrains) launched OUTSIDE Ray.
+
+**Memory-bound cells, before any parallelism**: the gratis tier allows 1× H100 96 GB
+(or H200 141 GB when scheduled) — override at submit time with
+`sbatch --gres=gpu:h100:1 --cpus-per-task=8 jobs/run_hydro_llm.sh` (CLI overrides the
+script's `rtx4090:1` header; account/qos stay gratis). 4× the 4090's 24 GB with zero code
+changes — prefer this over activating ZeRO.
+
 ## 7. Debugging the REAL entry (`run_matrix.py`)
 
 Debug the actual matrix entry, not a custom script (a custom driver diverges from the real

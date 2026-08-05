@@ -246,6 +246,63 @@ harness 的做法：**train_epochs=30，patience=10**（`timellm_config.yaml` �
 
 下方 §3 中的 dev-5 Tier-0 数值仅用于验证，已被 30-epoch 的运行取代。
 
+## 6.5 精度与并行化（2026-08-05）
+
+### 精度：单一旋钮 `precision: fp32|bf16`
+
+Time-LLM 官方使用的是 **bf16 混合精度**（bfloat16 计算、fp32 主权重、无需
+GradScaler），而不是纯 bf16 权重。出处：
+
+- `accelerate launch --multi_gpu --mixed_precision bf16` —
+  [scripts/TimeLLM_ETTh1.sh L14](https://github.com/KimMeen/Time-LLM/blob/main/scripts/TimeLLM_ETTh1.sh)
+- `"bf16": {"enabled": true, "auto_cast": true}` —
+  [ds_config_zero2.json](https://github.com/KimMeen/Time-LLM/blob/main/ds_config_zero2.json)
+- 模型内部的 `x_enc.to(torch.bfloat16)` 转换 —
+  [models/TimeLLM.py](https://github.com/KimMeen/Time-LLM/blob/main/models/TimeLLM.py)
+
+我们的实现（`liulian/runtime/trainer.py`）：`precision` 配置旋钮通过
+`torch.autocast(device_type='cuda', dtype=torch.bfloat16)` 包裹三处 forward(+loss)
+站点（train / evaluate / predict）。规则：
+
+- **默认 `fp32`** — 字节级无操作（`nullcontext`），保住与 Time-LLM 逐位一致的
+  验证锚点（§2.4）。
+- **`bf16`** — 仅在 CUDA 上生效；CPU 上会大声提示并回退 fp32。生效路径始终打印：
+  `[trainer] precision: ... (...)`。
+- 当 accelerator（见下）激活时，**混合精度由 accelerate 接管** — 同一个
+  `precision` 旋钮在 `liulian/runtime/accelerator.py` 中映射为
+  `Accelerator(mixed_precision=...)`，trainer 层的 autocast 同时被禁用，两者绝不叠加。
+- hydro-LLM 的配置（`timellm_config.yaml`、`tier0_ettcontrol.yaml`）已设
+  `precision: bf16` = 与 Time-LLM 官方完全对齐，激活显存约减半。
+- **Tier 边界同步规则**：precision（与搜索空间修改同一政策）不得在 tier 中途更改 —
+  同一组对比的所有 cell 必须共享同一种精度。
+
+### 并行化：HF Accelerate + DeepSpeed ZeRO-2（已设计，默认不启用）
+
+Time-LLM 的"并行化工具"就是 HuggingFace **Accelerate** 搭配 **DeepSpeed ZeRO-2**。
+liulian 中对应的层级已经就位 — **runtime 层**，与 trainer 并列：
+
+- `liulian/runtime/accelerator.py` — `build_accelerator(config)`；配置键
+  `use_accelerator`（默认 **false** ⟹ 不生效）、`mixed_precision`（自动跟随
+  `precision`）、`deepspeed_config`（路径）、`find_unused_params`。
+- `ForecastTrainer` 已在 `fit()` 中调用
+  `accelerator.prepare(model, optim, train_loader, sched)` 与
+  `accelerator.backward(loss)` — pipeline 其余部分无需感知。
+- 官方 ZeRO-2 JSON 已逐字节收录于
+  `experiments/hydro_llm/configs/ds_config_zero2.json`；启用方式为
+  `use_accelerator: true` + `deepspeed_config: experiments/hydro_llm/configs/ds_config_zero2.json`，
+  并用 `accelerate launch` 启动（裸 `python` 启动会退化为单进程，无害但无意义）。
+
+**HPO 适配规则（为什么保持关闭）**：Ray Tune 在 trial 之间并行（每 trial 占 1 GPU）；
+accelerate/DDP 在单次训练内部并行。二者争抢同一批 GPU，且 accelerate 的多进程启动
+方式与 Ray 的 trial worker 不兼容 — 因此：HPO 扫描 → 用 Ray 的 trial 并行、
+`use_accelerator` 关闭；accelerate 留给 Ray 之外启动的单次大模型 cell
+（LLAMA-7B 分支、post-HPO retrain）。
+
+**先换大显存，再考虑并行**：gratis 档允许 1× H100 96 GB（排到时也有 H200 141 GB）—
+提交时用 `sbatch --gres=gpu:h100:1 --cpus-per-task=8 jobs/run_hydro_llm.sh` 覆盖
+（CLI 覆盖脚本头部的 `rtx4090:1`；account/qos 保持 gratis）。零代码改动即得 4090
+的 4 倍显存 — 优先于启用 ZeRO。
+
 ## 7. 调试真实入口（`run_matrix.py`）
 
 调试真正的矩阵入口，而不是自定义脚本（自定义 driver 会偏离真实 pipeline——

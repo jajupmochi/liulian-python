@@ -992,3 +992,196 @@ class TestPassEntityIdsCoordinates:
 
         t = ForecastTrainer(config={'pred_len': 1, 'show_progress': False, 'identifier_mode': 'none'})
         assert t.pass_entity_ids is False
+
+
+# =====================================================================
+# Precision knob (bf16 mixed precision, Time-LLM-official-aligned)
+# =====================================================================
+
+
+class TestPrecisionKnob:
+    """The `precision` config knob: fp32 default is a no-op anchor; bf16 routes
+    to trainer autocast (CUDA only) or to accelerate when that is active.
+
+    Why it matters: Time-LLM-official trains under `accelerate launch
+    --mixed_precision bf16`; our default stays fp32 to preserve the bit-exact
+    verification anchor. A silent wrong route would either break the anchor
+    (autocast on by default) or fake the bf16 claim (knob set but inert).
+    """
+
+    @staticmethod
+    def _make(**overrides: Any):
+        from liulian.runtime.trainer import ForecastTrainer
+
+        cfg: Dict[str, Any] = {'pred_len': 1, 'show_progress': False}
+        cfg.update(overrides)
+        return ForecastTrainer(config=cfg)
+
+    def test_default_is_fp32_and_autocast_disabled(self):
+        import contextlib
+
+        t = self._make()
+        assert t.precision == 'fp32'
+        assert t._autocast_enabled is False
+        # fp32 path must be byte-identical: the context is a nullcontext
+        assert isinstance(t._autocast_ctx(), contextlib.nullcontext().__class__)
+
+    def test_invalid_precision_raises(self):
+        with pytest.raises(ValueError, match='precision'):
+            self._make(precision='fp16')
+
+    def test_bf16_on_cpu_falls_back_to_fp32_compute(self):
+        """bf16 requested but no CUDA -> autocast stays off (loud fallback)."""
+        t = self._make(precision='bf16')
+        assert t.precision == 'bf16'
+        if t.device.type != 'cuda':
+            assert t._autocast_enabled is False
+
+    @pytest.mark.skipif(not torch.cuda.is_available(), reason='needs CUDA')
+    def test_bf16_on_cuda_enables_autocast(self):
+        t = self._make(precision='bf16')
+        assert t._autocast_enabled is True
+        ctx = t._autocast_ctx()
+        assert isinstance(ctx, torch.autocast)
+
+    def test_bf16_training_runs_and_loss_finite(self):
+        """End-to-end: one fit() under precision=bf16 (CPU -> fp32 fallback path,
+        CUDA -> real autocast) produces finite losses. Guards the wrapped
+        forward+loss sites against dtype breakage."""
+        from liulian.runtime.trainer import ForecastTrainer
+
+        torch.manual_seed(0)
+        pred_len = 3
+        x = torch.randn(8, 6, 4)
+        y = torch.randn(8, pred_len, 4)
+        xm = torch.zeros(8, 6, 1)
+        ym = torch.zeros(8, pred_len, 1)
+        ds = TensorDataset(x, y, xm, ym)
+        loader = DataLoader(ds, batch_size=4)
+
+        class M(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.lin = nn.Linear(6, pred_len)
+
+            def forward(self, x_enc, x_mark, x_dec, y_mark):
+                return self.lin(x_enc.transpose(1, 2)).transpose(1, 2)
+
+        t = ForecastTrainer(
+            config={
+                'pred_len': pred_len,
+                'train_epochs': 1,
+                'patience': 5,
+                'learning_rate': 0.01,
+                'show_progress': False,
+                'precision': 'bf16',
+            }
+        )
+        summary = t.fit(M(), loader, loader)
+        assert math.isfinite(summary['history'][0]['train_loss'])
+
+
+    @pytest.mark.skipif(not torch.cuda.is_available(), reason='needs CUDA')
+    def test_bf16_eval_outputs_upcast_before_denorm(self):
+        """Regression: under bf16 autocast, evaluate() must upcast outputs to
+        fp32 BEFORE the inverse-transform/denorm path. Pre-fix, bf16 tensors hit
+        numpy (`.numpy()` raises on bfloat16), the exception was swallowed by the
+        debug-level except, and denorm metrics silently vanished (a hidden
+        test/dev fallback). Post-fix the denorm_* keys are present and finite."""
+        from liulian.runtime.trainer import ForecastTrainer
+
+        torch.manual_seed(0)
+        pred_len = 3
+        x = torch.randn(8, 6, 4)
+        y = torch.randn(8, pred_len, 4)
+        xm = torch.zeros(8, 6, 1)
+        ym = torch.zeros(8, pred_len, 1)
+        loader = DataLoader(TensorDataset(x, y, xm, ym), batch_size=4)
+
+        class M(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.lin = nn.Linear(6, pred_len)
+
+            def forward(self, x_enc, x_mark, x_dec, y_mark):
+                return self.lin(x_enc.transpose(1, 2)).transpose(1, 2)
+
+        def numpy_inverse(t: torch.Tensor, **kwargs) -> torch.Tensor:
+            # Mimics EntityScaler: goes through numpy, which REJECTS bfloat16.
+            return torch.from_numpy(t.cpu().numpy() * 2.0)
+
+        t = ForecastTrainer(
+            config={
+                'pred_len': pred_len,
+                'show_progress': False,
+                'precision': 'bf16',
+                'eval_denorm': True,
+            },
+            inverse_transform=numpy_inverse,
+        )
+        assert t._autocast_enabled is True
+        model = M().to(t.device)
+        result = t.evaluate(model, loader, metric_names=['mse'])
+        assert 'denorm_mse' in result, 'denorm metrics silently dropped (bf16 hit numpy)'
+        assert math.isfinite(result['denorm_mse'])
+
+
+class TestAcceleratorPrecisionMapping:
+    """build_accelerator must FOLLOW the `precision` knob when mixed_precision
+    is not set explicitly (one knob across both routes)."""
+
+    def _fake_accelerate(self, monkeypatch, captured: Dict[str, Any]):
+        from liulian.runtime import accelerator as accmod
+
+        class FakeAcc:
+            def __init__(self, mixed_precision=None, kwargs_handlers=None, deepspeed_plugin=None):
+                captured['mixed_precision'] = mixed_precision
+                self.mixed_precision = mixed_precision
+                self.device = torch.device('cpu')
+
+        monkeypatch.setattr(accmod, '_ACCELERATE_AVAILABLE', True)
+        monkeypatch.setattr(accmod, 'Accelerator', FakeAcc, raising=False)
+        monkeypatch.setattr(
+            accmod, 'DistributedDataParallelKwargs', lambda **kw: kw, raising=False
+        )
+
+    def test_precision_bf16_maps_to_mixed_precision_bf16(self, monkeypatch):
+        from liulian.runtime.accelerator import build_accelerator
+
+        captured: Dict[str, Any] = {}
+        self._fake_accelerate(monkeypatch, captured)
+        build_accelerator({'use_accelerator': True, 'precision': 'bf16'})
+        assert captured['mixed_precision'] == 'bf16'
+
+    def test_precision_fp32_maps_to_no(self, monkeypatch):
+        from liulian.runtime.accelerator import build_accelerator
+
+        captured: Dict[str, Any] = {}
+        self._fake_accelerate(monkeypatch, captured)
+        build_accelerator({'use_accelerator': True, 'precision': 'fp32'})
+        assert captured['mixed_precision'] == 'no'
+
+    def test_explicit_mixed_precision_wins(self, monkeypatch):
+        from liulian.runtime.accelerator import build_accelerator
+
+        captured: Dict[str, Any] = {}
+        self._fake_accelerate(monkeypatch, captured)
+        build_accelerator({'use_accelerator': True, 'precision': 'bf16', 'mixed_precision': 'no'})
+        assert captured['mixed_precision'] == 'no'
+
+    def test_trainer_autocast_off_when_accelerator_active(self, monkeypatch):
+        """When accelerate owns precision, trainer autocast must NOT stack."""
+        from liulian.runtime.trainer import ForecastTrainer
+
+        captured: Dict[str, Any] = {}
+        self._fake_accelerate(monkeypatch, captured)
+        t = ForecastTrainer(
+            config={
+                'pred_len': 1,
+                'show_progress': False,
+                'use_accelerator': True,
+                'precision': 'bf16',
+            }
+        )
+        assert t.accelerator is not None
+        assert t._autocast_enabled is False

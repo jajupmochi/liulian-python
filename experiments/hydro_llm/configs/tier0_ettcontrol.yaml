@@ -21,6 +21,9 @@
 
 # ── General ─────────────────────────────────────────────────────────────
 model: timellm
+# bf16 MIXED precision (Time-LLM-official-aligned; see timellm_config.yaml for
+# provenance). Same Tier-boundary sync rule: must match the promptfix arm.
+precision: bf16
 # 2026 = the project matrix standard (matrix.DEFAULT_SEEDS, default_config.yaml).
 # Time-LLM must share this seed with LSTM/PatchTST/DLinear or the cross-model
 # comparison is unfair (research-critic Q3). The published Time-LLM harness cells

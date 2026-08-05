@@ -13,7 +13,11 @@ Configuration keys (inside the trainer's ``config`` dict):
 Key                 Default   Description
 ==================  ========  ===============================================
 use_accelerator     False     Enable HF Accelerate integration
-mixed_precision     "no"      ``"no"`` / ``"fp16"`` / ``"bf16"``
+mixed_precision     (auto)    ``"no"`` / ``"fp16"`` / ``"bf16"``. When omitted
+                              it FOLLOWS the trainer's ``precision`` knob
+                              (``"bf16"`` -> ``"bf16"``, ``"fp32"`` -> ``"no"``)
+                              so precision is ONE knob across both routes;
+                              set it explicitly only to diverge (e.g. fp16).
 deepspeed_config    None      Path to a DeepSpeed JSON config (enables ZeRO)
 find_unused_params  True      ``DistributedDataParallelKwargs`` flag
 ==================  ========  ===============================================
@@ -55,7 +59,11 @@ def build_accelerator(config: Dict[str, Any]) -> Optional[Any]:
         logger.warning('use_accelerator=True but `accelerate` is not installed. Falling back to vanilla training.')
         return None
 
-    mixed_precision = config.get('mixed_precision', 'no')
+    # ONE precision knob: when mixed_precision is not set explicitly, follow
+    # the trainer-level `precision` knob so the accelerate route and the
+    # trainer-autocast route never disagree ('bf16' -> 'bf16', 'fp32' -> 'no').
+    default_mp = 'bf16' if str(config.get('precision', 'fp32')).strip().lower() == 'bf16' else 'no'
+    mixed_precision = config.get('mixed_precision', default_mp)
     find_unused = config.get('find_unused_params', True)
 
     kwargs_handlers = [

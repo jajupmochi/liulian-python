@@ -132,6 +132,7 @@ sensitivity, A1 richness); (f) Tier-2.4 identity×trainability interaction (lowe
 | 2.5 | Chronos(-2) zero-shot negative control | ~1 | "how far without learned entity embeddings" |
 | 2.4 | CAMELS-CH-Chem (86 hourly Swiss stations) | data 1–2 d | ⚠ station-ID alignment vs our 28 first (self-leakage) |
 | 1.11 | extend `timellm_swiss` llm_layers {3,6} → {3,6,12} (GPT-2 full depth) | +0 (same HPO budget) | official argparse DEFAULT is 6 but the PAPER scripts run llama_layers=32 (FULL backbone) — so "use the full backbone" is the paper-faithful arm; do NOT change the space mid-run (running Tier-0 cells sampled from {3,6}); apply at the next tier/rerun |
+| 1.12 | tier-boundary sync bundle: llm_layers {3,6,12} + `precision: bf16` (Time-LLM-official mixed precision, [01 §6.5](01-ARCHITECTURE-SPEC.md)) | −GPU-mem/-time | LOCAL committed, cluster sync ONLY at the Tier-0→Tier-1 boundary — mid-tier sync would mix precisions/spaces within one comparison; running Tier-0 arms stay fp32+{3,6} throughout (both jobs 11594547/11623379 and any --resume requeues of them) |
 
 ## 5. Results ledger (fill as cells land)
 

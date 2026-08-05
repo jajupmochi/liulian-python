@@ -16,6 +16,22 @@
 
 # ── General ─────────────────────────────────────────────────────────────
 model: timellm
+# bf16 MIXED precision, matching Time-LLM-official exactly: their runs go through
+# `accelerate launch --mixed_precision bf16` (scripts/TimeLLM_ETTh1.sh L14) +
+# ds_config_zero2.json {"bf16":{"enabled":true,"auto_cast":true}} — compute in
+# bfloat16, fp32 master weights, no GradScaler. Implemented as torch.autocast in
+# ForecastTrainer (or handed to accelerate when use_accelerator=true).
+# CLUSTER SYNC RULE: apply only at a Tier boundary — never mid-tier, or cells of
+# the same comparison would mix precisions (same policy as search-space edits).
+precision: bf16
+# ── Parallelization (designed, INERT — do not enable inside Ray HPO) ─────
+# Time-LLM's tool is HF Accelerate + DeepSpeed ZeRO-2. Wired in
+# liulian/runtime/accelerator.py + trainer; OFF by default. Reserved for
+# single-run big-model cells (LLAMA arm / post-HPO retrain) launched via
+# `accelerate launch` OUTSIDE Ray — Ray parallelizes across trials and does
+# not compose with accelerate's multi-process launch (see 01-ARCHITECTURE-SPEC §6.5).
+# use_accelerator: true
+# deepspeed_config: experiments/hydro_llm/configs/ds_config_zero2.json
 # 2026 = the project matrix standard (matrix.DEFAULT_SEEDS, default_config.yaml).
 # Time-LLM must share this seed with LSTM/PatchTST/DLinear or the cross-model
 # comparison is unfair (research-critic Q3). The published Time-LLM harness cells
