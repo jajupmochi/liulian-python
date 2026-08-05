@@ -214,24 +214,12 @@ class Model(nn.Module):
         else:
             self.text_proj = None
 
-        # Import transformers here to make it optional
-        from transformers import (
-            LlamaConfig,
-            LlamaModel,
-            LlamaTokenizer,
-            GPT2Config,
-            GPT2Model,
-            GPT2Tokenizer,
-            BertConfig,
-            BertModel,
-            BertTokenizer,
-            AutoConfig,
-            AutoModel,
-            AutoTokenizer,
-            AutoModelForCausalLM,
-        )
-
+        # transformers imports are LAZY, per backbone branch: only the chosen backbone's
+        # classes are imported (keeps transformers optional AND avoids loading the other
+        # model families' modules at construction time).
         if configs.llm_model == 'LLAMA':
+            from transformers import LlamaConfig, LlamaModel, LlamaTokenizer
+
             self.llama_config = LlamaConfig.from_pretrained('huggyllama/llama-7b')
             # # todo: use this?
             # self.llama_config = LlamaConfig.from_pretrained('meta-llama/Llama-2-7b-hf')
@@ -270,6 +258,8 @@ class Model(nn.Module):
                     local_files_only=False,
                 )
         elif configs.llm_model == 'GPT2':
+            from transformers import GPT2Config, GPT2Model, GPT2Tokenizer
+
             self.gpt2_config = GPT2Config.from_pretrained('openai-community/gpt2')
             self.gpt2_config.num_hidden_layers = configs.llm_layers
             self.gpt2_config.output_attentions = True
@@ -305,6 +295,8 @@ class Model(nn.Module):
                     local_files_only=False,
                 )
         elif configs.llm_model == 'BERT':
+            from transformers import BertConfig, BertModel, BertTokenizer
+
             self.bert_config = BertConfig.from_pretrained('google-bert/bert-base-uncased')
             self.bert_config.num_hidden_layers = configs.llm_layers
             self.bert_config.output_attentions = True
@@ -341,6 +333,8 @@ class Model(nn.Module):
                 )
 
         elif configs.llm_model == 'TINYLLAMA':
+            from transformers import AutoConfig, AutoModel, AutoTokenizer
+
             self.llm_config = AutoConfig.from_pretrained('TinyLlama/TinyLlama-1.1B-Chat-v1.0')
             self.llm_config.num_hidden_layers = configs.llm_layers
             self.llm_config.attn_implementation = 'eager'
@@ -380,6 +374,8 @@ class Model(nn.Module):
                 )
 
         elif configs.llm_model == 'QWEN':
+            from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
+
             self.llm_config = AutoModelForCausalLM.from_pretrained('Qwen/Qwen-7B-Chat').config
             self.llm_config.num_hidden_layers = configs.llm_layers
             self.llm_config.output_attentions = True
