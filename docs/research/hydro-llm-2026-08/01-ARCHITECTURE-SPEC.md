@@ -157,6 +157,19 @@ CLUSTER note: the cluster caches gpt2 (complete, vocab 50257) AND now `huggyllam
 2. **Backbone decision**: GPT-2 124M with `llm_layers=6` (LLaMA-7B was infeasible on a
    gratis RTX4090; its weights are NOW cached on the cluster, so a LLaMA sensitivity arm is
    schedulable — see [04](04-EXPERIMENT-STATUS.md)).
+   **llm_layers provenance (verified 2026-08-05)**: the official argparse DEFAULT is 6
+   (run_main.py:99) but the PAPER-RESULT scripts run `llama_layers=32` — full LLaMA-7B
+   ("full capacity", paper §4) — a real code-vs-paper trap for anyone "using defaults".
+   Our GPT-2(6) is itself a PAPER-DOCUMENTED variant: Table 6 A.4 = GPT-2(6), 2.7% worse
+   than A.3 GPT-2(12), 14.7%+ worse than Llama-32 on THEIR benchmarks. The field then
+   split: critique papers reproduce at Llama-32 (Tan et al. scripts); method papers build
+   on truncated GPT-2 (CALF: "first 6 Transformer layers"; FSCA: 4–6 layers OPTIMAL, more
+   overfits — contradicting the paper's scaling claim); Rethinking-LLM-TSF
+   ([2602.14744](https://arxiv.org/abs/2602.14744)) dissents (full-depth GPT-2 matters;
+   Qwen-3 still doesn't reliably help); Few-Govern-the-Many
+   ([2511.07237](https://arxiv.org/abs/2511.07237)): <30% of layers suffices on >95% of
+   tasks. ⟹ 6-vs-12 is genuinely contested — settled empirically by the queued
+   `llm_layers {3,6,12}` HPO extension (04 task 1.11), not by citation.
 3. **Per-sample identity mechanism (the corrected H4 wiring)**: the harness/pipeline is
    channel-independent at the data layer (each sample is ONE station's window), so identity
    must be threaded PER-SAMPLE (entity_ids kwarg / x_mark column) — the original `b % N`
