@@ -420,6 +420,10 @@ def _load_prompt_content(config: Dict[str, Any]) -> str:
     A missing VARIANT file raises (an ablation arm must never silently run with the
     wrong description); only a missing DEFAULT file falls back to the generic sentence
     (non-swiss datasets without an authored bank entry).
+
+    PROVENANCE: every factual phrase in the swiss bank files is sourced (measured from
+    the local CSVs / benchmark construction code / published literature) in
+    docs/research/hydro-llm-2026-08/02-PROMPT-DESIGN.md §10.
     """
     variant = str(config.get('prompt_variant', 'domain'))
     if variant == 'none':
@@ -739,7 +743,7 @@ def build_model(config: Dict[str, Any], dataset: Any = None) -> Any:
     # Locked by tests/runtime/test_hydro_llm_matrix.py::TestIdentityModeConsistency.
     _TIMELLM_IDENTITY_MODES = frozenset(
         {
-            'embedding',
+            'embedding',  # This is numeric embedding
             'random_embedding',
             'soft_prompt',
             'entity_description',

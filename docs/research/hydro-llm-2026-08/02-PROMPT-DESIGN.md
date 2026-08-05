@@ -324,3 +324,36 @@ ladder (kills the "your prompt was just poor" attack), the distinguisher control
 (symbol/shuffled), the frozen/LoRA cross (H2), and the probes/patching analyses that locate
 WHERE text fails. Cheapest-to-raise reviewer attack = prompt quality; it is answered by
 design, not rebuttal.
+
+## 10. Prompt-content provenance — phrase by phrase (verified 2026-08-05)
+
+Every claim in `dataset/prompt_bank/wt-swiss-1990.txt` traced to a source. Types:
+**MEASURED** = computed from the local data files this round (script in the commit);
+**REPO** = the swiss-river-network-benchmark construction code; **LIT** = published source.
+
+| phrase | type | evidence |
+|---|---|---|
+| "daily mean water temperature" | MEASURED + REPO | `epoch_day` spacing = 1 day (mostly; see gaps row); loader = `RawBafuReaderFactory.create_water_temperature_alltime_reader()` ([data_preparation.py L73](https://github.com/jajupmochi/swiss-river-network-benchmark)) — BAFU daily means |
+| "in degrees Celsius" | MEASURED + LIT | value range −0.3..26.6 (only plausible in °C); FOEN station pages report °C ([station 2091](https://www.hydrodaten.admin.ch/en/seen-und-fluesse/stations/2091)) |
+| "from 28 hydrometric stations" | MEASURED | 28 `<id>_wt` columns in `dataset/swiss_river/swiss-1990_{train,test}.csv` |
+| "the Swiss federal monitoring network (BAFU/FOEN)" | REPO + LIT | BAFU reader in data_preparation.py; station 2091 page: "Messstation… Federal Office for the Environment FOEN" ([hydrodaten.admin.ch](https://www.hydrodaten.admin.ch/en/seen-und-fluesse/stations/2091)) |
+| "on the Rhein and Rhone river systems" | REPO | `create_1990_graph()` builds the 1990 set from `rhein_reader('-1990')` + `rohne_reader('-1990')` ONLY (data_preparation.py L177-179) — two disjoint sub-networks |
+| "recorded continuously" | MEASURED (with caveat) | 0 NaN cells in all 283,024 wt values; CAVEAT: `epoch_day` has occasional short gaps (a few 2-day, one 13-day over 31 years) because upstream row-dropping removed incomplete days — "continuously" is a fair summary; v2 wording candidate: "near-continuously" |
+| "since 1990" | MEASURED | first row = 1990-01-02, last = 2020-12-31 (train 1990–2012 + test) |
+| "shows a strong annual cycle" | MEASURED | day-of-year climatology R² per station: mean 0.892, min 0.775 (28/28 stations) |
+| "between roughly 2 and 25 degrees Celsius" | MEASURED (approximate) | global extremes −0.3..26.6; per-value p01/p99 = 1.55/22.31 — "roughly 2–25" is the typical envelope between quantiles and extremes |
+| "follows air temperature with a damped seasonal cycle" | MEASURED + LIT | MEASURED: per-station seasonal amplitude ratio wt/at mean 0.55 (28/28 < 1 = damped), wt lags at by ~12 days; LIT: air2stream ([Toffolon & Piccolroaz 2015 ERL](https://iopscience.iop.org/article/10.1088/1748-9326/10/11/114011)) formalizes the damped/lagged coupling; [Caissie 2006 review](https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1365-2427.2006.01597.x); Michel et al. 2020: air temperature "is the main driver" |
+| "alpine snowmelt lowers early-summer temperatures" | LIT (mechanism) + INFERRED (timing) | [Michel et al. 2020, HESS 24:115](https://hess.copernicus.org/articles/24/115/2020/): "snow and glacier melt compensates for air temperature warming trends in a transient way in alpine streams" (cold meltwater input). The "early-summer" localization is a standard inference from melt-season timing, not a verbatim quote |
+| "lake outflows smooth short-term variability" | LIT | Michel et al. 2020: lakes "smooth out local effects such as snow or glacier melt or precipitation" (long residence times); outlet trends ≈ air-temperature trends. Direct Swiss-context support |
+| "long-term trend is about +0.27 °C per decade" | **MEASURED (this dataset)** — differs from the national literature figure | MEASURED: Theil-Sen slope of annual means (years with ≥300 days), 1990–2020, median across the 28 stations = **+0.268**, mean +0.257 (window-sensitive: 1990–2018 gives +0.21); per-station range +0.11..+0.40. LIT (different window + station set): the national figure is **+0.33±0.03 °C/decade for 1979–2018** (Michel et al. 2020; independently on the [FOEN watercourse-temperature page](https://www.bafu.admin.ch/bafu/en/home/topics/water/state-of-watercourses/watercourse-temperatures.html), "approximately 80% of the increase in air temperatures"). The prompt describes THIS dataset, so the dataset-measured +0.27 stands; the paper's related-work text must quote +0.33 for the national record |
+
+Cross-file caveats (v2 wording candidates — do NOT change texts mid-run; the running
+Tier-0 jobs read these files, and cells within one run must share one prompt version):
+
+1. `wt-swiss-2010.txt` and `wt-zurich.txt` carry the same trend sentence, but the trend
+   was MEASURED on the 1990 set only; the 2010 window (2005–2017, 13 y) is too short for a
+   reliable trend. v2: qualitative "long-term warming" or the national +0.33 figure there.
+2. "recorded continuously" → "near-continuously" (13-day max gap caveat above).
+
+Sidecar provenance pointer lives at `dataset/prompt_bank/README.md` (the loader reads only
+exact `<key>.txt` names, so the README is never fed to the model).
