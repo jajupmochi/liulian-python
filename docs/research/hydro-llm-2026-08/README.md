@@ -19,6 +19,7 @@ verification, N-series analyses, channel-ablation audit, the 5-paper program, ST
 | [03-ANALYSIS-PLAN.md](03-ANALYSIS-PLAN.md) | THE analysis doc: 12-item experimental menu, theory frames, visualization × theory, Bayesian/UQ, agent approaches, metric standards | analyzing results / writing the analysis section |
 | [04-EXPERIMENT-STATUS.md](04-EXPERIMENT-STATUS.md) | LIVING: tiers, cluster jobs, queued tasks with GPU-h, results ledger | checking/recording run status |
 | [05-SURVEY-NOTES.md](05-SURVEY-NOTES.md) | four LLM-TS surveys read in full: positioning coordinates, 5-claim novelty verdict, citation list, borrowables | writing related work / checking novelty |
+| [06-KNOWLEDGE-VS-FITTING.md](06-KNOWLEDGE-VS-FITTING.md) | "knowledge or curve-fitting?" — 6-strand literature + 12-test battery (parroting baseline, similarity correlation, physical probes) | designing/interpreting the mechanism analyses |
 | [figs/](figs/) | epoch diagnostic etc. | — |
 
 ## State in one paragraph (2026-08-05)
