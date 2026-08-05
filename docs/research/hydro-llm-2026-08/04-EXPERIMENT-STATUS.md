@@ -10,8 +10,9 @@ cells complete. Hypotheses in [00 §4](00-RESEARCH-PLAN.md); mode definitions in
 
 | job | what | config | state |
 |---|---|---|---|
-| 11557210 | Tier-0, 7 cells, 50-sample HPO | OLD ETT-description prompt (now the "irrelevant-description control") | RUNNING since 2026-08-04 ~12:39, cell 1 HPO in progress; will span multiple 24h gratis windows (`--resume` continues) |
-| 11594547 | Tier-0 promptfix, 7 cells, 24-sample HPO | FIXED swiss prompts (`prompt_domain: 1`, P3 descriptions), explicit `--config` | resubmitted 2026-08-05 ~01:5x after the debug-toggle incident (see [01 §8]/commit `aa8b222`); cell 1 re-running |
+| ~~11557210~~ | Tier-0, 7 cells, **50-sample** HPO | old ETT-description control | **TIMEOUT at 24h with 0/7 cells** (2026-08-05 ~12:39) — one cell's 50-trial HPO exceeds a gratis window; 50 vs 24 samples was also an unfair control. SUPERSEDED by 11623379. |
+| 11594547 | Tier-0 promptfix, 7 cells, 24-sample HPO | FIXED swiss prompts (`prompt_domain: 1`, P3), explicit `--config` | RUNNING (resubmitted 2026-08-05 ~01:5x after the debug-toggle incident, commit `aa8b222`) |
+| 11623379 | Tier-0 ETT control, 7 cells, **24-sample** HPO (matched) | `configs/tier0_ettcontrol.yaml` = timellm_config.yaml with ONLY `prompt_domain: 0` | submitted 2026-08-05 ~12:45, PENDING |
 
 Harness-era anchor numbers (n=3, superseded for the paper by these reruns): see
 [00 §2](00-RESEARCH-PLAN.md).
