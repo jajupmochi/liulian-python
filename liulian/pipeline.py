@@ -402,7 +402,7 @@ def _load_prompt_content(config: Dict[str, Any]) -> str:
     """Load the dataset-description text for LLM-based models (e.g. TimeLLM).
 
     The generalized Level-A1 ``prompt_variant`` knob selects WHICH description
-    (docs/research/2026-08-04-prompt-design/00-PROMPT-DESIGN.md):
+    (docs/research/hydro-llm-2026-08/02-PROMPT-DESIGN.md):
 
     * ``domain``  (default) -> ``<key>.txt``      (P3: canonical + hydrology physics)
     * ``canonical``          -> ``<key>.P0.txt``  (P0: Time-LLM ETT.txt-style)

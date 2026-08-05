@@ -11,7 +11,7 @@
     │  Why retired: (1) no HPO here; (2) no NaN handling, so swiss-2010/zurich │
     │  produce NaN metrics; (3) its numbers are not comparable with the other │
     │  models because it is a different code path. See                        │
-    │  docs/research/2026-08-03-hydro-llm-levels/00-MASTER-SPEC.md §2, §5.     │
+    │  docs/research/hydro-llm-2026-08/01-ARCHITECTURE-SPEC.md §2, §8.     │
     │                                                                         │
     │  Kept ONLY as an official-Time-LLM reproduction reference. No matrix /   │
     │  runner may import or call it.                                          │
@@ -805,7 +805,7 @@ if __name__ == '__main__':
         'experiments/swiss_river/run_experiment.py is DEPRECATED (2026-08-03) and is no '
         'longer an experiment entry. Use experiments/hydro_llm/run_matrix.py (pipeline + '
         'Ray Tune HPO + NaN masking). This harness is kept only as an official-Time-LLM '
-        'reproduction reference. See docs/research/2026-08-03-hydro-llm-levels/00-MASTER-SPEC.md.',
+        'reproduction reference. See docs/research/hydro-llm-2026-08/01-ARCHITECTURE-SPEC.md.',
         DeprecationWarning,
         stacklevel=2,
     )

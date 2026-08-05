@@ -111,7 +111,7 @@ class Model(nn.Module):
         # configs.num_entities); None otherwise so other modes are unaffected.
         self.identifier_mode: str = getattr(configs, 'identifier_mode', 'none')
 
-        # Generalized Level-A1 prompt-content knobs (docs/research/2026-08-04-prompt-design/):
+        # Generalized Level-A1 prompt-content knobs (docs/research/hydro-llm-2026-08/02-PROMPT-DESIGN.md):
         #   prompt_variant: which DESCRIPTION the prompt carries. 'none' = the whole text
         #     prefix is SKIPPED (Time-LLM's own "w/o Prompt-as-Prefix" ablation arm);
         #     minimal/canonical/domain select the prompt_bank variant (resolved by the

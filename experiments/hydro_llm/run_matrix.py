@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Hydro-LLM identity matrix — THE experiment entry (pipeline-driven).
 
-LOCKED ARCHITECTURE (docs/research/2026-08-03-hydro-llm-levels/00-MASTER-SPEC.md §2):
+LOCKED ARCHITECTURE (docs/research/hydro-llm-2026-08/01-ARCHITECTURE-SPEC.md §2):
 
     this runner  →  experiments.run.run_with_config  →  liulian pipeline
                     (train / valid / eval + Ray Tune HPO + per-station NaN masking)
@@ -63,7 +63,7 @@ from experiments.entity_identifier.run import _load_latest_status_by_job  # noqa
 from liulian.pipeline import has_entity_descriptions  # noqa: E402
 
 # --------------------------------------------------------------------------
-# Matrix axes (the level taxonomy). See 00-MASTER-SPEC.md §1.
+# Matrix axes (the level taxonomy). See 01-ARCHITECTURE-SPEC.md §1.
 # --------------------------------------------------------------------------
 
 #: Level-A peer modes. `numeric_embedding` is the renamed old `embedding`.
@@ -98,9 +98,9 @@ IMPLEMENTED_TUNING: tuple[str, ...] = ('frozen', 'ln_only', 'lora')
 PLANNED_TUNING: tuple[str, ...] = ()
 
 #: Orthogonal axis: base LLM backbone (as in the original Time-LLM paper). GPT2 + BERT
-#: verified locally (build+forward). LLAMA's code branch exists but its 7B weights are heavy
-#: and not on the cluster, so it stays gated. NOTE: BERT/LLAMA weights must be synced to the
-#: cluster (it currently caches only gpt2) before a cluster backbone sweep.
+#: verified locally (build+forward). LLAMA weights are cached on the CLUSTER since
+#: 2026-08-04 (huggyllama/llama-7b, loads OK) — the branch stays PLANNED here only until a
+#: cluster LLAMA cell is smoke-verified. BERT weights still need a cluster sync.
 IMPLEMENTED_BACKBONES: tuple[str, ...] = ('GPT2', 'BERT')
 PLANNED_BACKBONES: tuple[str, ...] = ('LLAMA',)
 

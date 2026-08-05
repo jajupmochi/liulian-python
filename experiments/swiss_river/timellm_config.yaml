@@ -79,7 +79,7 @@ llm_model: GPT2                   # GPT2 | LLAMA | BERT
 llm_dim: 768
 llm_layers: 6
 # 1 => the dataset description comes from dataset/prompt_bank/<key>.txt (authored swiss
-# water-temperature text, P3 variant — see docs/research/2026-08-04-prompt-design/).
+# water-temperature text, P3 variant — see docs/research/hydro-llm-2026-08/02-PROMPT-DESIGN.md).
 # 0 was a BUG for swiss: it used Time-LLM's hardcoded ETT (electricity) description.
 prompt_domain: 1
 # llm_tuning: frozen              # PLANNED: frozen | ln_only | lora (see timellm.py:334)

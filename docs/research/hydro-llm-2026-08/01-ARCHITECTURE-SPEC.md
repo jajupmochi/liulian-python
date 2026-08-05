@@ -1,13 +1,10 @@
-> **Language:** English | [中文](00-MASTER-SPEC.zh.md)
+> **Language:** English | [中文](01-ARCHITECTURE-SPEC.zh.md)
 
-# Hydro-LLM identity study — master spec (LOCKED architecture)
+# 01 · Architecture spec — taxonomy, locked design, implementation status (LOCKED)
 
-> Single source of truth for the entity-identity × Time-LLM × hydrology study.
-> Created 2026-08-03 per the user's `/goal`. **The architecture in §2 is LOCKED —
-> do not "improve" or reroute it again.** Prior churn (harness vs pipeline, two
-> entry points, seed drift) is retired here.
-
----
+Part of the consolidated hydro-LLM doc set ([README](README.md)). Experiment tiers and
+run status live in [04-EXPERIMENT-STATUS.md](04-EXPERIMENT-STATUS.md); prompt content in
+[02-PROMPT-DESIGN.md](02-PROMPT-DESIGN.md); analyses in [03-ANALYSIS-PLAN.md](03-ANALYSIS-PLAN.md).
 
 ## 1. The level taxonomy (identity injection)
 
@@ -150,88 +147,84 @@ killing the prompt — this caught an incomplete local gpt2 AND bert cache), and
 CLUSTER note: the cluster caches gpt2 (complete, vocab 50257) AND now `huggyllama/llama-7b`
 (downloaded 2026-08-04, loads OK). BERT weights still need a sync before a cluster BERT sweep.
 
-## 3. Experiment plan (task 6/7 — priorities, order, ablations)
 
-Status legend: ✅ done · 🔵 code-ready, not run · ⚪ not implemented · 🧪 ablation.
+## 2.4 Verification anchors (from the 2026-06-24 verification round)
 
-### Tier 0 — flagship baselines (run FIRST on cluster, 3 swiss datasets)
+1. **Bit-identical port**: our Time-LLM vs the official repo (GPT-2, ETTh1@96, fp32) —
+   per-epoch Train/Vali/Test losses IDENTICAL; best Test MSE 0.3908 / MAE 0.4159
+   (early-stop ~e10). One benign divergence documented: we keep fp32 at patch embedding
+   where the official casts bf16.
+2. **Backbone decision**: GPT-2 124M with `llm_layers=6` (LLaMA-7B was infeasible on a
+   gratis RTX4090; its weights are NOW cached on the cluster, so a LLaMA sensitivity arm is
+   schedulable — see [04](04-EXPERIMENT-STATUS.md)).
+3. **Per-sample identity mechanism (the corrected H4 wiring)**: the harness/pipeline is
+   channel-independent at the data layer (each sample is ONE station's window), so identity
+   must be threaded PER-SAMPLE (entity_ids kwarg / x_mark column) — the original `b % N`
+   scheme was invalid (everyone got description[0]). The pipeline trainer passes
+   `entity_ids` for every identity mode ([trainer.py] pass_entity_ids).
+4. **Prompt-text rule (pre-registered risk)**: a frozen LLM may ignore proper names —
+   prefer DESCRIPTIVE text ("alpine river station, elevation 1200 m") over bare names in
+   authored descriptions; the A1 ladder measures exactly this.
+5. **Frozen-backbone caveat** (entity-id-deep): with a frozen LLM the entity signal can
+   only act through TRAINABLE components (reprogramming/head for Time-LLM; LayerNorm for
+   GPT4TS-style ln_only) — which is what makes the llm_tuning axis informative at all.
 
-RUNNING on UBELIX gratis: job **11557210** (`hydro-tier0-2026-08-04b`), `--phase full`
-(Ray Tune HPO over `timellm_swiss`), single seed 2026. The `entity_description` guardrail
-auto-skips 2010/zurich (no station text) → **7 cells** (1990 all 3 modes; 2010/zurich none +
-numeric_embedding). As of the last poll cell 1 (1990 none) HPO is exploring the space
-(trials at d_ff∈{32,128,256}, d_model∈{16,32,64}, lr∈{1e-3,1e-2}, llm_layers∈{3,6}). Full
-data (163968 train windows) + 50 HPO trials is heavy; the 7-cell sweep likely spans multiple
-24h gratis windows (`--resume` continues on requeue).
+## 3. The full identity-injection design space (origin of the taxonomy)
 
-| # | cells | status | note |
+The Level taxonomy above is the implemented projection of the full design space surveyed
+2026-07-25 (verified precedents per mechanism). Mapping and coverage:
+
+| # | mechanism | precedent | our mode | status |
+|---|---|---|---|---|
+| a1 | bare ID text ("station k") | Time-LLM PaP | A1 `minimal` | ✅ |
+| a2 | domain/dataset instruction | UniTime | `prompt_variant: minimal` (dataset level) | ✅ |
+| a3 | rich description (river/town/coords) | CHARM channel description | A1 `default` | ✅ |
+| a4 | statistics as natural language | Time-LLM PaP stats block | A1 `stats` + `prompt_stats` knob | ✅ |
+| b | learned per-entity continuous prefix | Prefix-Tuning · P-Tuning v2 · TEST · S²IP-LLM | Level-A `soft_prompt` | ✅ |
+| c | additive to patch/token embeddings | Time-LLM · C-LoRA | Level-A `numeric_embedding` (+A2 sub-variants) | ✅ |
+| d | FiLM / cross-attention modulation | FiLM · TFT static encoder · CHARM | — | ⚪ not planned (CHARM occupies the niche; invasive hooks under a frozen backbone) |
+| e | per-entity LoRA (identity as parameters) | C-LoRA (CIKM 2024) | — | ⚪ deferred (collinear with the LoRA axis, low marginal info) |
+| f | retrieval / prototype routing (cluster ID) | CCM (NeurIPS 2024) | — | ⚪ candidate: tests whether individual identity is over-parameterized |
+| g | text EMBEDDING injection (sentence-encode → project) | CHARM · LETS-C · TimeCMA | Level-A `text_embedding` | ✅ |
+| — | distinguisher controls | Min et al. 2022 (NLP) · Li et al. 2022 (hydrology) | A1 `symbol` / `shuffled` + A2 `random` | ✅ |
+
+The 2×2 organizing view (representation: text vs learned × injection position: prefix vs
+additive) is exactly {a1/a3 ↔ b} × {g ↔ c} — the "three-point comparison upgraded to a
+complete design space".
+
+## 4. The llm_tuning axis (PEFT ladder, verified configs)
+
+Three rungs, conservative-first (28 stations × ~8k daily steps is a clear overfitting-risk
+regime for anything bigger — see 00-RESEARCH-PLAN §compute-reality):
+
+| rung | what trains | size | precedent |
 |---|---|---|---|
-| T0.1 | `none` × {1990,2010,zurich} | 🟡 running | pipeline handles 2010/zurich NaN |
-| T0.2 | `entity_description` × 1990 | 🟡 running | text identity; 2010/zurich auto-skipped (no station text) |
-| T0.3 | `numeric_embedding` (learnable) × 3 | 🟡 running | the ~−19% effect |
+| `frozen` | reprogramming + head only | 0 LLM params | Time-LLM default |
+| `ln_only` | LayerNorm γ/β (+wpe) | ~20-40k params | GPT4TS (NeurIPS'23 Spotlight, trains ~4.6%) |
+| `lora` | r=4, α=8, target `c_attn`, dropout 0.1 | ~74k (0.06% of GPT-2) | CALF (AAAI'25); Beyond-LoRA ([2409.11302](https://arxiv.org/abs/2409.11302)): rank 2 already suffices on Chronos-Tiny; ranking FourierFT > BitFit > LayerNorm ≈ LoRA |
 
-> Prior harness numbers (seed 2026, NO HPO): 1990 none 0.014177, text 0.014485 (+2.2%),
-> learnable-emb 0.011433 (−19.4%), random-emb 0.011569 (−18.4%). These are SUPERSEDED by
-> the pipeline+HPO reruns (kept only as a sanity reference; 2010/zurich were NaN on the
-> harness).
+Implementation caveats (verified): GPT-2's `c_attn` is a fused `Conv1D(768→2304)` — peft on
+it adapts Q,K,V TOGETHER; there are no `q_proj`/`v_proj` module names in GPT-2, so
+literature "Q,V-only" setups would need manual slicing. LoRA lr should be a separate param
+group (1e-4) from reprogramming/head (config lr). Capacity-upper-bound rung (r=8, α=16,
++`c_proj`) is defined but not scheduled.
 
-### Tier 1 — the rest of Level A on 3 datasets
+## 5. Entry-point decision (2026-07-29, user-corrected; implemented 2026-08-03)
 
-| # | cells | status | ablation? |
-|---|---|---|---|
-| T1.1 | `soft_prompt` × 3 | ⚪→🔵 | the missing 2×2 cell (learned × prefix) |
-| T1.2 | `text_embedding` × 3 | ⚪→🔵 | text × additive cell |
-| T1.3 | A2 ladder: random / onehot / sinusoidal / coordinates × 3 | 🔵 all code-ready | 🧪 distinctness-vs-capacity (coordinates wired `8b58f83`) |
+One pipeline, split only at the experiment-design layer. The earlier "two entries + results
+contract" idea was WRONG: Time-LLM's channel-independent `Dataset_Swiss_1990(ConcatDataset)`
+and the pipeline's `per_entity` split are the SAME construction (one is the reference port
+of the other), so there was never a second data layer. Consequences (all implemented):
 
-### Tier 2 — orthogonal-axis ablations
+1. Data/model/pipeline layers: UNIFIED — timellm runs `pipeline.run_experiment` like
+   LSTM/PatchTST/DLinear.
+2. Experiment-design layer: SPLIT — `experiments/hydro_llm/run_matrix.py` sweeps the LLM
+   axes (mode × A1/A2 × tuning × backbone × arch), a cartesian space the non-LLM matrix
+   does not have.
+3. The payoff: the winning identity scheme collapses back to plain `timellm` parameters and
+   is compared with LSTM/PatchTST/DLinear on ONE pipeline — no cross-harness result skew.
 
-| # | axis | status | ablation? |
-|---|---|---|---|
-| T2.1 | `llm_tuning`: frozen → ln_only → lora, on best Level-A mode | ⚪ | 🧪 trainability ladder |
-| T2.2 | `llm_backbone`: GPT2 / LLAMA / BERT, on `none` + best mode | ⚪ | 🧪 backbone sensitivity |
-| T2.3 | A1 prompt richness: minimal / rich / +stats / +coords | ⚪ | 🧪 "is text weak because prompt is poor?" |
-
-### Tier 2.4 — identity × trainability INTERACTION (lowest priority, 🧪)
-
-Added per user 2026-08-03. A disentanglement ablation, run only after main effects.
-
-`{numeric_embedding: on/off} × {llm_tuning: frozen/lora}` on the entity-rich dataset
-(swiss-1990), a 2×2:
-
-| | frozen | lora |
-|---|---|---|
-| no embedding | baseline | none+lora |
-| + embedding | embedding+frozen (current) | embedding+lora |
-
-**Why it is meaningful (not busywork):** the INTERACTION term (does the embedding gain
-shrink when LoRA is added?) separates two confounded mechanisms — *identity-as-signal*
-(gain persists regardless of tuning) vs *identity-as-frozen-interface-workaround* (gain
-shrinks once LoRA gives the LLM its own per-station adaptation route). That is exactly the
-paper's mechanism question ("is the reprogramming interface the bottleneck?"), so the cell
-is diagnostic, not additive. **Extension:** repeat with `random_embedding` × {frozen,lora}
-to test whether the interaction is specific to *learnable* capacity or holds for pure
-*distinctness*. Lowest priority: it refines the mechanism after Tier 0–1 establish the main
-effects, and LoRA trials are compute-heavy.
-
-### Tier 3 — other SOTA reprogramming/LLM-TS models (task 5)
-
-Same entry + pipeline, Time-LLM-identical wiring, **backbone swapped**:
-
-| model | ref | status | role |
-|---|---|---|---|
-| GPT4TS (OneFitsAll) | arXiv 2302.11939 | ✅ `--arch gpt4ts` | 🧪 negative control (no prompt/covariate path); additive identity only |
-| TEMPO | arXiv 2310.04948 | ✅ `--arch tempo` (`974c658`) | decomposition (trend+seasonal) + shared frozen GPT-2, summed; additive identity; from-scratch adapter, smoke 2/2 ok, 8 tests |
-| AutoTimes | arXiv 2402.02370 | ✅ `--arch autotimes` (`8ab418f`) | autoregressive time tokens + causal frozen GPT-2, next-segment decode; additive identity; from-scratch adapter, smoke 2/2 ok, 9 tests |
-| CALF | arXiv 2403.07300 | ✅ `--arch calf` (`cdf0344`) | cross-modal DUAL-BRANCH forward: a cross-modal branch reprograms patches into the LLM word-embedding space (reuses timellm's ReprogrammingLayer) + a temporal branch, both through a shared frozen GPT-2, fused. Additive identity. From-scratch adapter; the feature/output/gradient ALIGNMENT LOSSES are a task-layer extension (NOT in the forward). Verified end-to-end (smoke 2/2 ok, both branches contribute, 7 tests). |
-
-Each runs the SAME Level-A modes where applicable → tests whether the identity effect is
-Time-LLM-specific or general to LLM-TS models. The three done models are all ADDITIVE-only
-(no prompt path), so their identity effect vs Time-LLM's prompt path is a clean contrast:
-does identity help through a numeric additive channel as well as through the LLM prompt?
-
----
-
-## 3.1 Epoch / early-stopping policy (why NOT a fixed epoch count)
+## 6. Epoch / early-stopping policy (why NOT a fixed epoch count)
 
 Do NOT hardcode "the right number of epochs". Train with a generous cap + **early stopping
 on validation**, and let validation pick the best epoch — this is what the Time-LLM paper and
@@ -251,7 +244,7 @@ this project's harness do: **train_epochs=30, patience=10** (the timellm_config.
 The dev-5 Tier-0 numbers below in §3 are validation-only and are SUPERSEDED by the 30-epoch
 run.
 
-## 3.2 Debugging the REAL entry (`run_matrix.py`)
+## 7. Debugging the REAL entry (`run_matrix.py`)
 
 Debug the actual matrix entry, not a custom script (a custom driver diverges from the real
 pipeline — e.g. it built different val/test loaders — so its breakpoints prove nothing).
@@ -281,27 +274,8 @@ in the driver + the post-HPO rebuild/retrain (main process).
 - Switch the branch under test with `--modes` / `--a2` (e.g. `--modes numeric_embedding --a2
   coordinates`).
 
-## 4. Execution order (dependency-sorted) — status as of 2026-08-04
 
-1. ✅ task 3: rewire `hydro_llm/run_matrix.py` → pipeline + HPO space. **(foundational)**
-2. ✅ task 4: Level A modes (`soft_prompt`/`text_embedding`/rename→`numeric_embedding`),
-   A2 sub-variants (incl. **coordinates**, wired 2026-08-04), A1 richness (default/minimal/stats;
-   coords text-format pending), A1.1 LoRA + `ln_only`, multi-backbone (GPT2/BERT/**LLAMA**).
-3. ✅ task 5: other SOTA (GPT4TS/TEMPO/AutoTimes/CALF) as backbone-swapped adapters.
-4. ✅ task 2: harness `run_experiment.py` marked deprecated (banner + runtime DeprecationWarning).
-5. ✅ CHECKPOINT: user pinged to debug (task 6 gate); user is debugging the `none` cell locally.
-6. 🟡 task 7: finalize docs (THIS file) — in progress this round.
-7. 🟡 task 6: cluster — **Tier 0 RUNNING** (job 11557210, 7 cells, `--phase full` HPO); Tier 1 next.
-8. ⚪ Final full write-up (after Tier 0/1 results land).
-
-Remaining tail (non-blocking, priority order): (a) Tier-0 results → the flagship baseline table;
-(b) Tier-1 the rest of Level A + A2 ladder incl. coordinates; (c) A1 `coords` text-formatting;
-(d) BERT weights sync + LLAMA/BERT backbone sweep; (e) Tier-2 ablations (tuning ladder, backbone
-sensitivity, A1 richness); (f) Tier-2.4 identity×trainability interaction (lowest priority).
-
----
-
-## 5. Deprecations
+## 8. Deprecations
 
 - `experiments/swiss_river/run_experiment.py` (the harness) + `experiments/hydro_llm`'s
   old harness-driving code path: **DEPRECATED** once task 3 lands. The harness stays in

@@ -21,7 +21,7 @@ MODELS: tuple[str, ...] = (
     'patchtst',
     'dlinear',
     # Time-LLM runs through the same pipeline as the others so their numbers are
-    # produced by one code path (see docs/research/2026-07-25-hydro-llm-plan/
+    # produced by one code path (see docs/research/hydro-llm-2026-08/
     # 02-ENTRYPOINT-DESIGN.md). Its identity modes differ from the transparent
     # ladder -- see _SUPPORTED_MODES_BY_MODEL below.
     'timellm',
