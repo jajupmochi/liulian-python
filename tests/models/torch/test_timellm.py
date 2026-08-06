@@ -445,3 +445,73 @@ class TestTimeLLMEntityDescriptionPrompt:
 
         with pytest.raises(ValueError, match='one per channel'):
             Model._resolve_entity_descs(['x', 'y'], None, None, 7, 7)
+
+
+class TestDegenerateTokenizerSelfHeal:
+    """Regression: an INCOMPLETE local HF cache (config.json present, vocab/merges
+    missing) loads a vocab~1 tokenizer under local_files_only WITHOUT raising, so
+    the download fallback never fired and __init__ died at the loud vocab guard
+    (RuntimeError 'degenerate vocab of 1') — seen live 2026-08-06 and on the
+    cluster 2026-07 (memory: broken-tokenizer incident). The fix raises
+    EnvironmentError inside the local-only try so the EXISTING download fallback
+    self-heals the cache. These tests lock both the helper and the branch wiring.
+    """
+
+    def test_helper_raises_on_degenerate_vocab(self):
+        from liulian.models.torch.timellm import _raise_if_degenerate_vocab
+
+        class Tok:
+            def __len__(self):
+                return 1
+
+        with pytest.raises(EnvironmentError, match='incomplete'):
+            _raise_if_degenerate_vocab(Tok())
+
+    def test_helper_passes_healthy_vocab(self):
+        from liulian.models.torch.timellm import _raise_if_degenerate_vocab
+
+        class Tok:
+            def __len__(self):
+                return 50257
+
+        _raise_if_degenerate_vocab(Tok())  # must not raise
+
+    @pytest.mark.slow
+    def test_gpt2_branch_self_heals_via_download_fallback(self, monkeypatch):
+        """Local-only load returns a degenerate tokenizer -> the branch must fall
+        through to the download path (local_files_only=False) and end up with the
+        real vocab, instead of dying at the loud guard."""
+        import transformers
+        from liulian.models.torch.timellm import Model as TimeLLM
+
+        real_from_pretrained = transformers.GPT2Tokenizer.from_pretrained
+        calls = []
+
+        class DegenerateTok:
+            def __len__(self):
+                return 1
+
+        def fake_from_pretrained(name, *args, **kwargs):
+            calls.append(kwargs.get('local_files_only'))
+            if kwargs.get('local_files_only'):
+                return DegenerateTok()  # what an incomplete cache produces
+            return real_from_pretrained(name, *args, **kwargs)
+
+        monkeypatch.setattr(
+            transformers.GPT2Tokenizer, 'from_pretrained', staticmethod(fake_from_pretrained)
+        )
+
+        from types import SimpleNamespace
+
+        configs = SimpleNamespace(
+            task_name='long_term_forecast', seq_len=24, pred_len=7, label_len=0,
+            enc_in=1, dec_in=1, c_out=1, d_model=16, d_ff=32, n_heads=4,
+            e_layers=1, d_layers=1, dropout=0.1, patch_len=8, stride=4,
+            llm_model='GPT2', llm_dim=768, llm_layers=2, llm_tuning='frozen',
+            prompt_domain=0, content='', factor=1, embed='timeF', freq='d',
+            output_attention=False, activation='gelu',
+        )
+        model = TimeLLM(configs)
+        assert True in [bool(c) for c in calls], 'local-only attempt missing'
+        assert False in [bool(c) for c in calls], 'download fallback never fired'
+        assert len(model.tokenizer) > 1000, 'self-heal did not produce a real vocab'

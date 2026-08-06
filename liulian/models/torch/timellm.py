@@ -22,6 +22,22 @@ from liulian.models.torch.layers.embed import TimeLLMPatchEmbedding
 from liulian.models.torch.layers.standard_norm import Normalize
 
 
+def _raise_if_degenerate_vocab(tokenizer: Any) -> None:
+    """Reject a tokenizer built from an INCOMPLETE local HF cache.
+
+    A cache holding config.json but no vocab/merges loads under
+    ``local_files_only=True`` WITHOUT raising, yielding a vocab of ~1 that
+    tokenizes every prompt to 0 tokens (the silent text-pathway killer — see
+    the loud vocab guard in ``TimeLLM.__init__``). Raising EnvironmentError
+    HERE, inside the local-only try, re-enters each branch's existing download
+    fallback so an incomplete cache self-heals whenever the network allows.
+    Fully-offline runs (HF_HUB_OFFLINE=1) fail the download too and still hit
+    the loud guard with the cache-completion hint.
+    """
+    if len(tokenizer) < 1000:
+        raise EnvironmentError(f'local tokenizer cache is incomplete (vocab={len(tokenizer)}); retrying with download')
+
+
 class FlattenHead(nn.Module):
     def __init__(self, n_vars, nf, target_window, head_dropout=0):
         super().__init__()
@@ -250,6 +266,7 @@ class Model(nn.Module):
                     trust_remote_code=True,
                     local_files_only=True,
                 )
+                _raise_if_degenerate_vocab(self.tokenizer)
             except EnvironmentError:  # downloads the tokenizer from HF if not already done
                 print('Local tokenizer files not found. Attempting to download them..')
                 self.tokenizer = LlamaTokenizer.from_pretrained(
@@ -287,6 +304,7 @@ class Model(nn.Module):
                     trust_remote_code=True,
                     local_files_only=True,
                 )
+                _raise_if_degenerate_vocab(self.tokenizer)
             except EnvironmentError:  # downloads the tokenizer from HF if not already done
                 print('Local tokenizer files not found. Attempting to download them..')
                 self.tokenizer = GPT2Tokenizer.from_pretrained(
@@ -324,6 +342,7 @@ class Model(nn.Module):
                     trust_remote_code=True,
                     local_files_only=True,
                 )
+                _raise_if_degenerate_vocab(self.tokenizer)
             except EnvironmentError:  # downloads the tokenizer from HF if not already done
                 print('Local tokenizer files not found. Attempting to download them..')
                 self.tokenizer = BertTokenizer.from_pretrained(
@@ -364,6 +383,7 @@ class Model(nn.Module):
                     trust_remote_code=True,
                     local_files_only=True,
                 )
+                _raise_if_degenerate_vocab(self.tokenizer)
             except Exception as e:
                 print(f'Local TinyLLaMA tokenizer not found: {e}')
                 print('Attempting to download...')
@@ -400,6 +420,7 @@ class Model(nn.Module):
                 self.tokenizer = AutoTokenizer.from_pretrained(
                     'Qwen/Qwen-7B-Chat', trust_remote_code=True, local_files_only=True
                 )
+                _raise_if_degenerate_vocab(self.tokenizer)
             except Exception as e:
                 print(f'Local Qwen tokenizer not found: {e}')
                 print('Attempting to download...')
@@ -469,8 +490,10 @@ class Model(nn.Module):
             from liulian.utils.format import format_param_count
 
             _n_lora = sum(p.numel() for p in self.llm_model.parameters() if p.requires_grad)
-            print(f'[timellm] llm_tuning=lora: r={lora_cfg.r} alpha={lora_cfg.lora_alpha} '
-                  f'trainable={format_param_count(_n_lora)}')
+            print(
+                f'[timellm] llm_tuning=lora: r={lora_cfg.r} alpha={lora_cfg.lora_alpha} '
+                f'trainable={format_param_count(_n_lora)}'
+            )
         elif self.llm_tuning != 'frozen':
             raise ValueError(f'unknown llm_tuning={self.llm_tuning!r}; expected frozen/ln_only/lora')
 
