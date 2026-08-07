@@ -310,12 +310,12 @@ accelerate/DDP 在单次训练内部并行。二者争抢同一批 GPU，且 acc
 `run_matrix.py` 在进程内（`_run_in_process`）执行每个 cell，因此 PyCharm 断点
 能在 driver 以及 post-HPO 的 rebuild/retrain（主进程）中命中。
 
-- **快速调试配置：** `experiments/swiss_river/debug.yaml`——与 `timellm_config.yaml`
+- **快速调试配置：** `experiments/hydro_llm/configs/debug.yaml`——与 `timellm_config.yaml`
   对齐但做了缩减（64 个训练窗口，2 个 epoch）。通过 `--config` 直通参数
   （`9b68db0` 中新增）经由真实入口加载它：
 
   ```
-  python experiments/hydro_llm/run_matrix.py --config experiments/swiss_river/debug.yaml \
+  python experiments/hydro_llm/run_matrix.py --config experiments/hydro_llm/configs/debug.yaml \
       --phase full --arch timellm --datasets swiss-river-1990 --modes none \
       --seeds 2026 --hpo-num-samples 2
   ```

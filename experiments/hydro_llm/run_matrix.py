@@ -127,7 +127,7 @@ _ADDITIVE_ONLY_ARCHS: dict[str, frozenset] = {
 }
 
 #: The pipeline-native timellm config (NOT the harness config).
-BASE_CONFIG = PROJECT_ROOT / 'experiments' / 'swiss_river' / 'timellm_config.yaml'
+BASE_CONFIG = PROJECT_ROOT / 'experiments' / 'hydro_llm' / 'configs' / 'timellm_config.yaml'
 ARTIFACT_ROOT = PROJECT_ROOT / 'artifacts' / 'hydro_llm'
 DEBUG_CONFIG = PROJECT_ROOT / 'experiments' / 'hydro_llm' / 'configs' / 'debug.yaml'
 
@@ -402,7 +402,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--config', default=(str(DEBUG_CONFIG) if DEBUGGING else str(BASE_CONFIG)),
                    help='base config yaml (default: the aligned timellm_config.yaml). Point it at '
-                        'experiments/swiss_river/debug.yaml to debug the matrix entry with a fast, '
+                        'experiments/hydro_llm/configs/debug.yaml to debug the matrix entry with a fast, '
                         'self-contained config; CLI axis flags still override on top.')
     p.add_argument('--phase', choices=[*_PHASES, None], default=None,
                    help='dry=list; smoke=2ep no-HPO; dev=5ep no-HPO; full=real + Ray Tune HPO. '

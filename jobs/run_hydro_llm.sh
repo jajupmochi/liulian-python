@@ -51,7 +51,7 @@ HPO_NUM_SAMPLES="${HPO_NUM_SAMPLES:-}"  # override Ray Tune trial count (phase-f
 # EXPLICIT config (defense in depth): never rely on run_matrix's --config DEFAULT — a debug
 # toggle leaking into the synced tree once flipped the default to the 64-sample debug.yaml
 # and silently ran a whole Tier-0 with checkpoints disabled (job 11579994 cell 1, 2026-08-05).
-CONFIG="${CONFIG:-experiments/swiss_river/timellm_config.yaml}"
+CONFIG="${CONFIG:-experiments/hydro_llm/configs/timellm_config.yaml}"
 
 echo "=== hydro-llm job: tag=$RUNTAG datasets=[$DATASETS] modes=[$MODES] seeds=[$SEEDS] ==="
 echo "node=$(hostname) date=$(date -Iseconds)"

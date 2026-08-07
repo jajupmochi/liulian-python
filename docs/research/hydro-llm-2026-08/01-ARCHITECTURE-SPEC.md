@@ -323,12 +323,12 @@ pipeline — e.g. it built different val/test loaders — so its breakpoints pro
 `run_matrix.py` executes each cell IN-PROCESS (`_run_in_process`), so PyCharm breakpoints hit
 in the driver + the post-HPO rebuild/retrain (main process).
 
-- **Fast debug config:** `experiments/swiss_river/debug.yaml` — aligned with
+- **Fast debug config:** `experiments/hydro_llm/configs/debug.yaml` — aligned with
   `timellm_config.yaml` but shrunk (64 train windows, 2 epochs). Load it through the real
   entry via the `--config` passthrough (added `9b68db0`):
 
   ```
-  python experiments/hydro_llm/run_matrix.py --config experiments/swiss_river/debug.yaml \
+  python experiments/hydro_llm/run_matrix.py --config experiments/hydro_llm/configs/debug.yaml \
       --phase full --arch timellm --datasets swiss-river-1990 --modes none \
       --seeds 2026 --hpo-num-samples 2
   ```

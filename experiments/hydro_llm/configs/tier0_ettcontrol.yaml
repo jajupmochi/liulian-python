@@ -16,7 +16,7 @@
 # MSE 0.01457 +- 0.00022 (n=3, seeds 2021/2022/2023).
 #
 # Usage:
-#   liulian run experiments/swiss_river/timellm_config.yaml
+#   liulian run experiments/hydro_llm/configs/timellm_config.yaml
 #   python experiments/entity_identifier/run.py --models timellm --modes none
 
 # ── General ─────────────────────────────────────────────────────────────

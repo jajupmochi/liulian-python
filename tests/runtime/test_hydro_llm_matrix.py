@@ -153,7 +153,7 @@ class TestPromptRichnessStats:
         from liulian.pipeline import _compute_station_train_stats, build_dataset
 
         cfg = load_config(
-            'experiments/swiss_river/timellm_config.yaml',
+            'experiments/hydro_llm/configs/timellm_config.yaml',
             cli_overrides={
                 'data': 'swiss-river-1990',
                 'identifier_mode': 'entity_description',
@@ -185,7 +185,7 @@ class TestCoordinatesA2:
         from liulian.pipeline import build_dataset, build_model
 
         cfg = load_config(
-            'experiments/swiss_river/timellm_config.yaml',
+            'experiments/hydro_llm/configs/timellm_config.yaml',
             cli_overrides={
                 'data': 'swiss-river-1990',
                 'identifier_mode': 'coordinates_embedding',
@@ -428,7 +428,7 @@ class TestPromptContentIsReal:
     def test_config_enables_prompt_domain(self):
         from liulian.config import load_config
 
-        cfg = load_config('experiments/swiss_river/timellm_config.yaml')
+        cfg = load_config('experiments/hydro_llm/configs/timellm_config.yaml')
         assert cfg['prompt_domain'] == 1  # 0 = hardcoded ETT text (the bug)
 
 
@@ -480,7 +480,7 @@ class TestPromptVariantKnobs:
         from liulian.pipeline import build_dataset, build_model
 
         cfg = load_config(
-            'experiments/swiss_river/timellm_config.yaml',
+            'experiments/hydro_llm/configs/timellm_config.yaml',
             cli_overrides={'data': 'swiss-river-1990', 'identifier_mode': 'none',
                            'split_mode': 'per_entity', 'llm_layers': 1},
         )

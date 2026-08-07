@@ -93,9 +93,9 @@ BASE_CONFIG_BY_PAIR: dict[tuple[str, str], Path] = {
     ('swiss-river-zurich', 'dlinear'): Path('experiments/swiss_river/dlinear_config.yaml'),
     # Time-LLM, pipeline-native. Mirrors the harness hyper-parameters so the
     # migration can be validated against the published MSE 0.01457 baseline.
-    ('swiss-river-1990', 'timellm'): Path('experiments/swiss_river/timellm_config.yaml'),
-    ('swiss-river-2010', 'timellm'): Path('experiments/swiss_river/timellm_config.yaml'),
-    ('swiss-river-zurich', 'timellm'): Path('experiments/swiss_river/timellm_config.yaml'),
+    ('swiss-river-1990', 'timellm'): Path('experiments/hydro_llm/configs/timellm_config.yaml'),
+    ('swiss-river-2010', 'timellm'): Path('experiments/hydro_llm/configs/timellm_config.yaml'),
+    ('swiss-river-zurich', 'timellm'): Path('experiments/hydro_llm/configs/timellm_config.yaml'),
     ('traffic', 'lstm'): Path('experiments/traffic/lstm_config.yaml'),
     ('traffic', 'patchtst'): Path('experiments/traffic/patchtst_config.yaml'),
     ('traffic', 'dlinear'): Path('experiments/traffic/dlinear_config.yaml'),
