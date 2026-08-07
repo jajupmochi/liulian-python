@@ -116,6 +116,28 @@ lradj: type1
 pct_start: 0.2
 use_amp: false
 
+# ── HPO (Ray Tune) ───────────────────────────────────────────────────
+# Pinned EXPLICITLY (project rule 3: config-externalized, front-end-editable). Before
+# 2026-08-07 these came invisibly from DEFAULT_CONFIG in liulian/config.py; values below
+# equal the ones the Tier-0 cluster runs actually used (verified in job 11623379's log:
+# "HPO enabled: samples=24 ... resources_per_trial={cpu:1,gpu:0.25}").
+#
+# `hpo` (on/off) is deliberately NOT set here — run_matrix's --phase owns it
+# (dry/smoke/dev=off, full=on); writing `hpo: true` here would force HPO even in
+# dev/smoke phases. The search GRID is separate: liulian/optim/search_spaces.yaml
+# (model_spaces.timellm_swiss + identifier_spaces), resolved by resolve_search_space().
+hpo_num_samples: 24           # matched Tier-0 budget (24-sample arms; 50 TIMED OUT at the old
+                              # 24h wall). CLI --hpo-num-samples / sbatch HPO_NUM_SAMPLES wins.
+hpo_scheduler: asha           # ASHA early-stops bad trials
+hpo_grace_period: 5           # min epochs before ASHA may stop a trial
+hpo_reduction_factor: 1.5
+hpo_resources_cpu: 1
+hpo_resources_gpu: 0.25       # 4 concurrent trials per GPU (timellm swiss fits 4x in 24 GB)
+hpo_max_concurrent: null      # null = let Ray derive it from the gpu fraction
+hpo_save_checkpoints: true    # REQUIRED: the post-HPO retrain loads the best trial checkpoint
+                              # (false caused "Best checkpoint not found", job 11579994)
+hpo_local_mode: false
+
 # ── Evaluation ──────────────────────────────────────────────────────────
 eval_denorm: true
 metrics: mse,mae,rmse

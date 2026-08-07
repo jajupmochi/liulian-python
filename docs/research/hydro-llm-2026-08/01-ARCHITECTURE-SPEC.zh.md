@@ -98,20 +98,25 @@ GPT-2 中，这对应 `ln_1`、`ln_2` 以及最后的 `ln_f`。
 `liulian/optim/search_spaces.yaml`，并按模式做了门控（按规则 4，不留 dead knob）。
 只在该旋钮确实会改变对应代码路径上训练出的模型时才纳入调优：
 
-| 旋钮 | 适用范围 | 范围（初始值） |
-|---|---|---|
-| `learning_rate` | 所有 timellm cell | log 1e-4 … 3e-3 |
-| `d_ff`（reprogramming FFN） | 全部 | {16, 32, 64} |
-| `n_heads`（reprogramming attn） | 全部 | {4, 8} |
-| `dropout` | 全部 | 0.0 … 0.2 |
-| `patch_len` / `stride` | 全部 | patch {8,16,24}（stride=patch/2） |
-| `llm_layers` | 全部 | {3, 6} |
-| `embedding_size` | A: numeric_embedding + A2 learnable/random | {8, 16, 32} |
-| `soft_prompt_len` | A: soft_prompt | {4, 8, 16} |
-| `text_proj_dim` | A: text_embedding | {16, 32} |
-| `lora_r` / `lora_alpha` | llm_tuning=lora（A1.1） | r {4,8}，alpha {8,16} |
+当前 LIVE 网格（截至 2026-08-07,`model_spaces.timellm_swiss`——早前草案表里的
+patch_len/dropout/n_heads 行只是设想,已被取代;已对照集群日志的
+"Resolved search space ... ['learning_rate','d_model','d_ff','llm_layers']" 验证）：
 
-骨干网络（`llm_backbone`）与 Level-A mode 是**矩阵轴，不是 HPO 旋钮**。
+| 旋钮 | 适用范围 | 网格 |
+|---|---|---|
+| `learning_rate` | 所有 timellm cell | {1e-3, 1e-2}（canonical 1e-2 + 诊断最优 1e-3） |
+| `d_model` | 全部 | {16, 32, 64}（canonical 32） |
+| `d_ff`（reprogramming/头宽度） | 全部 | {32, 128, 256}（canonical 128） |
+| `llm_layers` | 全部 | {3, 6, 12}（canonical 6;12 = 完整 GPT-2,排队项 1.11） |
+| `soft_prompt_len` | 仅 A: soft_prompt | {4, 8, 16} |
+
+不调优（为跨模型公平在配置中固定）：batch_size 32、n_heads 8、patch_len 16 /
+stride 8、seq_len 90 / pred_len 7、train_epochs 30 + early stopping。
+`embedding_size` 对 timellm/gpt4ts 被 dead-knob 防护排除（identity embedding 宽度
+绑定 d_model）。骨干网络（`llm_backbone`）与 Level-A mode 是**矩阵轴,不是 HPO
+旋钮**。HPO 的执行参数（trial 数、ASHA、GPU 配比）钉在
+`experiments/hydro_llm/configs/timellm_config.yaml` 的 `hpo_*` 块;搜索网格本身在
+`liulian/optim/search_spaces.yaml`,由 `resolve_search_space()` 按 identifier 模式组合。
 
 ---
 

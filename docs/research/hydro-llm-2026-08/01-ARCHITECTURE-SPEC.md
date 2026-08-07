@@ -98,20 +98,26 @@ Config-externalized (per project rule 3, front-end-editable) in
 `liulian/optim/search_spaces.yaml`, mode-gated (per rule 4, no dead knobs). Tuned only
 where the knob changes the trained model on that code path:
 
-| knob | applies to | range (initial) |
-|---|---|---|
-| `learning_rate` | all timellm cells | log 1e-4 … 3e-3 |
-| `d_ff` (reprogramming FFN) | all | {16, 32, 64} |
-| `n_heads` (reprogramming attn) | all | {4, 8} |
-| `dropout` | all | 0.0 … 0.2 |
-| `patch_len` / `stride` | all | patch {8,16,24} (stride=patch/2) |
-| `llm_layers` | all | {3, 6} |
-| `embedding_size` | A: numeric_embedding + A2 learnable/random | {8, 16, 32} |
-| `soft_prompt_len` | A: soft_prompt | {4, 8, 16} |
-| `text_proj_dim` | A: text_embedding | {16, 32} |
-| `lora_r` / `lora_alpha` | llm_tuning=lora (A1.1) | r {4,8}, alpha {8,16} |
+The LIVE grid (as of 2026-08-07, `model_spaces.timellm_swiss` — the earlier draft table with
+patch_len/dropout/n_heads rows was aspirational and is superseded; verified against the
+cluster log's "Resolved search space ... ['learning_rate','d_model','d_ff','llm_layers']"):
 
-Backbone (`llm_backbone`) and Level-A mode are **matrix axes, not HPO knobs**.
+| knob | applies to | grid |
+|---|---|---|
+| `learning_rate` | all timellm cells | {1e-3, 1e-2} (canonical 1e-2 + diagnostic-best 1e-3) |
+| `d_model` | all | {16, 32, 64} (canonical 32) |
+| `d_ff` (reprogramming/head width) | all | {32, 128, 256} (canonical 128) |
+| `llm_layers` | all | {3, 6, 12} (canonical 6; 12 = full GPT-2, queued item 1.11) |
+| `soft_prompt_len` | A: soft_prompt only | {4, 8, 16} |
+
+NOT tuned (fixed in the config for cross-model fairness): batch_size 32, n_heads 8,
+patch_len 16 / stride 8, seq_len 90 / pred_len 7, train_epochs 30 + early stopping.
+`embedding_size` is dead-knob-guarded OUT for timellm/gpt4ts (the identity embedding width
+is tied to d_model). Backbone (`llm_backbone`) and Level-A mode are **matrix axes, not HPO
+knobs**. HPO EXECUTION settings (trial count, ASHA, gpu fraction) are pinned in
+`experiments/hydro_llm/configs/timellm_config.yaml` (`hpo_*` block); the search GRID lives
+in `liulian/optim/search_spaces.yaml`, composed per identifier mode by
+`resolve_search_space()`.
 
 ---
 

@@ -577,3 +577,54 @@ class TestIdentityModeConsistency:
         assert p == self.EXPECTED, f'pipeline drifted: {p ^ self.EXPECTED}'
         assert t == self.EXPECTED, f'trainer drifted: {t ^ self.EXPECTED}'
         assert x == self.EXPECTED, f'run_matrix drifted: {x ^ self.EXPECTED}'
+
+
+class TestExplicitHpoBlockInConfigs:
+    """The hydro-LLM configs pin the HPO EXECUTION settings explicitly (2026-08-07,
+    project rule 3) instead of inheriting them invisibly from DEFAULT_CONFIG in
+    liulian/config.py. Locks three contracts:
+      (a) both configs carry the hpo_* keys with the Tier-0-verified values and do
+          NOT set the `hpo` on/off switch (that stays phase-owned);
+      (b) the config's hpo_num_samples (24) suppresses phase-full's 50 injection;
+      (c) hpo_save_checkpoints stays true — false broke the post-HPO retrain
+          ("Best checkpoint not found", job 11579994).
+    """
+
+    CONFIGS = (
+        'experiments/hydro_llm/configs/timellm_config.yaml',
+        'experiments/hydro_llm/configs/tier0_ettcontrol.yaml',
+    )
+
+    def test_hpo_block_present_and_switch_absent(self):
+        import yaml
+
+        for p in self.CONFIGS:
+            cfg = yaml.safe_load(open(p, encoding='utf-8'))
+            assert 'hpo' not in cfg, f'{p}: `hpo` must stay phase-owned'
+            assert cfg['hpo_num_samples'] == 24, p
+            assert cfg['hpo_scheduler'] == 'asha', p
+            assert cfg['hpo_resources_gpu'] == 0.25, p
+            assert cfg['hpo_save_checkpoints'] is True, p
+
+    def test_config_num_samples_beats_phase_full_50(self):
+        from types import SimpleNamespace
+
+        from experiments.hydro_llm.run_matrix import build_overrides
+
+        cell = {
+            'arch': 'timellm', 'dataset': 'swiss-river-1990', 'mode': 'none',
+            'sub': 'default', 'tuning': 'frozen', 'backbone': 'GPT2',
+            'seed': 2026, 'identifier_mode': 'none',
+        }
+        args = SimpleNamespace(
+            phase='full', config=self.CONFIGS[0], hpo_num_samples=None,
+            train_epochs=None, learning_rate=None, patience=None,
+            max_train_samples=None,
+        )
+        ov = build_overrides(cell, args)
+        # phase full still turns HPO ON (config has no `hpo` key)...
+        assert ov.get('hpo') is True
+        # ...but must NOT inject the phase-50: the config's 24 is authoritative.
+        assert 'hpo_num_samples' not in ov, (
+            'phase default leaked past the config hpo_num_samples'
+        )
