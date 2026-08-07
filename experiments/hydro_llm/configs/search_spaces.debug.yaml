@@ -1,0 +1,35 @@
+# DEBUG search-space for hydro-LLM — deliberately TINY so a debug HPO run
+# (debug.yaml: 2 trials, 64 train windows, 2 epochs) finishes in seconds per
+# trial while still exercising the REAL grid-composition machinery
+# (resolve_search_space -> model_spaces + per-mode identifier_spaces).
+#
+# Selected by `search_space_file` in configs/debug.yaml. NEVER point a real
+# run at this file — d_model/d_ff/llm_layers are pinned to the smallest value
+# (single-value choices), only learning_rate has 2 values so the 2 debug
+# trials sample different configs.
+#
+# identifier_spaces mirrors the real file's FULL entry set so switching the
+# branch under test (--modes / --a2) keeps working in debug — a missing entry
+# silently composes {} (see search_spaces.py docstring).
+
+model_spaces:
+  timellm_swiss_debug:
+    learning_rate: {dist: choice, values: [0.001, 0.01]}  # 2 values -> the 2 debug trials differ
+    d_model:       {dist: choice, values: [16]}           # smallest -> fastest forward
+    d_ff:          {dist: choice, values: [32]}
+    llm_layers:    {dist: choice, values: [3]}            # 3 GPT-2 layers -> fastest LLM pass
+
+identifier_spaces:
+  none:                 {}
+  soft_prompt:
+    soft_prompt_len:    {dist: choice, values: [4]}       # single value: fast, still exercises the extra-knob path
+  embedding:            {}
+  random_embedding:     {}
+  onehot_embedding:     {}
+  sinusoidal_embedding: {}
+  coordinates_embedding: {}
+  entity_description:   {}
+  text_embedding:       {}
+
+resolution:
+  - {data: swiss-river, model: timellm, space: timellm_swiss_debug}

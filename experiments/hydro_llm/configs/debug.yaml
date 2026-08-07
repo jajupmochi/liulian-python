@@ -1,5 +1,5 @@
 # Time-LLM DEBUG config — a self-contained, fast HPO run for stepping through the
-# REAL pipeline + HPO code path. Aligned with experiments/swiss_river/timellm_config.yaml
+# REAL pipeline + HPO code path. Aligned with experiments/hydro_llm/configs/timellm_config.yaml
 # (the authoritative-reference config), only shrunk for speed and switched into HPO mode.
 #
 # Load it through the REAL matrix entry (run_matrix.py --config), NO custom script.
@@ -7,12 +7,12 @@
 # path; train_epochs / max_train_samples / hpo settings below are the fast base and
 # survive unless a CLI flag overrides them:
 #
-#     python experiments/hydro_llm/run_matrix.py --config experiments/swiss_river/debug.yaml \
+#     python experiments/hydro_llm/run_matrix.py --config experiments/hydro_llm/configs/debug.yaml \
 #         --phase full --arch timellm --datasets swiss-river-1990 --modes none \
 #         --seeds 2026 --hpo-num-samples 2
 #
 # (Also loadable via the single-run entry: python experiments/run.py --config
-#  experiments/swiss_river/debug.yaml — there the hpo: settings below apply as-is.)
+#  experiments/hydro_llm/configs/debug.yaml — there the hpo: settings below apply as-is.)
 #
 # In PyCharm: Script = experiments/hydro_llm/run_matrix.py, Parameters = the args
 # after "run_matrix.py" above; Env = HF_HUB_OFFLINE=1;TRANSFORMERS_OFFLINE=1;
@@ -31,9 +31,31 @@
 
 # ── General ─────────────────────────────────────────────────────────────
 model: timellm
+# bf16 MIXED precision, matching Time-LLM-official exactly: their runs go through
+# `accelerate launch --mixed_precision bf16` (scripts/TimeLLM_ETTh1.sh L14) +
+# ds_config_zero2.json {"bf16":{"enabled":true,"auto_cast":true}} — compute in
+# bfloat16, fp32 master weights, no GradScaler. Implemented as torch.autocast in
+# ForecastTrainer (or handed to accelerate when use_accelerator=true).
+# CLUSTER SYNC RULE: apply only at a Tier boundary — never mid-tier, or cells of
+# the same comparison would mix precisions (same policy as search-space edits).
+precision: bf16
+# ── Parallelization (designed, INERT — do not enable inside Ray HPO) ─────
+# Time-LLM's tool is HF Accelerate + DeepSpeed ZeRO-2. Wired in
+# liulian/runtime/accelerator.py + trainer; OFF by default. Reserved for
+# single-run big-model cells (LLAMA arm / post-HPO retrain) launched via
+# `accelerate launch` OUTSIDE Ray — Ray parallelizes across trials and does
+# not compose with accelerate's multi-process launch (see 01-ARCHITECTURE-SPEC §6.5).
+# use_accelerator: true
+# deepspeed_config: experiments/hydro_llm/configs/ds_config_zero2.json
+# 2026 = the project matrix standard (matrix.DEFAULT_SEEDS, default_config.yaml).
+# Time-LLM must share this seed with LSTM/PatchTST/DLinear or the cross-model
+# comparison is unfair (research-critic Q3). The published Time-LLM harness cells
+# used seed 2021 (n=3: 2021/2022/2023); that number is a separate reproduction
+# reference, not the value that belongs in this project's unified model table.
 seed: 2026
 quick_test: false
 eval_only: false
+phase: full                    # dev | full (HPO on/off)
 
 # ── Data ────────────────────────────────────────────────────────────────
 data: swiss-river-1990
@@ -83,7 +105,7 @@ factor: 1
 llm_model: GPT2               # GPT2 | BERT | LLAMA
 llm_dim: 768
 llm_layers: 6
-prompt_domain: 0
+prompt_domain: 1              # authored swiss description (was 0 = hardcoded ETT bug)
 
 # ── Training (DEBUG: tiny) ──────────────────────────────────────────────
 train_epochs: 2               # DEBUG: 2 epochs per trial
@@ -98,6 +120,10 @@ pct_start: 0.2
 use_amp: false
 
 # ── HPO (DEBUG: minimal Ray Tune) ───────────────────────────────────────
+# DEDICATED debug grid: single-value d_model/d_ff/llm_layers (smallest = fastest),
+# only learning_rate varies so the 2 trials differ. Same composition machinery as
+# the real file; never point a real run at it.
+search_space_file: experiments/hydro_llm/configs/search_spaces.debug.yaml
 hpo: true                     # trigger the REAL HPO code path
 hpo_num_samples: 2            # DEBUG: only 2 trials
 hpo_scheduler: asha

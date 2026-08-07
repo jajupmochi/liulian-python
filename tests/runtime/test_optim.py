@@ -253,3 +253,26 @@ class TestPerExperimentSearchSpaceFile:
             f = cfg.get('search_space_file')
             assert f, f'{p}: search_space_file key missing'
             assert os.path.exists(f), f'{p}: search_space_file {f} does not exist'
+
+    def test_debug_config_uses_dedicated_debug_grid(self):
+        """debug.yaml points at search_spaces.debug.yaml (2026-08-07): same 4
+        model knobs but d_model/d_ff/llm_layers pinned to single smallest values
+        (fast trials) and lr keeps 2 values so the 2 debug trials differ; the
+        soft_prompt extra survives (identifier entries not lost)."""
+        import os
+
+        import yaml
+
+        cfg = yaml.safe_load(open('experiments/hydro_llm/configs/debug.yaml', encoding='utf-8'))
+        f = cfg.get('search_space_file')
+        assert f and f.endswith('search_spaces.debug.yaml') and os.path.exists(f)
+        raw = yaml.safe_load(open(f, encoding='utf-8'))
+        grid = raw['model_spaces']['timellm_swiss_debug']
+        assert len(grid['learning_rate']['values']) == 2
+        for pinned in ('d_model', 'd_ff', 'llm_layers'):
+            assert len(grid[pinned]['values']) == 1, pinned
+        sp = resolve_search_space(
+            model='timellm', data='swiss-river-1990', identifier_mode='soft_prompt',
+            search_space_file=f,
+        )
+        assert {'learning_rate', 'd_model', 'd_ff', 'llm_layers', 'soft_prompt_len'} == set(sp)

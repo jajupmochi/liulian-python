@@ -601,7 +601,7 @@ class TestExplicitHpoBlockInConfigs:
         for p in self.CONFIGS:
             cfg = yaml.safe_load(open(p, encoding='utf-8'))
             assert 'hpo' not in cfg, f'{p}: `hpo` must stay phase-owned'
-            assert cfg['hpo_num_samples'] == 24, p
+            assert cfg['hpo_num_samples'] == 30, p
             assert cfg['hpo_scheduler'] == 'asha', p
             assert cfg['hpo_resources_gpu'] == 0.25, p
             assert cfg['hpo_save_checkpoints'] is True, p
