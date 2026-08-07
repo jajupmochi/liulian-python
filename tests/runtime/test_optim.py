@@ -179,3 +179,77 @@ class TestRayOptimizer:
 
         assert captured['config'] == {'disable_early_stopping': False}
         assert captured['checkpoint_dir'] == 'checkpoints/trial_abc123'
+
+
+class TestPerExperimentSearchSpaceFile:
+    """`search_space_file` config key: per-experiment grid file with default
+    fallback (2026-08-07). Locks four contracts:
+      (a) a custom file's grid wins over the default;
+      (b) no key -> the default liulian/optim/search_spaces.yaml (unchanged);
+      (c) a configured-but-MISSING path raises (silent fallback would run the
+          wrong grid unnoticed);
+      (d) the shipped hydro-LLM file resolves the same knob set as the default
+          does today (identical at fork time), incl. the soft_prompt extra —
+          guarding the identifier_spaces-must-live-in-the-same-file trap.
+    """
+
+    def test_custom_file_wins(self, tmp_path):
+        import yaml
+
+        custom = tmp_path / 'space.yaml'
+        custom.write_text(
+            yaml.safe_dump({
+                'model_spaces': {'tiny': {'learning_rate': {'dist': 'choice', 'values': [0.5]}}},
+                'identifier_spaces': {'none': {}},
+                'resolution': [{'data': 'swiss-river', 'model': 'timellm', 'space': 'tiny'}],
+            }),
+            encoding='utf-8',
+        )
+        space = resolve_search_space(
+            model='timellm', data='swiss-river-1990', search_space_file=str(custom)
+        )
+        assert set(space) == {'learning_rate'}
+
+    def test_no_key_uses_default_file(self):
+        default = resolve_search_space(model='timellm', data='swiss-river-1990')
+        explicit_none = resolve_search_space(
+            model='timellm', data='swiss-river-1990', search_space_file=None
+        )
+        assert set(default) == set(explicit_none)
+        assert {'learning_rate', 'd_model', 'd_ff', 'llm_layers'} <= set(default)
+
+    def test_missing_configured_file_raises(self):
+        with pytest.raises(FileNotFoundError, match='search_space_file'):
+            resolve_search_space(
+                model='timellm', data='swiss-river-1990',
+                search_space_file='does/not/exist.yaml',
+            )
+
+    def test_hydro_llm_file_matches_default_at_fork(self):
+        hydro = 'experiments/hydro_llm/configs/search_spaces.yaml'
+        for mode in ('none', 'entity_description', 'random_embedding'):
+            a = resolve_search_space(model='timellm', data='swiss-river-1990', identifier_mode=mode)
+            b = resolve_search_space(
+                model='timellm', data='swiss-river-1990', identifier_mode=mode,
+                search_space_file=hydro,
+            )
+            assert set(a) == set(b) == {'learning_rate', 'd_model', 'd_ff', 'llm_layers'}, mode
+        sp = resolve_search_space(
+            model='timellm', data='swiss-river-1990', identifier_mode='soft_prompt',
+            search_space_file=hydro,
+        )
+        assert 'soft_prompt_len' in sp, 'identifier_spaces entry lost in the per-experiment file'
+
+    def test_hydro_configs_point_at_existing_file(self):
+        import os
+
+        import yaml
+
+        for p in (
+            'experiments/hydro_llm/configs/timellm_config.yaml',
+            'experiments/hydro_llm/configs/tier0_ettcontrol.yaml',
+        ):
+            cfg = yaml.safe_load(open(p, encoding='utf-8'))
+            f = cfg.get('search_space_file')
+            assert f, f'{p}: search_space_file key missing'
+            assert os.path.exists(f), f'{p}: search_space_file {f} does not exist'

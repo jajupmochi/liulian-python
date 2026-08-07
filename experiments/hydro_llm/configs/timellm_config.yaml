@@ -117,6 +117,12 @@ pct_start: 0.2
 use_amp: false
 
 # ── HPO (Ray Tune) ───────────────────────────────────────────────────
+# Per-experiment search GRID file (what to tune, which ranges). Omit the key to
+# fall back to the project default liulian/optim/search_spaces.yaml; a set-but-
+# missing path raises loudly. Grid vs execution split: grid lives in that file,
+# execution settings are the hpo_* keys below.
+search_space_file: experiments/hydro_llm/configs/search_spaces.yaml
+
 # Pinned EXPLICITLY (project rule 3: config-externalized, front-end-editable). Before
 # 2026-08-07 these came invisibly from DEFAULT_CONFIG in liulian/config.py; values below
 # equal the ones the Tier-0 cluster runs actually used (verified in job 11623379's log:

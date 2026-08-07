@@ -950,12 +950,30 @@ def _spec_to_tune(spec: Dict[str, Any]) -> Any:
     raise ValueError(f'Unknown sampler dist {spec.get("dist")!r} in {_YAML_PATH.name}')
 
 
-@functools.lru_cache(maxsize=1)
-def _load_yaml_config() -> Dict[str, Any]:
-    """Load and cache the YAML search-space config (empty dict if missing)."""
-    if not _YAML_PATH.exists():
-        return {'model_spaces': {}, 'identifier_spaces': {}, 'resolution': []}
-    with _YAML_PATH.open('r', encoding='utf-8') as fh:
+@functools.lru_cache(maxsize=8)
+def _load_yaml_config(yaml_path: str | None = None) -> Dict[str, Any]:
+    """Load and cache a YAML search-space config.
+
+    Args:
+        yaml_path: Optional per-experiment search-space file (the config key
+            ``search_space_file``, repo-root-relative or absolute). ``None``
+            falls back to the project default next to this module. A
+            CONFIGURED-but-missing path raises loudly — silently falling back
+            to the default would run the wrong grid without anyone noticing.
+    """
+    if yaml_path is not None:
+        path = Path(yaml_path)
+        if not path.exists():
+            raise FileNotFoundError(
+                f'search_space_file {yaml_path!r} not found (cwd={Path.cwd()}). '
+                f'Fix the path or remove the key to use the default '
+                f'{_YAML_PATH}.'
+            )
+    else:
+        path = _YAML_PATH
+        if not path.exists():
+            return {'model_spaces': {}, 'identifier_spaces': {}, 'resolution': []}
+    with path.open('r', encoding='utf-8') as fh:
         cfg = yaml.safe_load(fh) or {}
     cfg.setdefault('model_spaces', {})
     cfg.setdefault('identifier_spaces', {})
@@ -975,7 +993,13 @@ def _resolve_base_key(cfg: Dict[str, Any], model: str, data: str) -> str | None:
     return None
 
 
-def _resolve_from_yaml(model: str, data: str, identifier_mode: str, id_integration: str) -> Dict[str, Any] | None:
+def _resolve_from_yaml(
+    model: str,
+    data: str,
+    identifier_mode: str,
+    id_integration: str,
+    yaml_path: str | None = None,
+) -> Dict[str, Any] | None:
     """Compose a search space from the YAML config.
 
     Returns ``None`` when the model is not covered by the YAML resolution
@@ -983,8 +1007,13 @@ def _resolve_from_yaml(model: str, data: str, identifier_mode: str, id_integrati
     **mode-aware**: identifier params are added per ``identifier_mode``, and
     ``embedding_size`` is skipped for ``patchtst`` + ``add_after_patch`` (its
     internal embedding is fixed to ``d_model``).
+
+    ``yaml_path`` selects a per-experiment search-space file; NOTE both the
+    ``model_spaces`` grid AND the ``identifier_spaces`` extras come from the
+    SAME file, so a per-experiment file must carry every identifier entry its
+    modes need (a missing entry silently composes {}).
     """
-    cfg = _load_yaml_config()
+    cfg = _load_yaml_config(yaml_path)
     key = _resolve_base_key(cfg, model, data)
     if key is None or key not in cfg['model_spaces']:
         return None
@@ -1016,6 +1045,7 @@ def resolve_search_space(
     data: str = '',
     identifier_mode: str = 'none',
     id_integration: str = 'concat_to_x',
+    search_space_file: str | None = None,
 ) -> Dict[str, Any]:
     """Pick the best pre-defined search space and return ``ray.tune`` objects.
 
@@ -1038,6 +1068,10 @@ def resolve_search_space(
         id_integration: Embedding integration mode. For PatchTST,
             ``'add_after_patch'`` uses the base PatchTST space because
             no standalone ``embedding_size`` is tuned.
+        search_space_file: Optional per-experiment search-space YAML (the
+            ``search_space_file`` config key). ``None`` uses the default
+            ``liulian/optim/search_spaces.yaml``; a configured-but-missing
+            path raises FileNotFoundError (never a silent fallback).
 
     Returns:
         Search space dictionary with ``ray.tune.*`` values.
@@ -1052,7 +1086,7 @@ def resolve_search_space(
     #    ranges without touching Python. The composition there is mode-aware —
     #    embedding_size is added ONLY for embedding mode, which fixes the
     #    historical bug where `none` still tuned embedding_size.
-    yaml_space = _resolve_from_yaml(model, data, identifier_mode, id_integration)
+    yaml_space = _resolve_from_yaml(model, data, identifier_mode, id_integration, search_space_file)
     if yaml_space is not None:
         return yaml_space
 

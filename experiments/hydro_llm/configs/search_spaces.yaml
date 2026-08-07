@@ -1,0 +1,49 @@
+# Per-EXPERIMENT HPO search-space config for hydro-LLM (Time-LLM × swiss river).
+#
+# Selected by the `search_space_file` key in this experiment's run configs
+# (timellm_config.yaml / tier0_ettcontrol.yaml). Configs WITHOUT that key fall
+# back to the project default `liulian/optim/search_spaces.yaml`; a configured
+# path that does not exist raises loudly (no silent fallback).
+#
+# Schema is identical to the default file (model_spaces + identifier_spaces +
+# resolution; grammar: choice/uniform/loguniform/randint). IMPORTANT: the
+# composition reads model_spaces AND identifier_spaces from THIS file only, so
+# every identifier mode this experiment runs must have an entry here — a
+# missing entry silently composes {} (no extra knobs).
+#
+# Grid provenance (2026-08-07, identical to the default's timellm_swiss at fork
+# time): centered on the Time-LLM authors' canonical values (ETTh1 script:
+# d_model 32, d_ff 128, lr 0.01, llm_layers 6), each canonical value included
+# in its grid. ref: https://github.com/KimMeen/Time-LLM (scripts/TimeLLM_ETTh1.sh)
+
+model_spaces:
+  timellm_swiss:
+    learning_rate: {dist: choice, values: [0.001, 0.01]}   # canonical 0.01 + diagnostic-best 0.001
+    d_model:       {dist: choice, values: [16, 32, 64]}    # canonical 32; capacity scaling
+    d_ff:          {dist: choice, values: [32, 128, 256]}  # canonical 128; reprogramming/head width
+    # 12 = FULL GPT-2 depth (paper Table 6: GPT-2(12) beats GPT-2(6) by 2.7% on THEIR
+    # benchmarks; FSCA found 4-6 optimal — contested, so let validation decide).
+    # Tier-boundary sync rule applies: never change mid-tier.
+    llm_layers:    {dist: choice, values: [3, 6, 12]}      # canonical 6; full GPT-2 12
+
+identifier_spaces:
+  none:                 {}   # baseline — no identifier params
+  # Time-LLM soft-prompt mode: soft_prompt_len is the ONLY soft-prompt knob
+  # (prefix width = llm_dim, fixed by the backbone).
+  soft_prompt:
+    soft_prompt_len:    {dist: choice, values: [4, 8, 16]}
+  # Numeric-embedding A2 sub-variants (run_matrix._A2_TO_IDENTIFIER): they add
+  # NO tunable dim — the identity embedding width is tied to d_model (tuned in
+  # the model space). Declared {} so the composition is explicit, not a silent
+  # dict-miss. `embedding` (A2 learnable) is dead-knob-guarded in
+  # _resolve_from_yaml for timellm anyway.
+  embedding:            {}
+  random_embedding:     {}
+  onehot_embedding:     {}
+  sinusoidal_embedding: {}
+  coordinates_embedding: {}  # fixed (28,2) station coords, projected — nothing to tune
+  entity_description:   {}   # text identity — fixed description, nothing to tune
+  text_embedding:       {}   # frozen-LLM text embedding, projected to d_model
+
+resolution:
+  - {data: swiss-river, model: timellm, space: timellm_swiss}

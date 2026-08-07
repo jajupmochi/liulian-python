@@ -115,8 +115,12 @@ stride 8、seq_len 90 / pred_len 7、train_epochs 30 + early stopping。
 `embedding_size` 对 timellm/gpt4ts 被 dead-knob 防护排除（identity embedding 宽度
 绑定 d_model）。骨干网络（`llm_backbone`）与 Level-A mode 是**矩阵轴,不是 HPO
 旋钮**。HPO 的执行参数（trial 数、ASHA、GPU 配比）钉在
-`experiments/hydro_llm/configs/timellm_config.yaml` 的 `hpo_*` 块;搜索网格本身在
-`liulian/optim/search_spaces.yaml`,由 `resolve_search_space()` 按 identifier 模式组合。
+`experiments/hydro_llm/configs/timellm_config.yaml` 的 `hpo_*` 块;搜索网格在**本实验
+专属文件** `experiments/hydro_llm/configs/search_spaces.yaml`,由配置键
+`search_space_file` 选定（2026-08-07）。不写该键则回落到项目默认
+`liulian/optim/search_spaces.yaml`;写了但文件不存在会大声报错。注意:网格与各
+identifier 模式的 `identifier_spaces` 附加项组合自**同一个文件**,实验专属文件必须
+带全其模式用到的所有 identifier 条目。
 
 ---
 

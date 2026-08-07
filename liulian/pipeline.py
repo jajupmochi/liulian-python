@@ -1028,16 +1028,22 @@ def build_optimizer(config: Dict[str, Any]) -> Optional[Any]:
     if 'search_space' not in config:
         from liulian.optim.search_spaces import resolve_search_space
 
+        # Per-experiment grid file (config key `search_space_file`, repo-root-relative);
+        # None -> the default liulian/optim/search_spaces.yaml. Configured-but-missing
+        # raises inside resolve_search_space — never a silent fallback.
+        _space_file = config.get('search_space_file')
         config['search_space'] = resolve_search_space(
             model=config.get('model', ''),
             data=config.get('data', ''),
             identifier_mode=config.get('identifier_mode', 'none'),
             id_integration=config.get('id_integration', 'concat_to_x'),
+            search_space_file=_space_file,
         )
         logger.info(
-            'Resolved search space for model=%s, data=%s: %s',
+            'Resolved search space for model=%s, data=%s (from %s): %s',
             config.get('model'),
             config.get('data'),
+            _space_file or 'default search_spaces.yaml',
             list(config['search_space'].keys()),
         )
 

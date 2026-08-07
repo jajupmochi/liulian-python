@@ -147,6 +147,7 @@ identifier_spaces:
   random_embedding:     {}
   onehot_embedding:     {}
   sinusoidal_embedding: {}
+  coordinates_embedding: {}  # fixed (28,2) station coords, projected — nothing to tune
   entity_description:   {}   # text identity — fixed description, nothing to tune
   text_embedding:       {}   # frozen-LLM text embedding, projected to d_model
 

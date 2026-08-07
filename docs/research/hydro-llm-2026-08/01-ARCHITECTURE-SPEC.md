@@ -116,8 +116,11 @@ patch_len 16 / stride 8, seq_len 90 / pred_len 7, train_epochs 30 + early stoppi
 is tied to d_model). Backbone (`llm_backbone`) and Level-A mode are **matrix axes, not HPO
 knobs**. HPO EXECUTION settings (trial count, ASHA, gpu fraction) are pinned in
 `experiments/hydro_llm/configs/timellm_config.yaml` (`hpo_*` block); the search GRID lives
-in `liulian/optim/search_spaces.yaml`, composed per identifier mode by
-`resolve_search_space()`.
+in the PER-EXPERIMENT file `experiments/hydro_llm/configs/search_spaces.yaml`, selected by
+the `search_space_file` config key (2026-08-07). Omitting the key falls back to the project
+default `liulian/optim/search_spaces.yaml`; a set-but-missing path raises loudly. NOTE the
+grid AND the per-mode `identifier_spaces` extras compose from the SAME file, so a
+per-experiment file must carry every identifier entry its modes use.
 
 ---
 
