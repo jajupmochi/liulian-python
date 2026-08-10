@@ -349,13 +349,15 @@ in the driver + the post-HPO rebuild/retrain (main process).
   worker processes, so NORMALLY-attached IDE breakpoints INSIDE a trial do not hit
   (`hpo_local_mode` only makes trials sequential) — either breakpoint the post-HPO retrain
   (main process, SAME `build_model`/`forecast`/`fit` code), or use the next bullet.
-- **Breakpoints INSIDE a Ray trial** (2026-08-07, `hpo_debug_attach` in `debug.yaml`): the
-  worker REVERSE-CONNECTS to a PyCharm "Python Debug Server". Setup: create the
-  debug-server run-config (port 5678), `pip install pydevd-pycharm` (in .venv), START the
-  server, uncomment `hpo_debug_attach: localhost:5678`, run run_matrix with plain Run —
-  breakpoints in `_trainable`/`build_model`/`trainer.fit` then hit inside the worker.
-  Fails LOUDLY if the server is not listening (verified: the RuntimeError fires inside the
-  trial). DEV-ONLY — never sync the key to a cluster config.
+- **Breakpoints INSIDE a Ray trial** (`hpo_debug_attach` in `debug.yaml`): the worker
+  REVERSE-CONNECTS to a PyCharm "Python Debug Server" — **full step-by-step guide with
+  troubleshooting: [docs/debugging_ray_hpo.md](../../debugging_ray_hpo.md)** (中文:
+  [debugging_ray_hpo.zh.md](../../debugging_ray_hpo.zh.md); condensed copy in the
+  `_maybe_attach_debugger` docstring, ray_optimizer.py). Short form: start the debug-server
+  run-config (port 5678) FIRST, uncomment `hpo_debug_attach: localhost:5678`, launch
+  run_matrix as usual — breakpoints in `_trainable`/`build_model`/`trainer.fit` then hit
+  inside the worker. Fails LOUDLY if the server is not listening. DEV-ONLY — never sync
+  the key to a cluster config.
 - **Model/training breakpoints immediately** (no HPO wait): `--phase dev` — real pipeline,
   direct main-process training, breakpoints in `build_model`/`forecast`/`fit` hit at once. Same
   model code as an HPO trial, minus the HPO wrapper.

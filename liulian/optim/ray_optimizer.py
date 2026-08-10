@@ -27,18 +27,42 @@ logger = logging.getLogger(__name__)
 def _maybe_attach_debugger(config: Dict[str, Any]) -> None:
     """Attach this Ray WORKER process to a PyCharm Debug Server (opt-in).
 
-    Ray 2.x always executes trainables in raylet-spawned worker processes —
-    even with ``hpo_local_mode`` (that only makes trials sequential) — so
-    breakpoints set in a normally-attached IDE debugger never hit inside
-    ``_trainable``. The standard fix is the REVERSE connection: the worker
-    calls ``pydevd_pycharm.settrace`` back to a listening PyCharm
-    "Python Debug Server" run-config, after which breakpoints inside the
-    trainable bind normally.
+    WHY: Ray 2.x always executes trainables in raylet-spawned worker
+    processes — even with ``hpo_local_mode`` (that only makes trials
+    sequential; the real in-process ``local_mode`` was removed from Ray 2.x)
+    — so breakpoints set by a normally-attached IDE debugger never hit
+    inside ``_trainable``. The working pattern is the REVERSE connection:
+    the worker calls ``pydevd_pycharm.settrace`` back to a listening PyCharm
+    "Python Debug Server", after which breakpoints inside the trainable
+    (``_trainable`` / ``build_model`` / ``trainer.fit``) bind normally.
+    Driver-side breakpoints are unaffected — they follow however you
+    launched run_matrix (Debug launch covers both sides).
+
+    HOW (full guide: docs/debugging_ray_hpo.md, 中文 docs/debugging_ray_hpo.zh.md):
+      1. One-time: ``uv pip install pydevd-pycharm`` (match your PyCharm
+         build on handshake errors: Help|About -> ``pydevd-pycharm~=<build>``)
+         + create a "Python Debug Server" run-config (Run | Edit
+         Configurations | + | Python Debug Server), port 5678.
+      2. START that server config with the Debug button FIRST — its console
+         must show "Waiting for process connection…".
+      3. Un-comment ``hpo_debug_attach: localhost:5678`` in
+         experiments/hydro_llm/configs/debug.yaml, set breakpoints, then
+         launch run_matrix as usual (Debug). Each connecting worker prints
+         "[hpo_debug_attach] Ray worker pid=... attached ..." and shows up
+         under the server's Debug tab; trials are sequential under
+         hpo_local_mode so every trial re-connects and re-hits breakpoints.
+      4. When done, RE-COMMENT the key — with the key set and no listening
+         server the next run fails loudly by design.
 
     Config key ``hpo_debug_attach``: ``true`` (-> localhost:5678) or
-    ``"host:port"``. DEV-ONLY — never set it in a cluster config. Failures
-    are LOUD (missing package / no listening server): if you asked to debug,
-    silently running undebugged would be the worst outcome.
+    ``"host:port"``. DEV-ONLY — never sync it to a cluster config (compute
+    nodes cannot reach your IDE; every trial would die loudly). Failures are
+    LOUD (missing package / unreachable server): if you asked to debug,
+    silently running undebugged would be the worst outcome. settrace is
+    called with ONLY host/port/suspend — the stdout/stderr-redirect kwargs
+    were RENAMED across pydevd versions (stdoutToServer -> stdout_to_server)
+    and a mismatched name raises TypeError before any connection attempt
+    (user-hit 2026-08-10, fixed in 7c6ebf5).
     """
     target = config.get('hpo_debug_attach')
     if not target:
