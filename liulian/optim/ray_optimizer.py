@@ -99,6 +99,13 @@ def _maybe_attach_debugger(config: Dict[str, Any]) -> None:
             kwargs.update(stdout_to_server=True, stderr_to_server=True)
         elif 'stdoutToServer' in params:
             kwargs.update(stdoutToServer=True, stderrToServer=True)
+        # Trace ONLY the calling thread (where the whole trainable runs).
+        # Without this, pydevd tries to install tracing on the Ray actor's
+        # PRE-EXISTING system threads and spams "Unable to set tracing for
+        # existing threads. Result: 501" — those threads never run user code,
+        # so restricting to the current thread loses nothing.
+        if 'trace_only_current_thread' in params:
+            kwargs['trace_only_current_thread'] = True
         pydevd_pycharm.settrace(host, **kwargs)
     except Exception as exc:
         raise RuntimeError(
