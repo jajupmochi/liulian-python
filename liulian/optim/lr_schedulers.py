@@ -276,7 +276,40 @@ def adjust_learning_rate(
 
     This function is called at the end of each epoch when
     ``step_mode == 'manual'``.  It mirrors the Time-Series-Library
-    ``adjust_learning_rate`` utility.
+    ``adjust_learning_rate`` utility (same type names, same formulas).
+
+    THE TYPES (``lr0`` = ``config['learning_rate']``, ``epoch`` is 1-based):
+
+    * ``'type1'`` — exponential halving, every epoch::
+
+          lr = lr0 * 0.5^(epoch - 1)        # e1: lr0, e2: lr0/2, e3: lr0/4, ...
+
+      The TSLib/Time-LLM workhorse: aggressive decay that pairs with their
+      short train_epochs (10) + early stopping. Our timellm swiss configs use
+      THIS (``lradj: type1`` in timellm_config.yaml), starting from lr0=0.01.
+    * ``'type2'`` — fixed epoch→LR lookup table (absolute values, ignores lr0)::
+
+          {2: 5e-5, 4: 1e-5, 6: 5e-6, 8: 1e-6, 10: 5e-7, 15: 1e-7, 20: 5e-8}
+
+      Epochs not in the table keep the current LR unchanged.
+    * ``'type3'`` — 3-epoch warm-hold, then gentle exponential decay::
+
+          lr = lr0                            for epoch < 3
+          lr = lr0 * 0.9^(epoch - 3)          for epoch >= 3
+
+    * ``'PEMS'`` — gentle exponential decay from epoch 1 (TSLib's traffic
+      preset)::
+
+          lr = lr0 * 0.95 ^ epoch
+
+    * anything else — no change (returns the optimizer's current LR).
+
+    DEFAULTS, two layers apart (do not confuse them): this function's own
+    fallback for a missing ``lradj`` key is ``'type1'``, but the TRAINER's
+    default schedule is ``'onecycle'`` (a torch ``OneCycleLR`` stepped per
+    batch — never routed through this function; only type1/type2/type3/PEMS
+    resolve to step_mode='manual' in ``build_scheduler``). In practice the
+    hydro-LLM runs always set ``lradj: type1`` explicitly in the config.
 
     Args:
         optimizer: Optimiser whose param groups are updated.
