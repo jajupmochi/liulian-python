@@ -943,24 +943,36 @@ def build_loaders(dataset: Any, config: Dict[str, Any]) -> Dict[str, Any]:
     Delegates to ``dataset.get_data_loaders()`` which is the standard
     interface for liulian datasets.
     """
-    max_train_samples = config.get('max_train_samples')
-    if max_train_samples is not None:
-        max_train_samples = int(max_train_samples)
-        if max_train_samples <= 0:
-            raise ValueError(f'max_train_samples must be positive, got {max_train_samples}.')
-        train_split = dataset.get_split('train')
-        if not hasattr(train_split, 'with_max_samples'):
-            raise ValueError('Dataset train split does not support max_train_samples capping.')
-        capped_train = train_split.with_max_samples(max_train_samples)
+    # Per-split sample caps (debug/speed knobs). Same mechanism for all three
+    # splits: replace the cached split with a with_max_samples() view. Before
+    # 2026-08-10 only train was cappable, so a debug run with a tiny train set
+    # still evaluated the FULL val/test splits every epoch.
+    for split_name, cap_key in (
+        ('train', 'max_train_samples'),
+        ('val', 'max_val_samples'),
+        ('test', 'max_test_samples'),
+    ):
+        cap = config.get(cap_key)
+        if cap is None:
+            continue
+        cap = int(cap)
+        if cap <= 0:
+            raise ValueError(f'{cap_key} must be positive, got {cap}.')
+        split = dataset.get_split(split_name)
+        if not hasattr(split, 'with_max_samples'):
+            raise ValueError(f'Dataset {split_name} split does not support {cap_key} capping.')
+        capped = split.with_max_samples(cap)
         split_cache = getattr(dataset, '_split_cache', None)
         if not isinstance(split_cache, dict):
-            raise ValueError('Dataset does not expose mutable split cache for max_train_samples.')
-        split_cache['train'] = capped_train
+            raise ValueError(f'Dataset does not expose mutable split cache for {cap_key}.')
+        split_cache[split_name] = capped
         logger.info(
-            'Applied max_train_samples=%d (train split: %d -> %d)',
-            max_train_samples,
-            len(train_split),
-            len(capped_train),
+            'Applied %s=%d (%s split: %d -> %d)',
+            cap_key,
+            cap,
+            split_name,
+            len(split),
+            len(capped),
         )
 
     # In deterministic mode, disable shuffle for reproducible batch ordering

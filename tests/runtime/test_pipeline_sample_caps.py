@@ -19,9 +19,11 @@ class _DummySplit:
 
 
 class _DummyDataset:
-    def __init__(self, train_size: int = 100) -> None:
+    def __init__(self, train_size: int = 100, val_size: int = 100, test_size: int = 100) -> None:
         self._split_cache = {
             'train': _DummySplit(train_size),
+            'val': _DummySplit(val_size),
+            'test': _DummySplit(test_size),
         }
         self.called_with: dict[str, object] = {}
 
@@ -70,4 +72,34 @@ def test_build_loaders_rejects_non_positive_max_train_samples() -> None:
                 'deterministic': False,
                 'max_train_samples': 0,
             },
+        )
+
+
+def test_build_loaders_applies_val_and_test_caps() -> None:
+    """Regression (2026-08-10): only train was cappable, so a debug run with a
+    tiny train set still evaluated the FULL val/test splits every epoch. The
+    same with_max_samples mechanism must apply to all three splits, each with
+    its own key, independently."""
+    dataset = _DummyDataset(train_size=100, val_size=200, test_size=300)
+    build_loaders(
+        dataset,
+        {
+            'batch_size': 8,
+            'num_workers': 0,
+            'deterministic': False,
+            'max_val_samples': 11,
+            'max_test_samples': 13,
+        },
+    )
+    assert len(dataset._split_cache['train']) == 100  # untouched without its key
+    assert len(dataset._split_cache['val']) == 11
+    assert len(dataset._split_cache['test']) == 13
+
+
+def test_build_loaders_rejects_non_positive_val_cap() -> None:
+    dataset = _DummyDataset()
+    with pytest.raises(ValueError, match='max_val_samples must be positive'):
+        build_loaders(
+            dataset,
+            {'batch_size': 8, 'num_workers': 0, 'deterministic': False, 'max_val_samples': 0},
         )

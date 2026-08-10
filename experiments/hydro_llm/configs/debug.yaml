@@ -66,6 +66,8 @@ features: M
 train_split: 0.8
 max_samples: null
 max_train_samples: 64           # DEBUG: tiny cap so a trial is a few seconds (raise for realistic curves)
+max_val_samples: 64             # DEBUG: cap val too — otherwise every epoch evaluates the FULL val split
+max_test_samples: 64            # DEBUG: cap test too (same reason; metrics are meaningless in debug anyway)
 
 # ── Task & mode ─────────────────────────────────────────────────────────
 task: forecast
@@ -143,7 +145,7 @@ hpo_local_mode: true          # sequential trials (Ray 2.x: num_cpus=1). NOTE th
 #   3. START that debug-server run-config (it waits), THEN run run_matrix normally
 #      (plain Run is fine — breakpoints are handled by the debug server).
 # Fails LOUDLY if the server is not listening. DEV-ONLY: never sync to a cluster config.
-# hpo_debug_attach: localhost:5678
+hpo_debug_attach: localhost:5678  # ACTIVE for local debugging — re-comment when done
 
 # ── Evaluation ──────────────────────────────────────────────────────────
 eval_denorm: true
