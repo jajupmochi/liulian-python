@@ -1,0 +1,401 @@
+%% KDD-style draft (ACM acmart, sigconf). Compile: pdflatex -> bibtex -> pdflatex x2.
+%% Status markers: \inprogress{...} renders a visible blue "[IN PROGRESS: ...]" box —
+%% every number still being produced on the cluster is marked with the producing jobs.
+\documentclass[sigconf,review]{acmart}
+
+\usepackage{booktabs}
+\usepackage{xcolor}
+\newcommand{\inprogress}[1]{\textcolor{blue}{\textbf{[IN PROGRESS:} #1\textbf{]}}}
+\newcommand{\swiss}{\textsc{Swiss-1990}}
+\newcommand{\swissb}{\textsc{Swiss-2010}}
+\newcommand{\swissc}{\textsc{Swiss-Zurich}}
+
+%% Anonymous-ish draft header; venue placeholders per KDD template.
+\copyrightyear{2026}
+\acmYear{2026}
+\setcopyright{none}
+\acmConference[KDD '27 (target)]{draft for internal review}{}{Bern}
+\acmISBN{}
+\acmDOI{}
+\settopmatter{printacmref=false}
+
+\begin{document}
+
+\title[Where Should a Frozen LLM Forecaster Learn Who It Is Forecasting?]{Where Should a
+Frozen LLM Forecaster Learn Who It Is Forecasting? Comparing Entity-Identity Injection
+Schemes in Reprogrammed Language Models}
+
+\author{Jun Ma}
+\affiliation{\institution{University of Bern}\city{Bern}\country{Switzerland}}
+\email{jajupmochi@gmail.com}
+
+\begin{abstract}
+Reprogrammed frozen language models such as Time-LLM forecast a time series after
+receiving a hand-written dataset description, yet nothing in that construction tells
+the model \emph{which entity} produced the input window. We ask where entity identity
+should enter a frozen LLM forecaster, and compare five injection schemes under one
+matched protocol: no identity (\textsf{none}), a learned numeric vector added to the
+patch embeddings (\textsf{numeric}), a natural-language station description inside the
+prompt (\textsf{text}), a learned continuous prefix (\textsf{soft prompt}), and a
+frozen text embedding injected additively (\textsf{text-embedding}). All schemes are
+evaluated on three Swiss river water-temperature datasets through a single training
+pipeline with matched hyper-parameter optimization, with the backbone kept frozen
+throughout. Preliminary single-seed anchors show a 19.4\% Test-MSE gain for the
+numeric scheme on the entity-rich dataset against a 2.2\% \emph{loss} for the text
+scheme, and a capacity-matched \emph{random} identity recovers 95\% of the numeric
+gain, pointing to per-entity distinctness rather than learned content as the active
+mechanism. The full matched grid is running; the pre-registered analysis battery that
+separates distinctness from content is specified in Section~\ref{sec:analysis}.
+\end{abstract}
+
+\begin{CCSXML}
+<ccs2012><concept><concept_id>10010147.10010257</concept_id>
+<concept_desc>Computing methodologies~Machine learning</concept_desc>
+<concept_significance>500</concept_significance></concept></ccs2012>
+\end{CCSXML}
+\ccsdesc[500]{Computing methodologies~Machine learning}
+\keywords{time series forecasting, large language models, entity embeddings,
+reprogramming, hydrology}
+
+\maketitle
+
+\section{Introduction}
+\label{sec:intro}
+
+Time-LLM~\cite{jin2024timellm} popularized a construction in which a frozen GPT-2 or
+LLaMA backbone forecasts a time series after two inputs are prepared for it: patched
+series tokens translated into the token space by a trainable reprogramming layer, and
+a natural-language ``Prompt-as-Prefix'' carrying a dataset description, task
+instructions, and input statistics. The construction bundles semantics, instructions,
+and statistics into one prompt, and it identifies the \emph{dataset} but never the
+\emph{entity}: every station, sensor, or household that the global model serves
+receives the same words.
+
+Entity identity is not a detail. On the Swiss river network benchmark, a one-hot
+station identifier reduces an LSTM's RMSE by 56\% (about 1.17\,°C in physical
+units)~\cite{swissbench}. In hydrology, Li et al.~\cite{li2022random} showed that
+\emph{random} static vectors match physically meaningful catchment descriptors in
+gauged basins, and Min et al. report the same for rainfall--runoff LSTMs --- results
+that separate the \emph{distinctness} of an identifier from its \emph{content}. For
+reprogrammed LLM forecasters neither question has been answered: whether identity
+survives a frozen interface at all, and through which pathway it should enter.
+
+A structural argument says identity is currently \emph{erased}. Time-LLM, like
+PatchTST~\cite{nie2023patchtst}, applies reversible instance normalization
+(RevIN)~\cite{kim2022revin} to every window; the per-window mean and scale are
+precisely where a station's level and amplitude live. Two stations that differ by
+7\,°C can normalize to point-wise \emph{identical} inputs (Section~\ref{sec:method}),
+after which only shape distinguishes them. Any identity signal must therefore be
+re-injected downstream of the normalization --- the question is where.
+
+\textbf{This paper's axis is the injection scheme itself.} We factorize identity
+injection along representation source (text vs.\ learned vector) and injection
+position (prompt prefix vs.\ additive patch embedding), which yields four schemes
+around the \textsf{none} baseline (Table~\ref{tab:grid}), and we compare all of them
+with the backbone \emph{frozen} --- fine-tuning of the prompt pathway (LoRA,
+LayerNorm-only) is deliberately deferred to a follow-up tier so that the scheme
+comparison is not confounded by trainability.
+
+\begin{table}[t]
+\caption{The identity-injection design space. Every cell is one experimental arm;
+\textsf{none} (byte-identical prompt to official Time-LLM) is the shared baseline.}
+\label{tab:grid}
+\begin{tabular}{@{}lll@{}}
+\toprule
+ & injection = prompt/prefix & injection = additive \\
+\midrule
+source = text & \textsf{text} (entity description) & \textsf{text-embedding} \\
+source = learned & \textsf{soft prompt} & \textsf{numeric} (+ A2 ladder) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Contributions.}
+(1)~A factorized design space for entity identity in reprogrammed LLM forecasters,
+upgrading the usual single-mode comparison to a grid whose axes are interpretable
+(Section~\ref{sec:method}).
+(2)~A matched-budget evaluation of all schemes on three real hydrological datasets
+through one shared pipeline (Section~\ref{sec:setup}); \inprogress{cluster chains
+11866831--11867015}.
+(3)~A distinguisher-vs-content decomposition of the text pathway via shuffled and
+symbol-code prompts, which no prior LLM-for-time-series work isolates
+(Section~\ref{sec:ablations}).
+(4)~A pre-registered mechanism analysis (capacity-matched controls, linear probes,
+attention geometry) separating identity-as-signal from
+identity-as-interface-workaround (Section~\ref{sec:analysis}).
+
+\section{Related Work}
+\label{sec:related}
+
+\textbf{LLM-based forecasters.} Time-LLM~\cite{jin2024timellm} trains a
+reprogramming layer and head around a frozen backbone;
+GPT4TS~\cite{zhou2023onefitsall} fine-tunes positional embeddings and LayerNorms and
+has \emph{no} prompt pathway, making it our negative control;
+TEMPO~\cite{cao2024tempo} adds decomposition; AutoTimes~\cite{liu2024autotimes}
+autoregressive time tokens. Among published systems only Time-LLM and UniTime consume
+written text, and we find no hydrological application of prompt-as-prefix; our
+authored station prompts fill that gap with per-phrase provenance.
+
+\textbf{Entity identifiers in global forecasting.} One-hot, learned, coordinate, and
+random identifier features are standard for classical global models; the strongest
+mechanism evidence is that random vectors can match physical descriptors in gauged
+settings~\cite{li2022random}. Our A2 ladder ports exactly this control set into the
+LLM pathway.
+
+\textbf{Surface patterns vs.\ meaning.} Context-parroting analyses and the
+pseudo-alignment critique argue that prompt text can act as a bias term rather than
+be \emph{read}. Our shuffled-prompt and symbol-code arms turn this into a testable
+statement for entity descriptions (Section~\ref{sec:ablations}); the wider
+knowledge-vs-fitting battery is documented in the project's analysis plan.
+
+\section{Method}
+\label{sec:method}
+
+\subsection{Preliminaries and the erasure argument}
+
+A window $x \in \mathbb{R}^{T\times 1}$ (per-station univariate; $T$ covers
+$\mathit{seq\_len}=90$ days) is instance-normalized,
+\begin{equation}
+\tilde{x}_t=\frac{x_t-\mu_x}{\sigma_x+\varepsilon},\qquad
+\mu_x=\tfrac1T\textstyle\sum_t x_t,\quad
+\sigma_x^2=\tfrac1T\textstyle\sum_t (x_t-\mu_x)^2,
+\label{eq:revin}
+\end{equation}
+with the inverse applied to the model output. Consider an alpine station with window
+$[2,2.5,3,3.5,4]$\,°C and a lowland station with $[8,9,10,11,12]$\,°C: after
+Eq.~\eqref{eq:revin} both become $[-1.41,-0.71,0,0.71,1.41]$. Level and amplitude ---
+the per-entity information --- are removed by construction, which motivates
+injection \emph{after} the normalization.
+
+\subsection{Injection schemes}
+
+Patching maps $\tilde{x}$ to $P$ patches embedded as
+$E\in\mathbb{R}^{P\times d_{\mathrm{model}}}$. The \textsf{numeric} scheme adds a
+station vector $e_s\in\mathbb{R}^{d_{\mathrm{model}}}$,
+\begin{equation}
+E' = E + \mathbf{1}\,e_s^{\top},
+\label{eq:additive}
+\end{equation}
+where $e_s$ is learned (\textsf{numeric}), a \emph{fixed random} draw
+(capacity-matched control), a projected one-hot, sinusoidal code, or projected
+CH1903 coordinates (the A2 ladder), or a projected frozen text embedding
+(\textsf{text-embedding}). Reprogramming is cross-attention from patch tokens to
+$V'$ text prototypes distilled from the frozen vocabulary embeddings
+$W\in\mathbb{R}^{V\times d_{\mathrm{llm}}}$:
+\begin{equation}
+Z=\mathrm{softmax}\!\Bigl(\tfrac{(E'W_Q)(W'W_K)^{\top}}{\sqrt{d_k}}\Bigr)(W'W_V)
+\in\mathbb{R}^{P\times d_{\mathrm{llm}}}.
+\label{eq:reprog}
+\end{equation}
+The prompt pathway prepends embedded text $C$: dataset description, task
+instruction, an optional entity segment (\textsf{text}), and input statistics whose
+top-5 lags come from FFT autocorrelation
+$R(\tau)=\mathrm{IFFT}\bigl(\mathrm{FFT}(\tilde{x})\cdot
+\overline{\mathrm{FFT}(\tilde{x})}\bigr)$. The \textsf{soft prompt} scheme prepends
+$k$ \emph{learned} continuous tokens per station instead of text. The frozen LLM
+consumes $[C;Z]$; only the reprogramming layer, the output head, and the identity
+parameters train. The \textsf{none} arm's prompt is byte-identical to official
+Time-LLM, which preserves a bit-exact reproduction anchor (Section~\ref{sec:setup}).
+
+\subsection{Pipeline}
+
+One matrix entry expands cells (dataset $\times$ scheme $\times$ sub-variant
+$\times$ seed) into a shared pipeline: Ray~Tune HPO (30 samples, ASHA) over
+$\{lr\}\times\{d_{\mathrm{model}}\}\times\{d_{\mathrm{ff}}\}\times\{\mathit{llm\_layers}\}$,
+best-\emph{epoch} selection within each trial and best-trial selection across
+trials, followed by loading that epoch's checkpoint and evaluating once --- no
+retraining, so the reported weights are exactly the selected ones. Metrics are
+reported in scaler space and in physical units (denormalized RMSE, °C). The same
+pipeline trains the classical baselines (LSTM, PatchTST, DLinear), which keeps
+cross-family numbers comparable.
+
+\section{Experimental Setup}
+\label{sec:setup}
+
+\textbf{Datasets.} Three Swiss river water-temperature collections (daily means,
+per-entity 80/20 split): \swiss{} (28 stations, 1990--2020, entity-rich; measured
+warming trend $+0.268$\,°C/decade by Theil--Sen, consistent with the national
+literature value $+0.33\pm0.03$~\cite{michel2020}), \swissb{}, and \swissc{}.
+Authored prompts contain only facts traceable to the data or cited literature, with
+per-phrase provenance kept in the repository.
+
+\textbf{Protocol.} Seed 2026 across all model families (single seed until the
+design freezes; a multi-seed pass follows); batch 32, horizon 7 days, patch 16/8
+shared with PatchTST; 30 epochs with patience-10 early stopping; bf16 mixed
+precision exactly as official Time-LLM; identical HPO budget for every arm of a
+comparison. The Time-LLM port reproduces the official repository bit-exactly on
+ETTh1 (per-epoch losses identical; Test MSE 0.3908 / MAE 0.4159). Comparisons never
+mix precision, search space, prompt file, or budget; such changes deploy only at
+tier boundaries.
+
+\textbf{Arms.} Both a \emph{promptfix} arm (authored Swiss description) and an
+\emph{ETT-control} arm (official electricity description, everything else equal)
+run the full grid, so the value of a domain-correct description is itself measured
+at matched budget.
+
+\section{Results}
+\label{sec:results}
+
+\subsection{What identity is worth: classical reference points}
+
+\begin{table}[t]
+\caption{Identity effects in classical models on \swiss{} (benchmark round;
+one-hot identifiers).}
+\label{tab:classical}
+\begin{tabular}{@{}lll@{}}
+\toprule
+model & identifier effect & reading \\
+\midrule
+LSTM & $-56\%$ RMSE ($\approx$1.17\,°C) & identity dominates architecture \\
+PatchTST & $-7.5\%$ & attenuated by patching \\
+DLinear & $\pm0.25\%$ & linear model cannot exploit it \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:classical} sets the scale: identity is worth more than most
+architecture choices in this domain, which makes the frozen-LLM question
+non-trivial.
+
+\subsection{Scheme comparison on Time-LLM: single-seed anchors}
+
+\begin{table}[t]
+\caption{Time-LLM identity schemes on \swiss{} (Test MSE; seed 2026, canonical
+hypers, pre-HPO sanity anchors --- superseded by the matched grid of
+Table~\ref{tab:main} but stable in direction).}
+\label{tab:anchors}
+\begin{tabular}{@{}lll@{}}
+\toprule
+scheme & Test MSE & $\Delta$ vs.\ \textsf{none} \\
+\midrule
+\textsf{none} & 0.014177 & --- \\
+\textsf{text} (entity description) & 0.014485 & $+2.2\%$ \\
+\textsf{numeric} (learnable) & 0.011433 & $\mathbf{-19.4\%}$ \\
+\textsf{random} (fixed, matched dim) & 0.011569 & $-18.4\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Two observations drive the paper. First, the additive numeric pathway carries a
+large gain while the prompt-text pathway carries none, \emph{through the same
+frozen backbone} --- the injection position matters more than the information.
+Second, a capacity-matched random identity recovers 95\% of the learnable gain,
+reproducing in the LLM setting the signature Li et al.~\cite{li2022random} found
+for classical hydrological models: distinctness, not content.
+
+A cross-domain check reinforces that identity is not a free regularizer: the same
+numeric scheme that helps entity-rich \swiss{} ($-17.6\%$ in the cross-check run)
+\emph{hurts} ETTh1 ($+2.3\%$), whose channels are sensor variables of one site
+rather than distinct entities.
+
+\subsection{Main matched grid}
+\label{sec:main}
+
+\begin{table}[t]
+\caption{Main results: injection schemes under matched 30-sample HPO, frozen
+backbone, seed 2026. Physical-unit denormalized RMSE (°C) with scaler-space MSE in
+parentheses. \inprogress{chains 11866831--11867015; phase order:\ \textsf{none}
+$\rightarrow$ \textsf{numeric} $\rightarrow$
+\textsf{text}/\textsf{soft}/\textsf{text-embedding}}}
+\label{tab:main}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+scheme & \swiss{} & \swissb{} & \swissc{} \\
+\midrule
+\textsf{none} & \inprogress{running} & --- & --- \\
+\textsf{numeric} & --- & --- & --- \\
+\textsf{text} & --- & n/a$^{\dagger}$ & n/a$^{\dagger}$ \\
+\textsf{soft prompt} & --- & --- & --- \\
+\textsf{text-embedding} & --- & n/a$^{\dagger}$ & n/a$^{\dagger}$ \\
+\bottomrule
+\multicolumn{4}{@{}l@{}}{\footnotesize $^{\dagger}$station descriptions exist for
+\swiss{} only; authoring for the other collections is planned.}
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:main} is the paper's centerpiece and is being produced by the two
+cluster chains (promptfix and ETT-control arms; about 27 hours per cell, 24-hour
+dependency-chained segments). The ETT-control twin of Table~\ref{tab:main}
+isolates the dataset-description value.
+
+\section{Ablations and Supplementary Experiments}
+\label{sec:ablations}
+
+\textbf{Injection position vs.\ normalization (done, PatchTST).} Identity
+concatenated to the \emph{input} is erased by instance normalization ($+30$--$85\%$
+error); the same identity added after patch embedding survives. This fixes the
+additive site downstream of RevIN and confirms the erasure argument of
+Section~\ref{sec:method} empirically.
+
+\textbf{Distinguisher vs.\ content (arms implemented; runs queued).} The prompt
+ladder \textsf{none} $\rightarrow$ \textsf{symbol} (five-letter consonant codes;
+pure distinctness, no ordinal leak) $\rightarrow$ \textsf{minimal} $\rightarrow$
+\textsf{shuffled} (authored words, order destroyed) $\rightarrow$ \textsf{default}
+$\rightarrow$ \textsf{stats} (adds train-only per-station statistics) decomposes
+the text pathway. Pre-registered readouts: \textsf{shuffled}$\,\approx\,$%
+\textsf{default} implies the prompt acts as a distinctness token, not as language;
+\textsf{symbol}$\,\approx\,$\textsf{default} implies content is irrelevant. Per
+the study design the ladder runs with the backbone frozen; the fine-tuned repeat is
+a follow-up tier.
+
+\textbf{Backbone depth (inside the running grid).} The official code default
+truncates GPT-2 to 6 layers while the paper reports full depth 2.7\% better;
+$\mathit{llm\_layers}\in\{3,6,12\}$ is an HPO dimension of every cell, so
+validation decides.
+
+\textbf{Optimizer diagnostic (done).} Both the canonical $lr=10^{-2}$ and
+$10^{-3}$ converge by epoch ${\approx}8$ under early stopping on
+\swiss{}$\times$\textsf{none}; $10^{-3}$ wins validation (denorm RMSE 1.746 vs.\
+1.811), so both stay in the HPO grid rather than being fixed by convention.
+
+\textbf{Queued controls.} A2 ladder (random / one-hot / sinusoidal / coordinates);
+norm-range 2$\times$2 (min-max vs.\ z-score $\times$ identity); GPT4TS as the
+no-prompt negative control (implemented); Chronos zero-shot; identity $\times$
+trainability 2$\times$2 --- deferred by design so the frozen scheme comparison
+lands first.
+
+\section{Analysis Plan (pre-registered)}
+\label{sec:analysis}
+
+The battery below is fixed \emph{before} the grid lands, and each item states its
+decision rule.
+
+\begin{enumerate}
+\item \textbf{Main-effect table.} Scheme vs.\ \textsf{none} per dataset at matched
+budget, in °C; single-seed status stated explicitly until the multi-seed pass.
+\item \textbf{Distinctness vs.\ content.} Apply the ladder inequalities of
+Section~\ref{sec:ablations}; every branch yields a publishable statement, including
+the null.
+\item \textbf{Capacity-matched controls.} If \textsf{random}$\,\approx\,$%
+\textsf{numeric} at matched dimension in the HPO-matched grid, the mechanism claim
+is distinctness, and the bridge to Li et al.~\cite{li2022random} becomes the
+discussion anchor.
+\item \textbf{Linear probes.} Decode station identity from patch representations
+before and after injection with a Hewitt--Liang selectivity control; the claim
+``identity reaches the representation'' must survive the control.
+\item \textbf{Attention and geometry.} Prompt-to-patch attention mass and t-SNE of
+per-station mean representations; falsifiable statement: injection increases
+between-station separation (silhouette) without degrading temporal structure.
+\item \textbf{Knowledge vs.\ fitting.} Cross-station window transplants and
+inference-time prompt swaps decide whether any text gain is semantic or
+surface-statistical.
+\item \textbf{Discrepancy protocol.} If the matched grid reverses an anchor
+direction, resolved per-cell configs are audited before any scientific claim; no
+number enters the paper without its results file and config hash.
+\end{enumerate}
+
+\section{Limitations}
+Single seed until the design freezes; one country and one variable; station
+descriptions currently exist for \swiss{} only; LLaMA-scale backbones pending
+cluster time; the ETT-control arm controls the dataset description, not the task
+instructions.
+
+\section{Conclusion}
+\inprogress{written after the matched grid lands; the candidate storyline ---
+injection position dominates representation source, and distinctness carries the
+gain --- is falsifiable by Tables~\ref{tab:main} and the ladder.}
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{references}
+
+\end{document}
