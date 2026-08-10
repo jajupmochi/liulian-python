@@ -346,9 +346,16 @@ in the driver + the post-HPO rebuild/retrain (main process).
   `timellm_config.yaml`, so real runs are unaffected.
 - **HPO orchestration breakpoints** (`build_optimizer`, `resolve_search_space`, ASHA,
   best-config, rebuild/retrain): `--phase full`. Ray 2.x runs the per-trial trainable in
-  worker processes, so breakpoints INSIDE a trial do not hit — but a trial runs the SAME
-  `build_model`/`timellm.forecast`/`trainer.fit` as the post-HPO retrain (main process), so
-  breakpoint those there.
+  worker processes, so NORMALLY-attached IDE breakpoints INSIDE a trial do not hit
+  (`hpo_local_mode` only makes trials sequential) — either breakpoint the post-HPO retrain
+  (main process, SAME `build_model`/`forecast`/`fit` code), or use the next bullet.
+- **Breakpoints INSIDE a Ray trial** (2026-08-07, `hpo_debug_attach` in `debug.yaml`): the
+  worker REVERSE-CONNECTS to a PyCharm "Python Debug Server". Setup: create the
+  debug-server run-config (port 5678), `pip install pydevd-pycharm` (in .venv), START the
+  server, uncomment `hpo_debug_attach: localhost:5678`, run run_matrix with plain Run —
+  breakpoints in `_trainable`/`build_model`/`trainer.fit` then hit inside the worker.
+  Fails LOUDLY if the server is not listening (verified: the RuntimeError fires inside the
+  trial). DEV-ONLY — never sync the key to a cluster config.
 - **Model/training breakpoints immediately** (no HPO wait): `--phase dev` — real pipeline,
   direct main-process training, breakpoints in `build_model`/`forecast`/`fit` hit at once. Same
   model code as an HPO trial, minus the HPO wrapper.

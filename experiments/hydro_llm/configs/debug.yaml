@@ -132,8 +132,18 @@ hpo_reduction_factor: 2
 hpo_resources_cpu: 1
 hpo_resources_gpu: 0          # DEBUG on CPU; set 1 if you have a local GPU
 hpo_save_checkpoints: false   # DEBUG: skip checkpoint clutter
-hpo_local_mode: true          # sequential trials (Ray 2.x: num_cpus=1). For
-                              # breakpoints INSIDE a trial, use debug_hpo.py (B).
+hpo_local_mode: true          # sequential trials (Ray 2.x: num_cpus=1). NOTE this alone
+                              # does NOT make IDE breakpoints hit inside a trial — Ray 2.x
+                              # always runs the trainable in a raylet-spawned WORKER process.
+# Breakpoints INSIDE the trainable (_trainable / build_model / trainer.fit in a trial):
+# uncomment hpo_debug_attach and the worker will REVERSE-CONNECT to PyCharm.
+# One-time PyCharm setup:
+#   1. Run | Edit Configurations | + | "Python Debug Server"; port 5678.
+#   2. pip install pydevd-pycharm~=<your PyCharm build>  (already in .venv; Help|About shows the build)
+#   3. START that debug-server run-config (it waits), THEN run run_matrix normally
+#      (plain Run is fine — breakpoints are handled by the debug server).
+# Fails LOUDLY if the server is not listening. DEV-ONLY: never sync to a cluster config.
+# hpo_debug_attach: localhost:5678
 
 # ── Evaluation ──────────────────────────────────────────────────────────
 eval_denorm: true

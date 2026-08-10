@@ -24,6 +24,51 @@ from liulian.optim.base import BaseOptimizer, OptimizationResult
 logger = logging.getLogger(__name__)
 
 
+def _maybe_attach_debugger(config: Dict[str, Any]) -> None:
+    """Attach this Ray WORKER process to a PyCharm Debug Server (opt-in).
+
+    Ray 2.x always executes trainables in raylet-spawned worker processes —
+    even with ``hpo_local_mode`` (that only makes trials sequential) — so
+    breakpoints set in a normally-attached IDE debugger never hit inside
+    ``_trainable``. The standard fix is the REVERSE connection: the worker
+    calls ``pydevd_pycharm.settrace`` back to a listening PyCharm
+    "Python Debug Server" run-config, after which breakpoints inside the
+    trainable bind normally.
+
+    Config key ``hpo_debug_attach``: ``true`` (-> localhost:5678) or
+    ``"host:port"``. DEV-ONLY — never set it in a cluster config. Failures
+    are LOUD (missing package / no listening server): if you asked to debug,
+    silently running undebugged would be the worst outcome.
+    """
+    target = config.get('hpo_debug_attach')
+    if not target:
+        return
+    host, port = 'localhost', 5678
+    if isinstance(target, str):
+        h, _, p = target.partition(':')
+        host = h or host
+        if p:
+            port = int(p)
+    try:
+        import pydevd_pycharm
+    except ImportError as exc:
+        raise RuntimeError(
+            'hpo_debug_attach is set but pydevd-pycharm is not installed. '
+            "Install the version matching your PyCharm: pip install 'pydevd-pycharm~=<build>' "
+            '(Help | About shows the build), or remove the key.'
+        ) from exc
+    try:
+        # suspend=False: do not pause here — user breakpoints take over.
+        pydevd_pycharm.settrace(host, port=port, suspend=False, stdoutToServer=True, stderrToServer=True)
+    except Exception as exc:
+        raise RuntimeError(
+            f'hpo_debug_attach: could not reach the PyCharm Debug Server at {host}:{port}. '
+            'Start a "Python Debug Server" run configuration on that port first '
+            '(Run | Edit Configurations | + | Python Debug Server), or remove the key.'
+        ) from exc
+    print(f'[hpo_debug_attach] Ray worker pid={os.getpid()} attached to PyCharm debug server {host}:{port}')
+
+
 # ---------------------------------------------------------------------------
 # Trainable factory
 # ---------------------------------------------------------------------------
@@ -84,6 +129,9 @@ def make_trainable(
                 'make_trainable: loaders were not injected — the optimizer must '
                 'wrap this trainable via tune.with_parameters(trainable, loaders=...).'
             )
+        # Opt-in PyCharm debug-server attach for THIS worker process (the only
+        # way IDE breakpoints inside a Ray trainable can hit — see helper).
+        _maybe_attach_debugger(base_config)
         # Register custom log levels (.ok, .hint, .progress) in this
         # Ray worker so downstream modules can use logger.ok() etc.
         import liulian.utils.log_tags  # noqa: F401

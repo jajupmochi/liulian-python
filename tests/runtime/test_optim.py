@@ -276,3 +276,42 @@ class TestPerExperimentSearchSpaceFile:
             search_space_file=f,
         )
         assert {'learning_rate', 'd_model', 'd_ff', 'llm_layers', 'soft_prompt_len'} == set(sp)
+
+
+class TestHpoDebugAttach:
+    """`hpo_debug_attach` (2026-08-07): opt-in reverse-connect from a Ray worker
+    to a PyCharm Debug Server — the only way IDE breakpoints inside the
+    trainable can hit (Ray 2.x removed local_mode; num_cpus=1 still uses
+    worker processes). Locks: absent -> no-op; set-but-unreachable -> LOUD
+    RuntimeError (silently running undebugged would defeat the point)."""
+
+    def test_absent_key_is_noop(self):
+        from liulian.optim.ray_optimizer import _maybe_attach_debugger
+
+        _maybe_attach_debugger({})  # must not raise, must not try to connect
+        _maybe_attach_debugger({'hpo_debug_attach': None})
+        _maybe_attach_debugger({'hpo_debug_attach': False})
+
+    def test_unreachable_server_raises_loudly(self):
+        from liulian.optim.ray_optimizer import _maybe_attach_debugger
+
+        # Port 1 on localhost is never a PyCharm debug server -> connection
+        # refused -> our RuntimeError with the setup hint.
+        with pytest.raises(RuntimeError, match='Debug Server'):
+            _maybe_attach_debugger({'hpo_debug_attach': 'localhost:1'})
+
+    def test_missing_package_raises_with_install_hint(self, monkeypatch):
+        import builtins
+
+        from liulian.optim import ray_optimizer as ro
+
+        real_import = builtins.__import__
+
+        def fake_import(name, *a, **kw):
+            if name == 'pydevd_pycharm':
+                raise ImportError('not installed')
+            return real_import(name, *a, **kw)
+
+        monkeypatch.setattr(builtins, '__import__', fake_import)
+        with pytest.raises(RuntimeError, match='pydevd-pycharm'):
+            ro._maybe_attach_debugger({'hpo_debug_attach': True})

@@ -333,9 +333,16 @@ accelerate/DDP 在单次训练内部并行。二者争抢同一批 GPU，且 acc
   `timellm_config.yaml`，因此真实运行不受影响。
 - **HPO 编排相关断点**（`build_optimizer`、`resolve_search_space`、ASHA、
   最优配置、rebuild/retrain）：使用 `--phase full`。Ray 2.x 在 worker 进程中
-  运行每个 trial 的 trainable，因此 trial 内部的断点不会命中——但一个 trial
-  运行的是与 post-HPO retrain（主进程）相同的 `build_model`/`timellm.forecast`/
-  `trainer.fit`，因此应在那里设断点。
+  运行每个 trial 的 trainable,因此**常规方式附加的** IDE 断点在 trial 内部不会
+  命中(`hpo_local_mode` 只让 trial 顺序执行)——要么在 post-HPO retrain(主进程,
+  代码与 trial 相同)设断点,要么用下一条。
+- **trial 内部断点**(2026-08-07,`debug.yaml` 的 `hpo_debug_attach`):worker
+  **反向回连** PyCharm 的 "Python Debug Server"。步骤:建一个 Python Debug Server
+  运行配置(端口 5678)、`pip install pydevd-pycharm`(.venv 已装)、**先启动**该
+  debug server、取消注释 `hpo_debug_attach: localhost:5678`,然后普通 Run 跑
+  run_matrix —— `_trainable`/`build_model`/`trainer.fit` 内的断点即可在 worker
+  中命中。server 未监听时大声报错(已验证:RuntimeError 在 trial 内部触发)。
+  仅限本地调试 —— 该键绝不可同步到集群配置。
 - **无需等待 HPO 即可命中的模型/训练相关断点**：使用 `--phase dev`——真实
   pipeline，直接在主进程中训练，`build_model`/`forecast`/`fit` 中的断点会
   立即命中。与 HPO trial 使用相同的模型代码，只是没有 HPO 的包装。
