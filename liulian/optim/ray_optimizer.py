@@ -920,8 +920,15 @@ class RayOptimizer(BaseOptimizer):
         best_config = best_trial.config
 
         # Use metric_analysis to get the best-epoch metric value (not last
-        # epoch).  ``trial.metric_analysis[metric][mode]`` returns the
-        # min/max aggregated across all reported epochs.
+        # epoch). Mechanism (Ray tune/trainable/metadata.py update_metric,
+        # verified 2026-08-10): metric_analysis[metric] is a RUNNING dict
+        # {'max','min','avg','last','last-N-avg'} updated on EVERY report, so
+        # ['min'] (our mode) is the minimum across ALL reported epochs of THIS
+        # trial — early-stopped/ASHA-truncated trials included. Indexing with
+        # `mode` works because mode is 'min'/'max', which are literal keys of
+        # that dict; anything else would KeyError into the loud fallback below.
+        # Consistent with scope='all' above and get_best_checkpoint below —
+        # all three refer to the same best epoch.
         try:
             best_value = best_trial.metric_analysis[metric][mode]
         except (KeyError, TypeError, AttributeError):
