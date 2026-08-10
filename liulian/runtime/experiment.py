@@ -674,7 +674,11 @@ class Experiment:
                 inverse_transform=self._resolve_inverse_transform_fn(loaders),
             )
 
-            # Rebuild model with best hypers
+            # Rebuild model with best hypers. FAIL LOUD on any error: silently
+            # keeping the pre-HPO model object (the old fallback) would either
+            # crash later at load_state_dict with a confusing shape mismatch or,
+            # worse, evaluate a model built with the WRONG hypers while
+            # reporting them as the best config.
             try:
                 from types import SimpleNamespace as _NS
 
@@ -685,8 +689,11 @@ class Experiment:
                     torch_model = _model_factory(best_args)
                 else:
                     torch_model = inner_model_cls(best_args).float()
-            except Exception:
-                pass  # fallback: retrain existing model
+            except Exception as exc:
+                raise RuntimeError(
+                    f'Failed to rebuild the model with the best HPO config '
+                    f'{hpo_result.best_config!r}: {type(exc).__name__}: {exc}'
+                ) from exc
 
             # Load the best checkpoint from Ray Tune results
             _loaded_checkpoint = False
@@ -694,13 +701,22 @@ class Experiment:
                 try:
                     ckpt_dir_path = hpo_result.best_checkpoint_path
                     # Find .pth file in the checkpoint directory
-                    pth_files = [
-                        f for f in os.listdir(ckpt_dir_path) if f.endswith('.pth')
-                    ]  #  todo: maybe this is incorrect if multiple checkpoints are saved?
+                    # INVARIANT: the trainable writes exactly ONE file per Ray
+                    # checkpoint dir, named 'model.pth' (ray_optimizer.py, the
+                    # epoch_callback save). Multiple .pth files here would mean
+                    # that contract broke and sorted()[0] could silently load
+                    # the wrong epoch — fail loud instead of guessing.
+                    pth_files = [f for f in os.listdir(ckpt_dir_path) if f.endswith('.pth')]
+                    if len(pth_files) > 1:
+                        raise RuntimeError(
+                            f'Expected exactly one .pth in Ray checkpoint dir '
+                            f'{ckpt_dir_path!r}, found {sorted(pth_files)!r} — '
+                            f'the one-checkpoint-per-report contract broke.'
+                        )
                     if pth_files:
                         import torch as _torch
 
-                        state_path = os.path.join(ckpt_dir_path, sorted(pth_files)[0])
+                        state_path = os.path.join(ckpt_dir_path, pth_files[0])
                         torch_model.load_state_dict(_torch.load(state_path, weights_only=True))
                         torch_model.eval()
                         logger.ok('Loaded best checkpoint from %s', state_path)

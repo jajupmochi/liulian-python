@@ -138,7 +138,7 @@ localhost:5678` 且零 Traceback。若你在 PyCharm 里设了断点,这个命�
 | trial 内 `RuntimeError: ... attaching to the PyCharm Debug Server at localhost:5678 failed with ConnectionRefusedError ...` | Debug Server 没启动(或端口不对) | **先**启动 `ray-attach`(§3 第 1 步);核对端口 |
 | `TypeError: settrace() got an unexpected keyword argument 'stdoutToServer'` | pydevd-pycharm ≥2xx 把重定向参数改成蛇形命名,旧驼峰名在连接前就崩 | 已在 `7c6ebf5` 修复(只传全版本通用参数)。还看到此错说明代码树早于该修复 —— 拉最新 |
 | attach 行打印了但断点仍穿透 | 安装的 pydevd 与你 PyCharm build 协议不匹配 | 按 §2 第 1 步装匹配版本;重启 server 和运行 |
-| PyCharm server 控制台出现 `Warning: wrong debugger version. ... pip install pydevd-pycharm~=<build>`,但 PyPI 上**没有**该版本(EAP/snap 构建常见) | PyPI 发布滞后于 PyCharm 构建 | 改装 PyCharm 安装目录**自带的调试器 egg**(逐位匹配)。`uv` 装不了 egg —— 直接解压进 site-packages(2026-08-10 实测有效):`SP=$(.venv/bin/python -c "import site; print(site.getsitepackages()[0])"); unzip -qo <pycharm安装目录>/debug-eggs/pydevd-pycharm.egg -d "$SP" -x "EGG-INFO/*"`(snap 安装路径形如 `/snap/pycharm-professional/<rev>/debug-eggs/`;可用 `readlink /proc/$(pgrep -f pycharm | head -1)/exe` 定位) |
+| PyCharm server 控制台出现 `Warning: wrong debugger version. ... pip install pydevd-pycharm~=<build>`,但 PyPI 上**没有**该版本(EAP/snap 构建常见) | PyPI 发布滞后于 PyCharm 构建 | 运行 `bash scripts/install_pycharm_debugger.sh` —— 自动定位 PyCharm 安装、把其自带的逐位匹配调试器 egg 解压进 venv 并验证导入(uv 装不了 egg)。venv 重建或 PyCharm 升级后重跑一次即可(2026-08-10 实测有效) |
 | `RuntimeError: hpo_debug_attach is set but pydevd-pycharm is not installed` | 运行所用解释器缺包 | `uv pip install pydevd-pycharm` 装进该 venv |
 | driver 侧断点不停(worker 侧正常) | run_matrix 用了普通 Run 启动 | 改用 Debug 启动 run_matrix |
 
