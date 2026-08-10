@@ -58,11 +58,12 @@ def _maybe_attach_debugger(config: Dict[str, Any]) -> None:
     ``"host:port"``. DEV-ONLY — never sync it to a cluster config (compute
     nodes cannot reach your IDE; every trial would die loudly). Failures are
     LOUD (missing package / unreachable server): if you asked to debug,
-    silently running undebugged would be the worst outcome. settrace is
-    called with ONLY host/port/suspend — the stdout/stderr-redirect kwargs
-    were RENAMED across pydevd versions (stdoutToServer -> stdout_to_server)
-    and a mismatched name raises TypeError before any connection attempt
-    (user-hit 2026-08-10, fixed in 7c6ebf5).
+    silently running undebugged would be the worst outcome. The stdout/stderr
+    redirect kwargs (mirror worker prints into the IDE debug console) were
+    RENAMED across pydevd versions (stdoutToServer -> stdout_to_server) and a
+    mismatched name raises TypeError before any connection attempt (user-hit
+    2026-08-10) — so settrace is called with the names the INSTALLED version's
+    signature actually has, and without redirect when neither name exists.
     """
     target = config.get('hpo_debug_attach')
     if not target:
@@ -82,12 +83,23 @@ def _maybe_attach_debugger(config: Dict[str, Any]) -> None:
             '(Help | About shows the build), or remove the key.'
         ) from exc
     try:
-        # suspend=False: do not pause here — user breakpoints take over. Pass ONLY
-        # host/port/suspend: these are accepted by every pydevd-pycharm version,
-        # while the stdout/stderr-redirect kwargs were RENAMED across versions
-        # (old camelCase stdoutToServer -> new snake_case stdout_to_server) and a
-        # mismatched name raises TypeError before any connection is attempted.
-        pydevd_pycharm.settrace(host, port=port, suspend=False)
+        # suspend=False: do not pause here — user breakpoints take over.
+        # Output redirect (mirrors this worker's print/stderr into the IDE's
+        # debug-server console — without it prints only reach the Ray driver
+        # log): the kwarg names were RENAMED across pydevd versions (old
+        # camelCase stdoutToServer -> new snake_case stdout_to_server) and a
+        # mismatched name raises TypeError BEFORE any connection is attempted,
+        # so pick the names the INSTALLED version actually has via its
+        # signature; if neither exists, attach without redirect.
+        import inspect
+
+        params = inspect.signature(pydevd_pycharm.settrace).parameters
+        kwargs: Dict[str, Any] = {'port': port, 'suspend': False}
+        if 'stdout_to_server' in params:
+            kwargs.update(stdout_to_server=True, stderr_to_server=True)
+        elif 'stdoutToServer' in params:
+            kwargs.update(stdoutToServer=True, stderrToServer=True)
+        pydevd_pycharm.settrace(host, **kwargs)
     except Exception as exc:
         raise RuntimeError(
             f'hpo_debug_attach: attaching to the PyCharm Debug Server at {host}:{port} '

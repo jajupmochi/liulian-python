@@ -321,25 +321,40 @@ class TestHpoDebugAttach:
         kwargs (stdoutToServer -> stdout_to_server), so passing the old camelCase
         names raised TypeError BEFORE any connection attempt — and the broad
         except then misreported it as 'could not reach the server'. The helper
-        must pass ONLY host/port/suspend (accepted by every version). The fake
-        below has the NEW signature and NO **kwargs: the pre-fix call fails on
-        it, the fixed call succeeds."""
+        must pick the redirect-kwarg NAMES from the installed signature (so
+        worker prints reach the IDE debug console on every version). Two fakes:
+        NEW snake_case signature (no **kwargs — the pre-fix camelCase call
+        fails on it) and OLD camelCase signature; each must receive its own
+        redirect names, both with suspend=False."""
         import sys
         import types
 
         calls = {}
 
-        def fake_settrace(host=None, stdout_to_server=False, stderr_to_server=False,
-                          port=5678, suspend=True, trace_only_current_thread=False,
-                          overwrite_prev_trace=False, patch_multiprocessing=False,
-                          stop_at_frame=None):
-            calls['host'], calls['port'], calls['suspend'] = host, port, suspend
+        def fake_settrace_new(host=None, stdout_to_server=False, stderr_to_server=False,
+                              port=5678, suspend=True, trace_only_current_thread=False,
+                              overwrite_prev_trace=False, patch_multiprocessing=False,
+                              stop_at_frame=None):
+            calls.update(host=host, port=port, suspend=suspend,
+                         redirect=stdout_to_server and stderr_to_server)
 
         fake_mod = types.ModuleType('pydevd_pycharm')
-        fake_mod.settrace = fake_settrace
+        fake_mod.settrace = fake_settrace_new
         monkeypatch.setitem(sys.modules, 'pydevd_pycharm', fake_mod)
 
         from liulian.optim.ray_optimizer import _maybe_attach_debugger
 
         _maybe_attach_debugger({'hpo_debug_attach': 'localhost:5678'})
-        assert calls == {'host': 'localhost', 'port': 5678, 'suspend': False}
+        assert calls == {'host': 'localhost', 'port': 5678, 'suspend': False, 'redirect': True}
+
+        # OLD camelCase signature: the redirect must ride the old names.
+        calls.clear()
+
+        def fake_settrace_old(host=None, stdoutToServer=False, stderrToServer=False,
+                              port=5678, suspend=True):
+            calls.update(host=host, port=port, suspend=suspend,
+                         redirect=stdoutToServer and stderrToServer)
+
+        fake_mod.settrace = fake_settrace_old
+        _maybe_attach_debugger({'hpo_debug_attach': 'localhost:5678'})
+        assert calls == {'host': 'localhost', 'port': 5678, 'suspend': False, 'redirect': True}
