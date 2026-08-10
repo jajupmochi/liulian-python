@@ -58,13 +58,20 @@ def _maybe_attach_debugger(config: Dict[str, Any]) -> None:
             '(Help | About shows the build), or remove the key.'
         ) from exc
     try:
-        # suspend=False: do not pause here — user breakpoints take over.
-        pydevd_pycharm.settrace(host, port=port, suspend=False, stdoutToServer=True, stderrToServer=True)
+        # suspend=False: do not pause here — user breakpoints take over. Pass ONLY
+        # host/port/suspend: these are accepted by every pydevd-pycharm version,
+        # while the stdout/stderr-redirect kwargs were RENAMED across versions
+        # (old camelCase stdoutToServer -> new snake_case stdout_to_server) and a
+        # mismatched name raises TypeError before any connection is attempted.
+        pydevd_pycharm.settrace(host, port=port, suspend=False)
     except Exception as exc:
         raise RuntimeError(
-            f'hpo_debug_attach: could not reach the PyCharm Debug Server at {host}:{port}. '
-            'Start a "Python Debug Server" run configuration on that port first '
-            '(Run | Edit Configurations | + | Python Debug Server), or remove the key.'
+            f'hpo_debug_attach: attaching to the PyCharm Debug Server at {host}:{port} '
+            f'failed with {type(exc).__name__}: {exc}. If this is a connection error, '
+            'start a "Python Debug Server" run configuration on that port first '
+            '(Run | Edit Configurations | + | Python Debug Server); if it mentions a '
+            'protocol/argument mismatch, reinstall pydevd-pycharm matching your '
+            'PyCharm build (Help | About). Or remove the key.'
         ) from exc
     print(f'[hpo_debug_attach] Ray worker pid={os.getpid()} attached to PyCharm debug server {host}:{port}')
 

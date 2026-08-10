@@ -315,3 +315,31 @@ class TestHpoDebugAttach:
         monkeypatch.setattr(builtins, '__import__', fake_import)
         with pytest.raises(RuntimeError, match='pydevd-pycharm'):
             ro._maybe_attach_debugger({'hpo_debug_attach': True})
+
+    def test_settrace_called_with_version_stable_kwargs_only(self, monkeypatch):
+        """Regression (2026-08-10): pydevd-pycharm 2xx renamed the redirect
+        kwargs (stdoutToServer -> stdout_to_server), so passing the old camelCase
+        names raised TypeError BEFORE any connection attempt — and the broad
+        except then misreported it as 'could not reach the server'. The helper
+        must pass ONLY host/port/suspend (accepted by every version). The fake
+        below has the NEW signature and NO **kwargs: the pre-fix call fails on
+        it, the fixed call succeeds."""
+        import sys
+        import types
+
+        calls = {}
+
+        def fake_settrace(host=None, stdout_to_server=False, stderr_to_server=False,
+                          port=5678, suspend=True, trace_only_current_thread=False,
+                          overwrite_prev_trace=False, patch_multiprocessing=False,
+                          stop_at_frame=None):
+            calls['host'], calls['port'], calls['suspend'] = host, port, suspend
+
+        fake_mod = types.ModuleType('pydevd_pycharm')
+        fake_mod.settrace = fake_settrace
+        monkeypatch.setitem(sys.modules, 'pydevd_pycharm', fake_mod)
+
+        from liulian.optim.ray_optimizer import _maybe_attach_debugger
+
+        _maybe_attach_debugger({'hpo_debug_attach': 'localhost:5678'})
+        assert calls == {'host': 'localhost', 'port': 5678, 'suspend': False}
