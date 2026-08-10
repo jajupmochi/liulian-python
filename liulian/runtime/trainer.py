@@ -445,6 +445,20 @@ class ForecastTrainer:
         # sample-weighted averaging (equivalent to global metric over all
         # test samples, matching TSL's concat-then-compute approach).
         collected: Dict[str, List[tuple[float, int]]] = {name: [] for name in resolved_metric_names}
+        # WHICH denorm layer this is: inverse_transform_fn undoes the DATASET-level
+        # scaler (swiss: the per-station min-max EntityScaler -> physical degC). It is
+        # NOT the model-internal RevIN/Normalize — Time-LLM already reverses that
+        # inside forward() ('denorm' on the output), so `outputs` arriving here are in
+        # SCALER space; `collected` above holds scaler-space ("normalized") metrics and
+        # `denorm_collected` the physical-unit ones.
+        # denorm_collected == {} (inactive) is CORRECT in two situations:
+        #   1. Inside a Ray HPO TRIAL — ray_optimizer builds ForecastTrainer WITHOUT
+        #      inverse_transform (by design: trials are selected on the scaler-space
+        #      val loss; physical-unit metrics are computed once by the post-HPO
+        #      retrain, which experiment.py builds WITH the fn). So seeing it empty
+        #      while debugging a trial is expected, not a bug.
+        #   2. eval_denorm=false in the config, or the dataset exposes no
+        #      inverse_transform.
         denorm_collected: Dict[str, List[tuple[float, int]]] = (
             {name: [] for name in resolved_metric_names}
             if self.eval_denorm and self.inverse_transform_fn is not None
