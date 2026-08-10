@@ -606,7 +606,22 @@ class Experiment:
             except Exception as exc:
                 logger.debug('Could not save best_hparams.yaml: %s', exc)
 
-            # Retrain with best config
+            # POST-HPO FLOW — load-and-evaluate, NO retraining. Steps:
+            #   1. best_hparams.yaml was just persisted above (reusable without re-running HPO).
+            #   2. Merge the winning hypers over the base config -> best_cfg (next line).
+            #   3. If the winner tuned a DATA-layer dim (sinusoidal/random), rebuild
+            #      dataset+loaders with that dim and re-sync enc_in (see block below).
+            #   4. Build a ForecastTrainer from best_cfg, WITH inverse_transform (this is
+            #      where the final denorm metrics become possible).
+            #   5. Build a FRESH model with the winning hypers (same factory as the trials).
+            #   6. Load the best trial's BEST-EPOCH checkpoint (get_best_checkpoint) into it.
+            #   7. Loaded OK -> trainer.evaluate(test) directly (epochs_run=0, incl. denorm_*)
+            #      — the weights ARE the best trial's best epoch, so retraining is
+            #      unnecessary and would only add variance.
+            #   8. Checkpoint missing -> RuntimeError, LOUD (hpo_save_checkpoints must stay
+            #      true; the old silent retrain fallback was removed — job 11579994 incident).
+            #   9. trainer.predict(test) collects raw preds for viz/.npz, then everything is
+            #      written to results.json (metrics.test carries mse/... and denorm_*).
             best_cfg = {**self.config, **hpo_result.best_config}
             best_cfg.pop('search_space', None)
 
