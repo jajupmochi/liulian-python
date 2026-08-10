@@ -610,9 +610,28 @@ class Experiment:
             best_cfg = {**self.config, **hpo_result.best_config}
             best_cfg.pop('search_space', None)
 
-            # If the best trial tuned a data-layer dim, the frozen loaders
-            # were built with the BASE dim — rebuild with the winning dim so
-            # the final model/evaluation matches the best trial's input space.
+            # DATA-LAYER dim reconciliation for the post-HPO retrain.
+            #
+            # Background: for id_injection='data' identifier modes (sinusoidal /
+            # random), the per-station identity vector is CONCATENATED AS EXTRA
+            # INPUT COLUMNS into every window at DATASET BUILD time — so the
+            # loader tensors physically contain it, and the model input width is
+            # enc_in = base_features + dim. The dim itself (sinusoidal_dim /
+            # random_identifier_dim = DATA_LAYER_DIM_KEYS) is an HPO knob.
+            #
+            # During HPO the driver built ONE set of loaders with the BASE
+            # config's dim and shipped it to all trials; a trial that sampled a
+            # DIFFERENT dim rebuilt its own loaders inside the worker
+            # (loaders_factory in make_trainable). But the driver-side loaders
+            # here are still the BASE-dim ones. Example: base sinusoidal_dim=8
+            # -> driver windows have 1+8=9 columns; if the WINNING trial sampled
+            # dim=17 (windows 1+17=18 columns, model built with enc_in=18), then
+            # retraining/evaluating that model on the frozen 9-column loaders
+            # would be a shape mismatch (or, worse, a silently wrong input
+            # space). So: rebuild dataset+loaders with the winning dim, re-read
+            # the ACTUAL feature count from a real batch, and sync enc_in before
+            # building the final model. Gated on _inj_is_data because
+            # model-layer injection never changes the loader tensors.
             from liulian.optim.search_spaces import DATA_LAYER_DIM_KEYS
 
             _best_dims = {k: hpo_result.best_config[k] for k in DATA_LAYER_DIM_KEYS if k in hpo_result.best_config}
