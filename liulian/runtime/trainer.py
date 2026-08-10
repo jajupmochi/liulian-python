@@ -806,12 +806,35 @@ class ForecastTrainer:
     ) -> torch.Tensor:
         """Construct decoder input according to ``self.teacher_forcing``.
 
-        Modes:
+        WHAT teacher forcing is: a seq2seq training technique where the decoder
+        is fed the GROUND-TRUTH history as its input, instead of (auto-
+        regressively) consuming its own previous predictions. It stabilizes and
+        speeds up training, at the price of "exposure bias" (the model never
+        practices recovering from its own mistakes). The Time-Series-Library /
+        TimeLLM family uses a one-shot, non-autoregressive variant: the decoder
+        input ``x_dec`` is built ONCE as [``label_len`` ground-truth warm-up
+        steps ‖ ``pred_len`` zero placeholders] — the GT prefix "primes" the
+        decoder with the recent past, and the zeros mark the horizon positions
+        to fill in a single forward pass.
 
-        * ``"label"`` — first ``label_len`` steps are ground-truth, rest zeros.
-          (TimeLLM / Time-Series-Library convention)
+        Here the ``teacher_forcing`` config knob selects how much ground truth
+        that decoder input carries — IDENTICALLY at train and eval time (this
+        harness applies the same construction in fit/evaluate/predict, which is
+        why the leakage-free mode exists):
+
+        * ``"label"`` — first ``label_len`` steps of ``batch_y`` are ground
+          truth, the ``pred_len`` tail is zeros (TimeLLM / Time-Series-Library
+          convention). Since the warm-up prefix overlaps the encoder window
+          (not the forecast horizon), this is priming, not target leakage; but
+          it does hand the decoder GT during EVALUATION too.
         * ``"zeros"`` / ``"none"`` — all-zeros decoder input (swiss-river
-          convention, avoids GT leakage during evaluation).
+          convention): no ground truth reaches the decoder at any phase, so
+          evaluation is strictly free of GT even in the warm-up positions.
+          With ``label_len: 0`` (the swiss configs) both modes coincide.
+
+        NOTE encoder-only models (LSTM/DLinear/PatchTST heads) ignore ``x_dec``
+        entirely; the knob only matters for architectures that consume the
+        decoder input.
         """
         zeros = torch.zeros_like(batch_y[:, -pred_len:, :]).float().to(self.device)
         if self.teacher_forcing == 'label' and label_len > 0:
