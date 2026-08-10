@@ -899,6 +899,20 @@ class RayOptimizer(BaseOptimizer):
                 logger.info('Restored original working directory and paths.')
 
         # ── Extract best trial ──────────────────────────────────────────
+        # scope='all' is DELIBERATE and is the BEST-EPOCH semantics (a common
+        # misreading is the reverse): per Ray's docs, scope='all' takes EACH
+        # trial's own min/max of `metric` across every reported epoch and
+        # compares those per-trial bests, while scope='last' (Ray's default,
+        # and what analysis.best_config/best_result use — e.g. in the
+        # swiss-river-network-benchmark) compares trials by their LAST reported
+        # epoch only. Under early stopping (our patience-based stop and ASHA
+        # truncation) 'all' is the right choice: a trial whose val degraded
+        # after its best epoch, or that was stopped early, still competes with
+        # its best value. The triple stays consistent below: best VALUE from
+        # metric_analysis[metric][mode] (same per-trial best) and best WEIGHTS
+        # from get_best_checkpoint(trial, metric, mode) (the checkpoint of that
+        # best epoch — we save one per epoch), so selection, reported number,
+        # and loaded weights all refer to the same epoch.
         best_trial = analysis.get_best_trial(metric, mode, scope='all')
         if best_trial is None:
             raise ValueError('No trials found in Ray Tune analysis.')
