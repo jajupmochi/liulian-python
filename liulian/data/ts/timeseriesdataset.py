@@ -1272,6 +1272,15 @@ class TimeSeriesDataset(BaseDataset):
             # TSL convention: y_mark is already (label_len + pred_len), no concat needed
             batch_y_mark = yt
 
+            # entity_id_strs is non-None ONLY in split_mode='per_entity' (each
+            # sample is ONE station's window): there every per-station dataset is
+            # built with station_name set, so its splits carry seg_entity_ids and
+            # __getitem__ yields 5-tuples (the 5th element is that station's id
+            # string); the ConcatDataset keeps them only when ALL member splits
+            # have them. In multi_channel mode (channel=entity: traffic/
+            # electricity/ETT) no station_name exists, items are 4-tuples, and
+            # this stays None — identity then travels via the channel axis /
+            # transparent features, not via entity_ids.
             if entity_id_strs is not None:
                 # Convert string station IDs → integer index tensor (B,)
                 entity_idx = torch.tensor(
