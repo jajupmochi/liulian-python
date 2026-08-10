@@ -25,6 +25,29 @@ QoS `job_gratis` adds no separate MaxWall (its limits are the GPU counts). The e
 Harness-era anchor numbers (n=3, superseded for the paper by these reruns): see
 [00 §2](00-RESEARCH-PLAN.md).
 
+
+## 1.1 Tier-0 v2 — FULL SWITCH to the debugged regime (2026-08-10)
+
+User decision after the full local debug pass: old-regime jobs CANCELLED
+(11840703-11840706; sunk: ettctrl cell 1 ok @22.2h + 5h of a promptfix segment),
+cluster fully synced to the new regime (bf16, llm_layers {3,6,12}, 30-sample
+budget, hydro_llm/configs paths, tokenizer self-heal, loud post-HPO failures;
+stale old-path configs DELETED on the cluster), BERT weights cached
+(hidden 768 / vocab 30522).
+
+Submission (2026-08-10 ~20:00): per arm one 8-deep `--dependency=afterany`
+chain of 24h segments — 4 segments `MODES="none"` (phase A: 3 datasets x none),
+then 4 segments `MODES="none numeric_embedding"` (phase B: none cells skip via
+--resume, numeric_embedding runs). No babysitting needed; ~27h/cell estimate.
+
+| arm | config | chain job ids |
+|---|---|---|
+| promptfix (`hydro-t0v2-promptfix`) | configs/timellm_config.yaml | 11866831-11866838 |
+| ETT control (`hydro-t0v2-ettctrl`) | configs/tier0_ettcontrol.yaml | 11866839-11866846 |
+
+v1 artifacts (hydro-tier0-*-2026-08-0x) remain on the cluster as reference only
+— old regime (fp32, {3,6}, 24 samples), NOT comparable with v2 numbers.
+
 ## 2. Tier plan (priorities, order, ablations)
 
 Status legend: ✅ done · 🔵 code-ready, not run · ⚪ not implemented · 🧪 ablation.
