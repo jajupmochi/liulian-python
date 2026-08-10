@@ -285,8 +285,12 @@ def adjust_learning_rate(
           lr = lr0 * 0.5^(epoch - 1)        # e1: lr0, e2: lr0/2, e3: lr0/4, ...
 
       The TSLib/Time-LLM workhorse: aggressive decay that pairs with their
-      short train_epochs (10) + early stopping. Our timellm swiss configs use
-      THIS (``lradj: type1`` in timellm_config.yaml), starting from lr0=0.01.
+      short train_epochs (10) + early stopping. Official Time-LLM: type1 is
+      the argparse DEFAULT and the ETTh1 script (our verification anchor)
+      passes no --lradj, so it runs type1 (its --lradj 'COS' line is commented
+      out); the ETTh2/ETTm1/ETTm2 scripts pass 'TST' (OneCycleLR per batch)
+      and the cross-dataset script 'COS'. Our timellm swiss configs use THIS
+      (``lradj: type1`` in timellm_config.yaml), starting from lr0=0.01.
     * ``'type2'`` — fixed epoch→LR lookup table (absolute values, ignores lr0)::
 
           {2: 5e-5, 4: 1e-5, 6: 5e-6, 8: 1e-6, 10: 5e-7, 15: 1e-7, 20: 5e-8}
