@@ -81,7 +81,13 @@ flowchart LR
 
    Accepted values: `true` (→ `localhost:5678`) or `"host:port"`.
 
-3. **Set breakpoints** wherever you need them — BOTH sides work:
+3. **Set breakpoints** wherever you need them — BOTH sides work. TIP —
+   **conditional breakpoints** work normally in the reverse-attached worker:
+   right-click the red breakpoint dot → enter a Python expression in
+   **Condition** (e.g. on the `entity_str = ...` line in `_compose_prompt`, use
+   `bool(entity_desc)` — evaluated BEFORE the line runs, so test the inputs; on
+   any line AFTER it, `entity_str != ''` works). The debugger pauses only when
+   the expression is truthy.
    - driver side: `run_matrix.main`, `build_overrides`, `build_optimizer`,
      the `tune.run(run_trainable, **run_kwargs)` line, the post-HPO retrain;
    - worker side: `_trainable` (e.g. `merged = {**base_config, **config}`),

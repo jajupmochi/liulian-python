@@ -626,11 +626,45 @@ class Model(nn.Module):
         is ``None`` or empty the inserted segment is the empty string, so the
         returned prompt is byte-identical to the original (pre-H4) prompt — this
         preserves the V1/V2 bit-exact reproduction on the ``none`` path.
+
+        Both optional segments carry an explicit PREFIX LABEL (they are never
+        bare values): the identity is inserted as ``Entity description: <text>;``
+        (our addition) and the statistics as ``Input statistics: min value ...``
+        (upstream's own label, kept verbatim).
+
+        POSSIBLE OUTPUTS — ``stats_mode`` has exactly three states
+        (``'full'`` is the DEFAULT, so the FFT lags are included unless a config
+        explicitly opts down; validated in ``__init__``):
+
+        =============  ==========================  ================================
+        stats_mode     entity_desc None/empty      entity_desc set
+        =============  ==========================  ================================
+        'full'         upstream-verbatim prompt    upstream prompt + entity segment
+        'basic'        stats without the lags      + entity segment
+        'none'         no statistics block         + entity segment
+        =============  ==========================  ================================
+
+        (The FOURTH axis is ``prompt_variant='none'`` in ``forecast()``, which
+        skips calling this method entirely — the true "w/o Prompt-as-Prefix"
+        ablation arm.)
+
+        EXAMPLE ('full' + entity_desc set, swiss station, values shortened):
+
+            <|start_prompt|>Dataset description: The dataset records daily mean
+            water temperature of Swiss river stations ... Task description:
+            forecast the next 7 steps given the previous 90 steps information;
+            Entity description: Alpine station on the Rhein at 1200 m elevation;
+            Input statistics: min value 0.31, max value 0.78, median value 0.55,
+            the trend of input is upward, top 5 lags are : [0, 7, 14, 21, 28]<|<end_prompt>|>
+
+        The same call with ``entity_desc=None`` and ``stats_mode='full'`` drops
+        only the "Entity description: ...;" span — everything else is unchanged,
+        which is what keeps the ``none`` arm byte-identical to official Time-LLM.
         """
         entity_str = f'Entity description: {entity_desc}; ' if entity_desc else ''
-        # Statistics block per the prompt_stats knob: 'full' = upstream-verbatim
-        # (min/max/median/trend + FFT top-5 lags), 'basic' drops the lags (isolates the
-        # frequency-domain contribution), 'none' drops the whole block.
+        # Statistics block per the prompt_stats knob: 'full' (DEFAULT) = upstream-verbatim
+        # (min/max/median/trend + FFT top-5 lags — lags need no opt-in), 'basic' drops the
+        # lags (isolates the frequency-domain contribution), 'none' drops the whole block.
         if stats_mode == 'none':
             stats_str = ''
         else:
@@ -802,6 +836,38 @@ class Model(nn.Module):
         return torch.stack(vecs, dim=0).to(device)  # (num_entities, d_llm)
 
     def calcute_lags(self, x_enc):
+        """Top-k dominant lags of the input window via FFT autocorrelation.
+
+        (Name keeps the upstream typo — line-by-line alignment with official
+        Time-LLM. Used only to fill the "top 5 lags" slot of the text prompt.)
+
+        PRINCIPLE — Wiener-Khinchin theorem: the (circular) autocorrelation of a
+        signal equals the inverse FFT of its power spectrum:
+
+            R(tau) = sum_t x_t * x_{t+tau}  =  IFFT( FFT(x) * conj(FFT(x)) )
+
+        A large R(tau) means the window looks similar to itself shifted by tau
+        steps, so the peaks of R mark the dominant periodicities. Computing R
+        through the FFT costs O(T log T) instead of O(T^2).
+
+        IMPLEMENTATION, line by line (x_enc arrives as (B*N, T, 1)):
+          1. permute -> (B*N, 1, T); ``rfft`` over time gives the spectrum X(f).
+             q_fft and k_fft are the SAME series twice — the duplicated code
+             mirrors Autoformer's cross-correlation block, where q != k.
+          2. ``res = q_fft * conj(k_fft)`` = |X(f)|^2, the power spectrum.
+          3. ``irfft`` -> R(tau) for tau = 0..T-1.
+          4. mean over the channel dim -> (B*N, T).
+          5. ``topk`` returns the tau values with the largest R — the "top 5
+             lags" (self.top_k = 5).
+
+        EXAMPLE: a 90-day water-temperature window with a strong weekly rhythm
+        has R peaking at multiples of 7, so lags ≈ [0, 7, 14, 21, 28] (tau=0 is
+        the signal energy and is always the global maximum, so it typically
+        appears — upstream keeps it). A trending window without periodicity
+        instead yields small neighboring lags, e.g. [0, 1, 2, 3, 4], because a
+        smooth ramp is most similar to itself at tiny shifts. The prompt then
+        reads "top 5 lags are : [0, 7, 14, 21, 28]".
+        """
         q_fft = torch.fft.rfft(x_enc.permute(0, 2, 1).contiguous(), dim=-1)
         k_fft = torch.fft.rfft(x_enc.permute(0, 2, 1).contiguous(), dim=-1)
         res = q_fft * torch.conj(k_fft)

@@ -76,7 +76,11 @@ flowchart LR
 
    可取值:`true`(→ `localhost:5678`)或 `"host:port"`。
 
-3. **设断点** —— 两侧都可用:
+3. **设断点** —— 两侧都可用。技巧:**条件断点**在反向回连的 worker 里同样有效:
+   右键红色断点 → **Condition** 栏填 Python 表达式(如在 `_compose_prompt` 的
+   `entity_str = ...` 那一行,条件填 `bool(entity_desc)` —— 条件在该行执行**前**
+   求值,所以要测输入;在它之后的任意行则可用 `entity_str != ''`)。表达式为真
+   时才暂停。
    - driver 侧:`run_matrix.main`、`build_overrides`、`build_optimizer`、
      `tune.run(run_trainable, **run_kwargs)` 那行、post-HPO retrain;
    - worker 侧:`_trainable`(如 `merged = {**base_config, **config}`)、
