@@ -23,9 +23,9 @@
 
 \begin{document}
 
-\title[Where Should a Frozen LLM Forecaster Learn Who It Is Forecasting?]{Where Should a
-Frozen LLM Forecaster Learn Who It Is Forecasting? Comparing Entity-Identity Injection
-Schemes in Reprogrammed Language Models}
+\title[Entity-Aware Time Series LLMs for Water Temperature Forecasting]{Entity-Aware
+Time Series LLMs for Water Temperature Forecasting: Comparing Identity-Injection
+Schemes in Reprogrammed Frozen Language Models}
 
 %% Author list = the ICPR 2026 team. TODO(user): confirm affiliations/emails for
 %% Fankhauser and Bigler before circulating beyond the group.
@@ -464,11 +464,29 @@ direction, resolved per-cell configs are audited before any scientific claim; no
 number enters the paper without its results file and config hash.
 \end{enumerate}
 
-\section{Limitations}
+\section{Limitations and Future Work}
 Single seed until the design freezes; one country and one variable; station
 descriptions currently exist for \swiss{} only; LLaMA-scale backbones pending
 cluster time; the ETT-control arm controls the dataset description, not the task
 instructions.
+
+\textbf{Further models (named).} The scheme comparison extends beyond Time-LLM to
+the other reprogramming and LLM-based forecasters already ported to the same entry
+and pipeline: GPT4TS~\cite{zhou2023onefitsall} (implemented; the no-prompt negative
+control), TEMPO~\cite{cao2024tempo} (implemented; decomposition variant),
+AutoTimes~\cite{liu2024autotimes} (implemented; autoregressive time tokens),
+CALF (cross-modal dual branch; port planned), and UniTime (the second
+native-text backbone; planned). Backbone sensitivity within Time-LLM covers GPT-2,
+BERT, and LLaMA-7B (weights staged on the cluster), and Chronos-2 serves as a
+zero-shot foundation-model control without any learned entity pathway.
+
+\textbf{Further data (named).} Beyond the three Swiss water-temperature
+collections: CAMELS-CH-Chem (86 hourly Swiss stations; a station-alignment
+leakage check against our 28 stations precedes any use), and the cross-domain
+entity-strength ladder already wired in the repository --- traffic (862 sensors,
+strong entities), electricity (321 clients), and ETTh1 (sensor variables of one
+site, the deliberately weak-entity control) --- which turns the domain-dependence
+observation of Section~\ref{sec:results} into a systematic axis.
 
 \section{Conclusion}
 \inprogress{written after the matched grid lands; the candidate storyline ---
