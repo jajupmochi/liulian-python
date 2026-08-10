@@ -10,8 +10,16 @@
 
 | 作业 | 内容 | 配置 | 状态 |
 |---|---|---|---|
-| 11557210 | Tier-0，7 个 cell，50 样本 HPO | 旧版 ETT 描述提示词（现作为"无关描述对照组"） | 自 2026-08-04 约 12:39 起运行中，cell 1 的 HPO 正在进行；预计会跨越多个 24 小时的 gratis 窗口（通过 `--resume` 续跑） |
-| 11594547 | Tier-0 promptfix，7 个 cell，24 样本 HPO | 修复后的瑞士提示词（`prompt_domain: 1`，P3 描述），显式指定 `--config` | 在 debug-toggle 事故后于 2026-08-05 约 01:5x 重新提交（见 [01 §8]/commit `aa8b222`）；cell 1 正在重新运行 |
+| ~~11557210~~ | Tier-0，7 个 cell，**50 样本** HPO | 旧版 ETT 描述提示词 | **24h 整点 TIMEOUT,0/7 cell**(2026-08-05)——被 11623379(24 样本匹配对照)取代 |
+| ~~11594547~~ | Tier-0 promptfix，7 个 cell，24 样本 HPO | 修复后的瑞士提示词（`prompt_domain: 1`，P3），显式 `--config` | **24h 整点 TIMEOUT**(2026-08-06 01:50 结束,cell 1 HPO 进行中)。由 11840703 续跑。 |
+| ~~11623379~~ | Tier-0 ETT 对照，7 个 cell，**24 样本** HPO(匹配) | `configs/tier0_ettcontrol.yaml` = timellm_config.yaml 仅改 `prompt_domain: 0` | **24h 整点 TIMEOUT**(2026-08-06 13:53 结束,cell 1 HPO 进行中)。由 11840705 续跑。 |
+| 11840703(+11840704 afterany) | promptfix 续跑,同 tag/环境,`--resume`(manifest 跳过 + Ray Tune 恢复) | 同 11594547 | 2026-08-07 约 14:35 提交,排队中;后继作业用 `--dependency=afterany` 链上,下一个 24h 段自动开跑 |
+| 11840705(+11840706 afterany) | ETT 对照续跑,同 tag/环境,`--resume` | 同 11623379 | 2026-08-07 约 14:35 提交,排队中;afterany 后继已链 |
+
+**墙钟实测事实(2026-08-07)**:`gpu` 分区 TIMELIMIT 为 **1-00:00:00(24 小时硬上限)**
+(`sinfo -p gpu`),`--time=96:00:00` 在提交时直接被拒;QoS `job_gratis` 无独立 MaxWall
+(其限制是 GPU 数量)。此前"gratis 允许 96h"的解读对 GPU 分区不成立。长扫描因此按
+**24h 分段 + `--dependency=afterany` 链 + `--resume`** 方式推进。
 
 Harness 时代的锚点数字（n=3，对论文而言已被这些重跑结果取代）：见
 [00 §2](00-RESEARCH-PLAN.md)。

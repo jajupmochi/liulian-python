@@ -23,7 +23,12 @@
 #SBATCH --partition=gpu
 #SBATCH --qos=job_gratis
 #SBATCH --gres=gpu:rtx4090:1
-#SBATCH --time=96:00:00
+# MEASURED 2026-08-07: the gpu partition TIMELIMIT is 1-00:00:00 (sinfo -p gpu) and a
+# 96:00:00 request is REJECTED at submit ("Requested time limit is invalid"). Long
+# sweeps therefore run as 24h segments: --resume (manifest skip + Ray Tune resume)
+# continues finished/partial cells, and submit an afterany-dependency successor job
+# (sbatch --dependency=afterany:<jobid>) so the next segment starts automatically.
+#SBATCH --time=24:00:00
 #SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=10G
 #SBATCH --mail-type=ALL

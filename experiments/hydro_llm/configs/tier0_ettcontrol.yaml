@@ -124,9 +124,11 @@ search_space_file: experiments/hydro_llm/configs/search_spaces.yaml
 # (dry/smoke/dev=off, full=on); writing `hpo: true` here would force HPO even in
 # dev/smoke phases. The search GRID is separate: liulian/optim/search_spaces.yaml
 # (model_spaces.timellm_swiss + identifier_spaces), resolved by resolve_search_space().
-hpo_num_samples: 30           # default sweep budget under the REAL 96h gratis wall (raised from
-                              # the 24-sample matched Tier-0 arms, which were sized for the
-                              # self-imposed 24h wall; 50 TIMED OUT there). CLI --hpo-num-samples /
+hpo_num_samples: 30           # default sweep budget. The gpu-partition wall is a HARD 24h
+                              # (sinfo-measured 2026-08-07; a 96h request is rejected), but the
+                              # budget spans sbatch requeues: --resume + Ray Tune resume continue
+                              # partial cells across 24h segments (afterany-chained jobs), so the
+                              # trial count is not capped by one segment. CLI --hpo-num-samples /
                               # sbatch HPO_NUM_SAMPLES still wins. NOTE: comparisons within one
                               # tier must share ONE budget — the running Tier-0 stays 24 via CLI.
 hpo_scheduler: asha           # ASHA early-stops bad trials

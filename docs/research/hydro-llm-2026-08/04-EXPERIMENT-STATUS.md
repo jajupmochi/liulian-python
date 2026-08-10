@@ -11,8 +11,16 @@ cells complete. Hypotheses in [00 §4](00-RESEARCH-PLAN.md); mode definitions in
 | job | what | config | state |
 |---|---|---|---|
 | ~~11557210~~ | Tier-0, 7 cells, **50-sample** HPO | old ETT-description control | **TIMEOUT at 24h with 0/7 cells** (2026-08-05 ~12:39) — one cell's 50-trial HPO exceeds a gratis window; 50 vs 24 samples was also an unfair control. SUPERSEDED by 11623379. |
-| 11594547 | Tier-0 promptfix, 7 cells, 24-sample HPO | FIXED swiss prompts (`prompt_domain: 1`, P3), explicit `--config` | RUNNING (resubmitted 2026-08-05 ~01:5x after the debug-toggle incident, commit `aa8b222`) |
-| 11623379 | Tier-0 ETT control, 7 cells, **24-sample** HPO (matched) | `configs/tier0_ettcontrol.yaml` = timellm_config.yaml with ONLY `prompt_domain: 0` | submitted 2026-08-05 ~12:45, PENDING |
+| ~~11594547~~ | Tier-0 promptfix, 7 cells, 24-sample HPO | FIXED swiss prompts (`prompt_domain: 1`, P3), explicit `--config` | **TIMEOUT at exactly 24h** (ended 2026-08-06 01:50, cell 1 mid-HPO). Continued by 11840703. |
+| ~~11623379~~ | Tier-0 ETT control, 7 cells, **24-sample** HPO (matched) | `configs/tier0_ettcontrol.yaml` = timellm_config.yaml with ONLY `prompt_domain: 0` | **TIMEOUT at exactly 24h** (ended 2026-08-06 13:53, cell 1 mid-HPO). Continued by 11840705. |
+| 11840703 (+11840704 afterany) | promptfix CONTINUATION, same tag/env, `--resume` (manifest skip + Ray Tune resume) | same as 11594547 | submitted 2026-08-07 ~14:35, PD; successor chained via `--dependency=afterany` so the next 24h segment starts unattended |
+| 11840705 (+11840706 afterany) | ETT-control CONTINUATION, same tag/env, `--resume` | same as 11623379 | submitted 2026-08-07 ~14:35, PD; afterany successor chained |
+
+**MEASURED wall-clock fact (2026-08-07)**: the `gpu` partition TIMELIMIT is **1-00:00:00
+(24 h hard)** — `sinfo -p gpu` — and a `--time=96:00:00` request is rejected at submit;
+QoS `job_gratis` adds no separate MaxWall (its limits are the GPU counts). The earlier
+"gratis allows 96h" reading was wrong for the GPU partition. Long sweeps therefore run as
+**24h segments chained with `--dependency=afterany`** + `--resume`.
 
 Harness-era anchor numbers (n=3, superseded for the paper by these reruns): see
 [00 §2](00-RESEARCH-PLAN.md).
