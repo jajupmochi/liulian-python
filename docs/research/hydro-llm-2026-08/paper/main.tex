@@ -5,6 +5,8 @@
 
 \usepackage{booktabs}
 \usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit}
 \newcommand{\inprogress}[1]{\textcolor{blue}{\textbf{[IN PROGRESS:} #1\textbf{]}}}
 \newcommand{\swiss}{\textsc{Swiss-1990}}
 \newcommand{\swissb}{\textsc{Swiss-2010}}
@@ -211,6 +213,65 @@ consumes $[C;Z]$; only the reprogramming layer, the output head, and the identit
 parameters train. The \textsf{none} arm's prompt is byte-identical to official
 Time-LLM, which preserves a bit-exact reproduction anchor (Section~\ref{sec:setup}).
 
+\subsection{Framework}
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[
+  font=\small,
+  box/.style={draw, rounded corners=2pt, minimum height=2.2em, inner sep=4pt, align=center},
+  idbox/.style={box, fill=blue!8},
+  frozen/.style={box, fill=gray!15},
+  train/.style={box, fill=orange!15},
+  arr/.style={-{Stealth[length=2mm]}, thick},
+  node distance=5mm and 7mm]
+
+\node[box] (x) {window $x$\\$(T{\times}1)$};
+\node[box, right=of x] (revin) {RevIN\\Eq.~\eqref{eq:revin}};
+\node[train, right=of revin] (patch) {patch\\embed $E$};
+\node[train, right=of patch] (reprog) {reprogram\\Eq.~\eqref{eq:reprog}};
+\node[frozen, right=of reprog] (llm) {frozen LLM\\(GPT-2)};
+\node[train, right=of llm] (head) {head};
+\node[box, right=of head] (denorm) {de-\\norm};
+\node[box, right=of denorm] (yhat) {$\hat{y}$\\(°C)};
+
+\node[idbox, below=9mm of patch] (numeric) {\textsf{numeric} / A2 ladder\\$E{+}\mathbf{1}e_s^{\top}$ (Eq.~\eqref{eq:additive})};
+\node[idbox, below=9mm of reprog, xshift=14mm] (textemb) {\textsf{text-embedding}\\(frozen enc.\ $\to$ proj.)};
+
+\node[frozen, above=9mm of reprog] (prompt) {prompt $C$: dataset desc.\ $\|$ task $\|$ stats};
+\node[idbox, above=9mm of llm, xshift=8mm] (textid) {\textsf{text}: entity description};
+\node[idbox, left=7mm of prompt] (soft) {\textsf{soft prompt}:\\learned prefix};
+
+\draw[arr] (x) -- (revin);
+\draw[arr] (revin) -- (patch);
+\draw[arr] (patch) -- (reprog);
+\draw[arr] (reprog) -- (llm);
+\draw[arr] (llm) -- (head);
+\draw[arr] (head) -- (denorm);
+\draw[arr] (denorm) -- (yhat);
+\draw[arr, blue] (numeric) -- (patch);
+\draw[arr, blue] (textemb.north) -- ([xshift=6mm]reprog.south);
+\draw[arr] (prompt.east) -| ([xshift=-3mm]llm.north);
+\draw[arr, blue] (textid) -- ([xshift=8mm]llm.north);
+\draw[arr, blue] (soft) -- (prompt);
+\end{tikzpicture}
+\caption{Framework. Gray blocks are frozen, orange blocks train, and the four blue
+blocks are the identity-injection schemes under comparison (the study's axis):
+\textsf{numeric}/A2 adds a station vector to the patch embeddings after RevIN,
+\textsf{text-embedding} injects a projected frozen text encoding at the same site,
+\textsf{text} inserts a per-station description into the prompt, and \textsf{soft
+prompt} prepends learned per-station tokens. \textsf{none} removes all blue blocks
+and reproduces official Time-LLM byte-for-byte. RevIN erases per-window level and
+scale (Section~\ref{sec:method}), which is why every injection site sits downstream
+of it.}
+\label{fig:framework}
+\end{figure*}
+
+Figure~\ref{fig:framework} places the four schemes on one diagram: two injection
+positions (prompt pathway vs.\ additive at the patch embeddings), two
+representation sources (text vs.\ learned), every site downstream of RevIN, and
+the backbone frozen throughout.
+
 \subsection{Pipeline}
 
 One matrix entry expands cells (dataset $\times$ scheme $\times$ sub-variant
@@ -274,9 +335,14 @@ non-trivial.
 \subsection{Scheme comparison on Time-LLM: single-seed anchors}
 
 \begin{table}[t]
-\caption{Time-LLM identity schemes on \swiss{} (Test MSE; seed 2026, canonical
-hypers, pre-HPO sanity anchors --- superseded by the matched grid of
-Table~\ref{tab:main} but stable in direction).}
+\caption{Time-LLM identity schemes on \swiss{}: single-seed sanity ANCHORS from
+the \emph{completed} harness runs of 2026-08-02/03 (seed 2026, the canonical
+Time-LLM hyper-parameters, no HPO; every number is a finished run archived in the
+repository). The harness reported scaler-space Test MSE only; the running matched
+grid of Table~\ref{tab:main} re-measures all schemes and reports physical-unit
+denormalized RMSE (°C), the same convention as our ICPR 2026 paper, which is the
+metric the paper's headline claims will use. These anchors are kept because their
+\emph{directions} motivated the study design.}
 \label{tab:anchors}
 \begin{tabular}{@{}lll@{}}
 \toprule
