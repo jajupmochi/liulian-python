@@ -387,6 +387,15 @@ class ForecastTrainer:
                 adjust_learning_rate(model_optim, epoch + 1, cfg)
 
         # --- Load best model ---
+        # SCOPE: this restores THIS fit() run's own best-validation EPOCH — never a
+        # cross-trial best. The 'checkpoint' file is written a few lines above
+        # (and by EarlyStopping) every time THIS run's monitor improves, into
+        # self.checkpoint_dir, which is per-context: a Ray trial gets its own
+        # checkpoints/trial_<id>/ (ray_optimizer passes it at construction), so
+        # each trial reloads its own best epoch here. Selecting the best ACROSS
+        # trials happens later and elsewhere — experiment.py's post-HPO step reads
+        # Ray's analysis (best_trial by the reported metric) and loads THAT
+        # trial's checkpoint before the final retrain/eval.
         best_ckpt = os.path.join(self.checkpoint_dir, 'checkpoint')
         if os.path.exists(best_ckpt):
             model.load_state_dict(torch.load(best_ckpt, map_location=self.device, weights_only=True))
