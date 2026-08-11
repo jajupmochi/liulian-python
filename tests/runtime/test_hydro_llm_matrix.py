@@ -34,20 +34,27 @@ def _args(**over):
 
 
 class TestEntityDescriptionAvailability:
-    def test_only_1990_and_etth1_have_descriptions(self) -> None:
+    def test_all_swiss_datasets_and_etth1_have_descriptions(self) -> None:
+        # SEMANTICS CHANGED 2026-08-11: 2010 (63 BAFU stations, river/town from
+        # the hydrodaten directory) and zurich (15 cantonal stations,
+        # coordinate-descriptive text) were authored; before that only 1990 and
+        # ETTh1 had text and this test asserted the others False.
         assert has_entity_descriptions('swiss-river-1990') is True
         assert has_entity_descriptions('ETTh1') is True
-        assert has_entity_descriptions('swiss-river-2010') is False
-        assert has_entity_descriptions('swiss-river-zurich') is False
+        assert has_entity_descriptions('swiss-river-2010') is True
+        assert has_entity_descriptions('swiss-river-zurich') is True
         assert has_entity_descriptions('does-not-exist') is False
 
 
 class TestBuildCellsGuardrail:
-    def test_entity_description_skipped_where_unavailable(self) -> None:
+    def test_entity_description_runs_everywhere_now(self) -> None:
+        # All three swiss datasets have authored descriptions since 2026-08-11,
+        # so nothing skips with the REAL data files; the skip MECHANISM itself
+        # is covered by TestTextEmbeddingSkipGuard via monkeypatch.
         cells = build_cells(_args())
         ed = [c for c in cells if c['mode'] == 'entity_description']
-        # only swiss-river-1990 keeps its entity_description cell
-        assert {c['dataset'] for c in ed} == {'swiss-river-1990'}
+        assert {c['dataset'] for c in ed} == {
+            'swiss-river-1990', 'swiss-river-2010', 'swiss-river-zurich'}
 
     def test_other_modes_run_on_all_datasets(self) -> None:
         cells = build_cells(_args())
@@ -55,10 +62,11 @@ class TestBuildCellsGuardrail:
             got = {c['dataset'] for c in cells if c['mode'] == mode}
             assert got == {'swiss-river-1990', 'swiss-river-2010', 'swiss-river-zurich'}
 
-    def test_total_cell_count_is_seven_not_nine(self) -> None:
-        # 1990: none+entity_description+numeric_embedding (3);
-        # 2010/zurich: none+numeric_embedding (2 each) => 3 + 2 + 2 = 7.
-        assert len(build_cells(_args())) == 7
+    def test_total_cell_count_is_nine_since_descriptions_authored(self) -> None:
+        # 3 datasets x (none + entity_description + numeric_embedding) = 9.
+        # Was 7 while 2010/zurich lacked station text (their entity_description
+        # cells skipped); descriptions authored 2026-08-11.
+        assert len(build_cells(_args())) == 9
 
     def test_no_skip_when_only_1990_requested(self) -> None:
         cells = build_cells(_args(datasets=['swiss-river-1990']))
