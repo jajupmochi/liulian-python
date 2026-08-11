@@ -55,8 +55,8 @@ patch embeddings (\textsf{numeric}), a natural-language station description insi
 prompt (\textsf{text}), a learned continuous prefix (\textsf{soft prompt}), and a
 frozen text embedding injected additively (\textsf{text-embedding}). All schemes are
 evaluated on three Swiss river water-temperature datasets through a single training
-pipeline with matched hyper-parameter optimization, with the backbone kept frozen
-throughout. Preliminary single-seed anchors show a 19.4\% Test-MSE gain for the
+pipeline under one shared fixed configuration --- the discipline of the original
+Time-LLM protocol --- with the backbone kept frozen throughout. Preliminary single-seed anchors show a 19.4\% Test-MSE gain for the
 numeric scheme on the entity-rich dataset against a 2.2\% \emph{loss} for the text
 scheme, and a capacity-matched \emph{random} identity recovers 95\% of the numeric
 gain, pointing to per-entity distinctness rather than learned content as the active
@@ -130,9 +130,9 @@ source = learned & \textsf{soft prompt} & \textsf{numeric} (+ A2 ladder) \\
 (1)~A factorized design space for entity identity in reprogrammed LLM forecasters,
 upgrading the usual single-mode comparison to a grid whose axes are interpretable
 (Section~\ref{sec:method}).
-(2)~A matched-budget evaluation of all schemes on three real hydrological datasets
-through one shared pipeline (Section~\ref{sec:setup}); \inprogress{cluster chains
-11866831--11867015}.
+(2)~An evaluation of all schemes on three real hydrological datasets through one
+shared pipeline under one fixed configuration (Section~\ref{sec:setup});
+\inprogress{cluster chains 11907034--11907039}.
 (3)~A distinguisher-vs-content decomposition of the text pathway via shuffled and
 symbol-code prompts, which no prior LLM-for-time-series work isolates
 (Section~\ref{sec:ablations}).
@@ -275,14 +275,15 @@ the backbone frozen throughout.
 \subsection{Pipeline}
 
 One matrix entry expands cells (dataset $\times$ scheme $\times$ sub-variant
-$\times$ seed) into a shared pipeline: Ray~Tune HPO (30 samples, ASHA) over
-$\{lr\}\times\{d_{\mathrm{model}}\}\times\{d_{\mathrm{ff}}\}\times\{\mathit{llm\_layers}\}$,
-best-\emph{epoch} selection within each trial and best-trial selection across
-trials, followed by loading that epoch's checkpoint and evaluating once --- no
-retraining, so the reported weights are exactly the selected ones. Metrics are
-reported in scaler space and in physical units (denormalized RMSE, °C). The same
-pipeline trains the classical baselines (LSTM, PatchTST, DLinear), which keeps
-cross-family numbers comparable.
+$\times$ seed) into a shared pipeline: every scheme trains under the SAME fixed
+backbone configuration (Section~\ref{sec:setup}) with validation early stopping
+(patience 10), and the best-validation epoch's checkpoint is evaluated once.
+Metrics are reported in scaler space and in physical units (denormalized RMSE,
+°C). The same pipeline trains the classical baselines (LSTM, PatchTST, DLinear),
+which keeps cross-family numbers comparable. The pipeline also supports a
+matched-budget Ray~Tune HPO mode (ASHA over
+$\{lr\}\times\{d_{\mathrm{model}}\}\times\{d_{\mathrm{ff}}\}\times\{\mathit{llm\_layers}\}$),
+which we reserve for a sensitivity pass on the flagship cells.
 
 \section{Experimental Setup}
 \label{sec:setup}
@@ -294,18 +295,28 @@ literature value $+0.33\pm0.03$~\cite{michel2020}), \swissb{}, and \swissc{}.
 Authored prompts contain only facts traceable to the data or cited literature, with
 per-phrase provenance kept in the repository.
 
-\textbf{Protocol.} Seed 2026 across all model families (single seed until the
-design freezes; a multi-seed pass follows); batch 32, horizon 7 days, patch 16/8
-shared with PatchTST; 30 epochs with patience-10 early stopping; bf16 mixed
-precision exactly as official Time-LLM; identical HPO budget for every arm of a
-comparison. The Time-LLM port reproduces the official repository bit-exactly on
-ETTh1 (per-epoch losses identical; Test MSE 0.3908 / MAE 0.4159). Notably, the
-original Time-LLM paper reports \emph{fixed} per-dataset configurations (its
-Appendix~B.4, Table~9) and describes no hyper-parameter search; its released code
-does apply validation early stopping (patience 10) but no tuning. Our matched
-30-sample HPO therefore strengthens every comparison relative to the original
-protocol, and applies it \emph{equally} to all arms. Comparisons never mix
-precision, search space, prompt file, or budget; such changes deploy only at tier
+\textbf{Protocol: fixed configuration, faithful to the original.} The original
+Time-LLM paper reports \emph{fixed} per-dataset configurations (its
+Appendix~B.4, Table~9; B.1: ``We mainly follow the experimental configurations in
+(Wu et al., 2023)'') and describes no hyper-parameter search; its released code
+applies validation early stopping (patience 10) but no tuning. We adopt the same
+discipline: every scheme trains under ONE fixed backbone configuration --- the
+canonical Time-LLM values ($d_{\mathrm{model}}{=}32$, $d_{\mathrm{ff}}{=}128$,
+$n_{\mathrm{heads}}{=}8$, 6 GPT-2 layers), batch 32, horizon 7 days, patch 16/8
+shared with PatchTST, 30 epochs with patience-10 early stopping, bf16 mixed
+precision exactly as the official code --- with a single evidence-based
+deviation, $lr{=}10^{-3}$ instead of the canonical $10^{-2}$, selected once by a
+100-epoch diagnostic on the \textsf{none} baseline (validation denorm RMSE 1.746
+vs.\ 1.811) BEFORE any scheme comparison, then frozen for all schemes. Because
+every scheme shares this configuration, the comparison is internally matched;
+identity-specific parameters are fixed too (soft-prompt length 8; the numeric
+identity width is structurally tied to $d_{\mathrm{model}}$). Seed 2026 across
+all model families (single seed until the design freezes; a multi-seed pass is
+affordable under this protocol and follows). The Time-LLM port reproduces the
+official repository bit-exactly on ETTh1 (per-epoch losses identical; Test MSE
+0.3908 / MAE 0.4159). A matched-budget HPO sensitivity pass on the flagship cells
+is planned to confirm the fixed-configuration conclusions. Comparisons never mix
+precision, prompt file, or protocol; such changes deploy only at tier
 boundaries.
 
 \textbf{Arms.} Both a \emph{promptfix} arm (authored Swiss description) and an
@@ -377,9 +388,9 @@ rather than distinct entities.
 \label{sec:main}
 
 \begin{table}[t]
-\caption{Main results: injection schemes under matched 30-sample HPO, frozen
-backbone, seed 2026. Physical-unit denormalized RMSE (°C) with scaler-space MSE in
-parentheses. \inprogress{chains 11866831--11867015; phase order:\ \textsf{none}
+\caption{Main results: injection schemes under the fixed shared configuration
+(Section~\ref{sec:setup}), frozen backbone, seed 2026. Physical-unit denormalized RMSE (°C) with scaler-space MSE in
+parentheses. \inprogress{chains 11907034--11907039; phase order:\ \textsf{none}
 $\rightarrow$ \textsf{numeric} $\rightarrow$
 \textsf{text}/\textsf{soft}/\textsf{text-embedding}}}
 \label{tab:main}

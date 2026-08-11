@@ -58,6 +58,20 @@ per-dataset configs with no hyper-parameter search (verified: its App. B.4
 Table 9 + B.1 "follow (Wu et al., 2023)"; code has patience-10 early stopping
 only), so the matched-HPO protocol is an upgrade applied equally to all arms.
 
+**2026-08-11 protocol v3 (user decision): FIXED CONFIG, NO HPO.** Rationale: the
+original Time-LLM paper itself uses fixed per-dataset configs with no search
+(verified), so a fixed shared configuration is protocol-faithful AND ~30x
+faster (~2-4h per cell solo vs ~27h for a 30-trial HPO cell). Config = canonical
+Time-LLM (d_model 32, d_ff 128, n_heads 8, llm_layers 6) with ONE evidence-based
+deviation: lr 1e-3 (the 100-epoch diagnostic winner over canonical 1e-2), frozen
+for all schemes; soft_prompt_len fixed 8; numeric width is d_model-tied. Runs as
+`--phase dev --train-epochs 30` (patience 10 from the config; early stopping
+picks the epoch). Tag `hydro-t0v3-fixedcfg`: 1990 on H100 (11907034-36),
+2010+zurich on 4090 (11907037-39), phases none -> +numeric -> all frozen
+schemes. The v2 HPO chains are cancelled; matched-HPO returns later as a
+sensitivity pass on flagship cells. Multi-seed becomes affordable under v3 —
+still ASK-FIRST before launching.
+
 v1 artifacts (hydro-tier0-*-2026-08-0x) remain on the cluster as reference only
 — old regime (fp32, {3,6}, 24 samples), NOT comparable with v2 numbers.
 
