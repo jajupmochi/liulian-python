@@ -221,12 +221,16 @@ def build_cells(args: argparse.Namespace) -> list[dict[str, Any]]:
     for dataset in args.datasets:
         for mode in args.modes:
             # entity_description needs authored station text; skip (not fail) the
-            # (dataset, entity_description) cells for datasets that have none, so a
+            # (dataset, TEXT-mode) cells for datasets that have no station text, so a
             # 3-dataset sweep does not schedule cells that only raise at run time.
-            # Only swiss-river-1990 (+ ETTh1) has descriptions today.
-            if mode == 'entity_description' and not has_entity_descriptions(dataset):
+            # Only swiss-river-1990 (+ ETTh1) has descriptions today. BOTH text-source
+            # modes need them: entity_description injects the text into the prompt,
+            # text_embedding encodes the SAME text additively — the 2010 cell of
+            # 2026-08-11 (job 11912254) errored precisely because this guard covered
+            # only entity_description.
+            if mode in ('entity_description', 'text_embedding') and not has_entity_descriptions(dataset):
                 print(f'  [skip] {dataset}: no entity descriptions authored -> '
-                      f'entity_description cell omitted (add text to run it)')
+                      f'{mode} cell omitted (add text to run it)')
                 continue
             a2_vals = args.a2 if mode == 'numeric_embedding' else ['learnable']
             a1_vals = args.a1 if mode == 'entity_description' else ['default']

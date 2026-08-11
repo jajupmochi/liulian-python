@@ -628,3 +628,30 @@ class TestExplicitHpoBlockInConfigs:
         assert 'hpo_num_samples' not in ov, (
             'phase default leaked past the config hpo_num_samples'
         )
+
+
+class TestTextEmbeddingSkipGuard:
+    """Regression (2026-08-11, cluster job 11912254): text_embedding on a
+    dataset WITHOUT station descriptions errored at run time (loud ValueError
+    in _load_entity_descriptions) because the build-time auto-skip guard
+    covered only entity_description. Both text-source modes need the text, so
+    both must be skipped at cell-build time for text-less datasets."""
+
+    def test_text_modes_skipped_without_descriptions(self, monkeypatch):
+        import experiments.hydro_llm.run_matrix as rm
+
+        from types import SimpleNamespace
+
+        monkeypatch.setattr(rm, 'has_entity_descriptions', lambda ds: ds == 'swiss-river-1990')
+        cells = rm.build_cells(SimpleNamespace(
+            datasets=['swiss-river-1990', 'swiss-river-2010'],
+            modes=['none', 'entity_description', 'text_embedding'],
+            a2=['learnable'], a1=['default'], tuning=['frozen'],
+            backbones=['GPT2'], seeds=[2026], arch='timellm',
+        ))
+        combos = {(c['dataset'], c['mode']) for c in cells}
+        assert ('swiss-river-1990', 'entity_description') in combos
+        assert ('swiss-river-1990', 'text_embedding') in combos
+        assert ('swiss-river-2010', 'entity_description') not in combos
+        assert ('swiss-river-2010', 'text_embedding') not in combos
+        assert ('swiss-river-2010', 'none') in combos
