@@ -45,6 +45,19 @@ then 4 segments `MODES="none numeric_embedding"` (phase B: none cells skip via
 | promptfix (`hydro-t0v2-promptfix`) | configs/timellm_config.yaml | 11866831-11866838 |
 | ETT control (`hydro-t0v2-ettctrl`) | configs/tier0_ettcontrol.yaml | 11866839-11866846 |
 
+**2026-08-11 re-plan (user):** ETT-control arm PAUSED; all compute on the
+swiss+LLM main grid. The promptfix arm now runs as TWO parallel chains under one
+tag (`hydro-t0v2-promptfix`), split by dataset so the cells are disjoint:
+swiss-1990 (all 5 schemes) on the single gratis **H100** (jobs 11906783-90,
+8 segments), and 2010+zurich on a **RTX 4090** (jobs 11906791-98, 8 segments;
+text schemes auto-skip there until station descriptions are authored). Phase
+order per segment: none x2 -> +numeric x2 -> all-frozen-schemes x4. Earlier
+whole-arm chains 11866831-46/11906373-88/11906422-54 cancelled; completed trial
+state carries over via --resume. The original Time-LLM paper uses FIXED
+per-dataset configs with no hyper-parameter search (verified: its App. B.4
+Table 9 + B.1 "follow (Wu et al., 2023)"; code has patience-10 early stopping
+only), so the matched-HPO protocol is an upgrade applied equally to all arms.
+
 v1 artifacts (hydro-tier0-*-2026-08-0x) remain on the cluster as reference only
 — old regime (fp32, {3,6}, 24 samples), NOT comparable with v2 numbers.
 
