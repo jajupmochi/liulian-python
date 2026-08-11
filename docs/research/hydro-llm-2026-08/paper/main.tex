@@ -299,9 +299,14 @@ design freezes; a multi-seed pass follows); batch 32, horizon 7 days, patch 16/8
 shared with PatchTST; 30 epochs with patience-10 early stopping; bf16 mixed
 precision exactly as official Time-LLM; identical HPO budget for every arm of a
 comparison. The Time-LLM port reproduces the official repository bit-exactly on
-ETTh1 (per-epoch losses identical; Test MSE 0.3908 / MAE 0.4159). Comparisons never
-mix precision, search space, prompt file, or budget; such changes deploy only at
-tier boundaries.
+ETTh1 (per-epoch losses identical; Test MSE 0.3908 / MAE 0.4159). Notably, the
+original Time-LLM paper reports \emph{fixed} per-dataset configurations (its
+Appendix~B.4, Table~9) and describes no hyper-parameter search; its released code
+does apply validation early stopping (patience 10) but no tuning. Our matched
+30-sample HPO therefore strengthens every comparison relative to the original
+protocol, and applies it \emph{equally} to all arms. Comparisons never mix
+precision, search space, prompt file, or budget; such changes deploy only at tier
+boundaries.
 
 \textbf{Arms.} Both a \emph{promptfix} arm (authored Swiss description) and an
 \emph{ETT-control} arm (official electricity description, everything else equal)
