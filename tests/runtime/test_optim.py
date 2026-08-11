@@ -31,11 +31,14 @@ class TestTimeLLMSearchSpace:
     def test_none_is_the_four_core_knobs(self) -> None:
         assert self._keys(model='timellm', data='swiss-river-1990', identifier_mode='none') == self.CORE
 
-    def test_embedding_mode_drops_dead_embedding_size(self) -> None:
+    def test_embedding_mode_includes_live_embedding_size(self) -> None:
         # identifier_mode 'embedding' is what numeric_embedding+learnable maps to.
+        # SEMANTICS CHANGED 2026-08-11: embedding_size is a LIVE knob for timellm
+        # (nn.Embedding(n, size) + Linear projection to d_model when they differ),
+        # so the default file's embedding entry now composes in. Before that date
+        # the width was structurally d_model-tied and this test asserted absence.
         keys = self._keys(model='timellm', data='swiss-river-1990', identifier_mode='embedding')
-        assert 'embedding_size' not in keys, 'dead knob leaked into timellm space'
-        assert keys == self.CORE
+        assert keys == self.CORE | {'embedding_size'}
 
     def test_soft_prompt_adds_its_only_knob(self) -> None:
         keys = self._keys(model='timellm', data='swiss-river-1990', identifier_mode='soft_prompt')
@@ -358,3 +361,30 @@ class TestHpoDebugAttach:
         fake_mod.settrace = fake_settrace_old
         _maybe_attach_debugger({'hpo_debug_attach': 'localhost:5678'})
         assert calls == {'host': 'localhost', 'port': 5678, 'suspend': False, 'redirect': True}
+
+
+class TestGridDistAndTimellmEmbeddingKnob:
+    """2026-08-11: (a) `grid` sampler dist -> tune.grid_search (exact one run
+    per value, no random duplicate draws); (b) timellm left the embedding_size
+    dead-knob list (the projection made it live), so embedding mode now
+    composes the knob."""
+
+    def test_grid_dist_maps_to_grid_search(self):
+        from liulian.optim.search_spaces import _spec_to_tune
+
+        obj = _spec_to_tune({'dist': 'grid', 'values': [8, 16, 32]})
+        assert obj == {'grid_search': [8, 16, 32]}
+
+    def test_timellm_embedding_mode_now_includes_embedding_size(self):
+        sp = resolve_search_space(
+            model='timellm', data='swiss-river-1990', identifier_mode='embedding',
+            search_space_file='experiments/hydro_llm/configs/search_spaces.v3emb.yaml',
+        )
+        assert set(sp) == {'embedding_size'}
+
+    def test_gpt4ts_still_guarded(self):
+        sp = resolve_search_space(
+            model='gpt4ts', data='swiss-river-1990', identifier_mode='embedding',
+            search_space_file='experiments/hydro_llm/configs/search_spaces.v3emb.yaml',
+        )
+        assert 'embedding_size' not in sp

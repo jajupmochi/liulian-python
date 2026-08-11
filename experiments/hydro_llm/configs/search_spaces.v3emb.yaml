@@ -1,0 +1,23 @@
+# v3 embedding-width sweep (2026-08-11, user decision): under the FIXED backbone
+# configuration, tune ONLY the numeric-identity embedding width, exhaustively over
+# three values — mirroring the ICPR / swiss-river-benchmark practice of tuning the
+# identity-embedding size (their space: randint(1,31)). `grid` runs every value
+# exactly once (hpo_num_samples: 1 in the paired config), so the sweep is 3 trials.
+# 32 = d_model = the legacy direct-width arm (continuity with all earlier runs,
+# no projection layer); 8/16 test whether a narrower identity suffices.
+#
+# Selected by timellm_config_v3emb.yaml. Model hypers are deliberately ABSENT
+# (empty model space): they stay fixed at the config values.
+
+model_spaces:
+  timellm_swiss_v3fixed: {}
+
+identifier_spaces:
+  embedding:
+    embedding_size: {dist: grid, values: [8, 16, 32]}
+  # other modes never run through this file; declared empty for safety
+  none:                 {}
+  random_embedding:     {}
+
+resolution:
+  - {data: swiss-river, model: timellm, space: timellm_swiss_v3fixed}

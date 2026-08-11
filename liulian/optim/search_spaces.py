@@ -936,11 +936,18 @@ def _spec_to_tune(spec: Dict[str, Any]) -> Any:
     """Convert one YAML sampler spec dict into a ``ray.tune`` sample object.
 
     Grammar: ``{dist: choice, values: [...]}`` /
-    ``{dist: uniform|loguniform, low, high}`` / ``{dist: randint, low, high}``.
+    ``{dist: uniform|loguniform, low, high}`` / ``{dist: randint, low, high}`` /
+    ``{dist: grid, values: [...]}``. ``grid`` maps to ``tune.grid_search``:
+    every listed value runs EXACTLY once per ``num_samples`` (so
+    ``hpo_num_samples: 1`` + a 3-value grid = exactly 3 trials, no random
+    duplicate draws — used for the small exhaustive sweeps like the
+    embedding_size {8,16,32} ladder).
     """
     dist = str(spec.get('dist', '')).strip().lower()
     if dist == 'choice':
         return ray.tune.choice(list(spec['values']))
+    if dist == 'grid':
+        return ray.tune.grid_search(list(spec['values']))
     if dist == 'uniform':
         return ray.tune.uniform(float(spec['low']), float(spec['high']))
     if dist == 'loguniform':
@@ -1022,11 +1029,15 @@ def _resolve_from_yaml(
     has_emb = identifier_mode in ('embedding', 'embedding_idx')
     # Dead-knob guard for a standalone embedding_size:
     #   - patchtst + add_after_patch: internal embedding is fixed to d_model.
-    #   - timellm / gpt4ts: the numeric identity embedding is nn.Embedding(n, d_model),
+    #   - gpt4ts: the numeric identity embedding is nn.Embedding(n, d_model),
     #     so its width IS d_model (tuned in the model space) — a separate
     #     embedding_size would never change the trained model.
+    #   - timellm was in this list until 2026-08-11: embedding_size is now a
+    #     LIVE knob there (nn.Embedding(n, embedding_size) + Linear projection
+    #     to d_model when it differs — timellm.py, user decision mirroring the
+    #     ICPR / swiss-river-benchmark embedding-width tuning).
     skip_emb = (model == 'patchtst' and has_emb and id_integration == 'add_after_patch') or (
-        model in ('timellm', 'gpt4ts') and has_emb
+        model == 'gpt4ts' and has_emb
     )
     # Transparent-feature dims (DATA_LAYER_DIM_KEYS) are live knobs in BOTH
     # split modes: multi_channel rebuilds the wrapper per trial; per_entity

@@ -144,15 +144,29 @@ class Model(nn.Module):
             _n_ent = getattr(configs, 'num_entities', None)
             if _n_ent is None:
                 raise ValueError(f'identifier_mode={self.identifier_mode!r} requires configs.num_entities')
-            self.entity_embedding: Union[nn.Embedding, None] = nn.Embedding(int(_n_ent), int(configs.d_model))
+            # embedding_size is a REAL knob since 2026-08-11 (user decision,
+            # mirroring the ICPR / swiss-river-benchmark practice of tuning the
+            # identity-embedding width): when it differs from d_model, the
+            # per-station vector lives in embedding_size dims and a learnable
+            # Linear projects it into patch-embedding space. embedding_size
+            # unset/0/d_model -> the ORIGINAL direct d_model-wide embedding
+            # (bit-compatible with all pre-change runs, no projection layer).
+            _emb_dim = int(getattr(configs, 'embedding_size', 0) or 0) or int(configs.d_model)
+            self.entity_embedding: Union[nn.Embedding, None] = nn.Embedding(int(_n_ent), _emb_dim)
+            self.entity_emb_proj: Union[nn.Linear, None] = (
+                nn.Linear(_emb_dim, int(configs.d_model)) if _emb_dim != int(configs.d_model) else None
+            )
             if self.identifier_mode == 'random_embedding':
                 # Capacity-matched control: FIXED random per-entity vectors (0
                 # learnable params) with the same architecture as 'embedding'.
                 # If this helps too, the gain is per-entity DISTINCTNESS
                 # (identity), not the learnable capacity of 'embedding'.
+                # (The projection, when present, stays learnable — matching
+                # the transparent A2 variants, where only the SOURCE is fixed.)
                 self.entity_embedding.weight.requires_grad_(False)
         else:
             self.entity_embedding = None
+            self.entity_emb_proj = None
 
         # Level-A2 transparent additive variants: a FIXED per-station feature (onehot or
         # sinusoidal of the station index) projected by a small learnable Linear into
@@ -773,7 +787,10 @@ class Model(nn.Module):
         # this harness is channel-independent (N=1) so B*N == B and the per-sample
         # ids (B,) read from the x_mark column align row-for-row.
         if self.entity_embedding is not None and self._station_ids is not None:
-            enc_out = enc_out + self.entity_embedding(self._station_ids).unsqueeze(1)
+            _e = self.entity_embedding(self._station_ids)  # (B, embedding_size or d_model)
+            if self.entity_emb_proj is not None:
+                _e = self.entity_emb_proj(_e)  # project embedding_size -> d_model
+            enc_out = enc_out + _e.unsqueeze(1)
         # Level-A text_embedding: add the projected text-derived per-station vector to the
         # patch embeddings (TEXT source, ADDITIVE position). Cache is built once (frozen).
         if self.text_proj is not None and self._station_ids is not None and self.entity_descriptions is not None:

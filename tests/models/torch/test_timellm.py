@@ -515,3 +515,46 @@ class TestDegenerateTokenizerSelfHeal:
         assert True in [bool(c) for c in calls], 'local-only attempt missing'
         assert False in [bool(c) for c in calls], 'download fallback never fired'
         assert len(model.tokenizer) > 1000, 'self-heal did not produce a real vocab'
+
+
+class TestEmbeddingSizeKnob:
+    """embedding_size became a LIVE knob for timellm (2026-08-11): when it
+    differs from d_model, the identity embedding is nn.Embedding(n, size) plus a
+    learnable Linear projection to d_model; unset/equal keeps the ORIGINAL
+    direct d_model-wide embedding (no projection — bit-compatible with all
+    earlier runs). Red->green: pre-change code had no entity_emb_proj at all."""
+
+    @staticmethod
+    def _configs(**over):
+        from types import SimpleNamespace
+
+        base = dict(
+            task_name='long_term_forecast', seq_len=24, pred_len=7, label_len=0,
+            enc_in=1, dec_in=1, c_out=1, d_model=32, d_ff=32, n_heads=4,
+            e_layers=1, d_layers=1, dropout=0.1, patch_len=8, stride=4,
+            llm_model='GPT2', llm_dim=768, llm_layers=2, llm_tuning='frozen',
+            prompt_domain=0, content='', factor=1, embed='timeF', freq='d',
+            output_attention=False, activation='gelu',
+            identifier_mode='embedding', num_entities=5,
+        )
+        base.update(over)
+        return SimpleNamespace(**base)
+
+    @pytest.mark.slow
+    def test_narrow_embedding_gets_projection(self):
+        from liulian.models.torch.timellm import Model
+
+        m = Model(self._configs(embedding_size=8))
+        assert m.entity_embedding.weight.shape == (5, 8)
+        assert m.entity_emb_proj is not None
+        assert m.entity_emb_proj.in_features == 8 and m.entity_emb_proj.out_features == 32
+
+    @pytest.mark.slow
+    def test_unset_or_dmodel_width_keeps_legacy_path(self):
+        from liulian.models.torch.timellm import Model
+
+        m = Model(self._configs())  # no embedding_size key
+        assert m.entity_embedding.weight.shape == (5, 32)
+        assert m.entity_emb_proj is None
+        m2 = Model(self._configs(embedding_size=32))  # == d_model
+        assert m2.entity_emb_proj is None
