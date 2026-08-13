@@ -558,3 +558,35 @@ class TestEmbeddingSizeKnob:
         assert m.entity_emb_proj is None
         m2 = Model(self._configs(embedding_size=32))  # == d_model
         assert m2.entity_emb_proj is None
+
+
+class TestRandomInitBackbone:
+    """llm_random_init (2026-08-13): build the same GPT-2 architecture with
+    UNTRAINED weights (the decisive 'does pretraining help' control). The random
+    backbone must differ from the pretrained checkpoint and still be frozen."""
+
+    @staticmethod
+    def _cfg(random_init):
+        from types import SimpleNamespace
+        return SimpleNamespace(
+            task_name='long_term_forecast', seq_len=24, pred_len=7, label_len=0,
+            enc_in=1, dec_in=1, c_out=1, d_model=32, d_ff=32, n_heads=4,
+            e_layers=1, d_layers=1, dropout=0.1, patch_len=8, stride=4,
+            llm_model='GPT2', llm_dim=768, llm_layers=2, llm_tuning='frozen',
+            prompt_domain=0, content='', factor=1, embed='timeF', freq='d',
+            output_attention=False, activation='gelu', identifier_mode='none',
+            llm_random_init=random_init,
+        )
+
+    @pytest.mark.slow
+    def test_random_init_differs_from_pretrained_and_is_frozen(self):
+        import torch
+        from liulian.models.torch.timellm import Model
+
+        rand = Model(self._cfg(True))
+        pre = Model(self._cfg(False))
+        wr = rand.llm_model.h[0].attn.c_attn.weight.detach().float()
+        wp = pre.llm_model.h[0].attn.c_attn.weight.detach().float()
+        assert not torch.allclose(wr, wp), 'random-init equals pretrained'
+        assert wr.std() < 0.05 < wp.std(), 'random-init should have the small default-init std'
+        assert not rand.llm_model.h[0].attn.c_attn.weight.requires_grad, 'backbone must stay frozen'

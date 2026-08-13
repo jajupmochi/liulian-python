@@ -295,23 +295,39 @@ class Model(nn.Module):
             self.gpt2_config.num_hidden_layers = configs.llm_layers
             self.gpt2_config.output_attentions = True
             self.gpt2_config.output_hidden_states = True
-            try:
-                self.llm_model = GPT2Model.from_pretrained(
-                    'openai-community/gpt2',
-                    cache_dir=self.cache_dir,
-                    trust_remote_code=True,
-                    local_files_only=True,
-                    config=self.gpt2_config,
+            # llm_random_init (2026-08-13): build the SAME GPT-2 ARCHITECTURE with
+            # RANDOM (untrained) weights instead of the pretrained checkpoint — the
+            # decisive control for "does the LLM's pretraining help?" (Tan et al.,
+            # NeurIPS 2024). Everything else is identical (same shape, same freeze,
+            # same trainable reprogramming/head); only the backbone weights differ.
+            # The tokenizer is still the real pretrained one (it only tokenizes the
+            # prompt; the prompt embedding lookup uses the random wte, which is the
+            # point). If pretrained-frozen ~= random-init-frozen, the pretraining
+            # contributes nothing.
+            if bool(getattr(configs, 'llm_random_init', False)):
+                self.llm_model = GPT2Model(self.gpt2_config)
+                print(
+                    '[timellm] GPT-2 backbone: RANDOM INIT (untrained weights, frozen) '
+                    '-- pretraining-usefulness control'
                 )
-            except EnvironmentError:  # downloads model from HF is not already done
-                print('Local model files not found. Attempting to download...')
-                self.llm_model = GPT2Model.from_pretrained(
-                    'openai-community/gpt2',
-                    cache_dir=self.cache_dir,
-                    trust_remote_code=True,
-                    local_files_only=False,
-                    config=self.gpt2_config,
-                )
+            else:
+                try:
+                    self.llm_model = GPT2Model.from_pretrained(
+                        'openai-community/gpt2',
+                        cache_dir=self.cache_dir,
+                        trust_remote_code=True,
+                        local_files_only=True,
+                        config=self.gpt2_config,
+                    )
+                except EnvironmentError:  # downloads model from HF is not already done
+                    print('Local model files not found. Attempting to download...')
+                    self.llm_model = GPT2Model.from_pretrained(
+                        'openai-community/gpt2',
+                        cache_dir=self.cache_dir,
+                        trust_remote_code=True,
+                        local_files_only=False,
+                        config=self.gpt2_config,
+                    )
             try:
                 self.tokenizer = GPT2Tokenizer.from_pretrained(
                     'openai-community/gpt2',
