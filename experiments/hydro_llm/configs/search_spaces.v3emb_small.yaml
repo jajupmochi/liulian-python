@@ -1,0 +1,14 @@
+# v3 SMALL embedding-width sweep (2026-08-13, user request): probe whether a
+# TINY identity embedding helps the small zurich network (15 stations), where
+# the standard {8,16,32} grid found emb=8 best but still +1.5% vs none. Grid
+# {1,2,4,8} exhaustively (hpo_num_samples: 1 -> 4 trials). Same schema/loader
+# path as search_spaces.v3emb.yaml.
+model_spaces:
+  timellm_swiss_v3fixed: {}
+identifier_spaces:
+  embedding:
+    embedding_size: {dist: grid, values: [1, 2, 4, 8]}
+  none:                 {}
+  random_embedding:     {}
+resolution:
+  - {data: swiss-river, model: timellm, space: timellm_swiss_v3fixed}
