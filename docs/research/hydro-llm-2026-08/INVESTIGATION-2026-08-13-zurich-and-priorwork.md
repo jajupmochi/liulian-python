@@ -78,8 +78,33 @@ Reading (single seed, hedge accordingly):
    our own data.
 3. The pretrained `none` cell 1.8658 exactly reproduces the v3 main-table `none`
    (protocol identity check passed).
-4. Third arm (no-LLM bypass, `llm_layers=0`, config `timellm_config_nollm.yaml`) submitted
-   as job 12286183. 🔵 pending.
+4. Third arm (no-LLM bypass, `llm_layers=0`, config `timellm_config_nollm.yaml`) —
+   **COMPLETE** (job 12286183, 1h25 for both cells vs ~5h for the 6-layer pairs;
+   verified: total params 92.05M vs 134.58M = exactly 6 GPT-2 blocks removed,
+   trainable params identical at 52.67M).
+
+## 2c. FULL 6-cell ablation (swiss-1990, fixed config, seed 2026, denorm RMSE °C)
+
+| frozen backbone | none | numeric emb16 | identity gain |
+|---|---|---|---|
+| pretrained GPT-2 (6 blocks) | 1.8658 | 1.6471 | −11.7% |
+| random-init GPT-2 (6 blocks) | 1.8559 | **1.5241** | −17.9% |
+| no-LLM (0 blocks) | 1.8586 | 1.5652 | −15.8% |
+
+Findings (single seed; 1990 `none` cells agree across arms to 0.5%, so the base task is
+stable; the numeric-cell ranking between arms needs seeds to firm up):
+
+1. **The LLM contributes nothing measurable to the base task**: all three `none` cells are
+   1.8559–1.8658 (0.5% spread). Deleting the entire transformer stack costs nothing.
+2. **The identity gain survives every backbone** (−11.7% to −17.9%) — it lives in the
+   trainable reprogramming/head + additive embedding, NOT in the LLM.
+3. **Pretraining shows no advantage in any cell** — the pretrained backbone has the WORST
+   numeric cell of the three arms (1.6471 vs 1.5241/1.5652). Claim to publish (hedged for
+   single-seed): "replacing the pretrained weights with random ones, or removing the
+   frozen stack entirely, does not degrade — and in our runs improved — accuracy."
+4. **Compute**: no-LLM trains ~3.5× faster (1h25 vs ~5h per pair). The frozen stack is
+   pure overhead on this task.
+5. Matches Tan et al. (NeurIPS 2024) on their benchmark suite; now measured on ours.
 
 ## 3. Prior-work investigation (step 3)
 
