@@ -127,7 +127,11 @@ use_amp: false
 # fall back to the project default liulian/optim/search_spaces.yaml; a set-but-
 # missing path raises loudly. Grid vs execution split: grid lives in that file,
 # execution settings are the hpo_* keys below.
-search_space_file: experiments/hydro_llm/configs/search_spaces.v3emb.yaml
+# BUGFIX 2026-08-14: the 08-13 sed-style replace hit the COMMENT at the top of this
+# file instead of this key, so job 12222650 silently re-ran the {8,16,32} grid (an
+# exact reproduction of job C: best=8, denorm_rmse 1.9690 — kept as a determinism
+# check). This key is the one that must point at the SMALL grid.
+search_space_file: experiments/hydro_llm/configs/search_spaces.v3emb_small.yaml
 
 # Pinned EXPLICITLY (project rule 3: config-externalized, front-end-editable). Before
 # 2026-08-07 these came invisibly from DEFAULT_CONFIG in liulian/config.py; values below
