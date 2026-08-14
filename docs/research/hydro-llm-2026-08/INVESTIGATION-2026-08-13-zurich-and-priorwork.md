@@ -43,7 +43,20 @@ First attempt (job 12222650) silently re-ran the {8,16,32} grid: the sed-style e
 created `timellm_config_v3emb_small.yaml` replaced the grid filename in a top-of-file
 COMMENT, not the real `search_space_file` key. Silver lining: it is an exact determinism
 reproduction of job C (best=8, denorm RMSE 1.9690). Fixed 2026-08-14 (verified through
-`load_config` → `resolve_search_space` = {1,2,4,8}); re-submitted as job 12284259. 🔵 pending.
+`load_config` → `resolve_search_space` = {1,2,4,8}); re-run as job 12284259. **RESULT:**
+
+- Per-trial best val MSE: emb1 0.010552 · emb2 0.009937 · emb4 0.010426 · **emb8 0.009932**
+  (log confirms the {1,2,4,8} grid resolved). Sizes below 8 do NOT help; 2 nearly ties 8.
+- Final (emb8) test denorm RMSE **1.8861** — this time **BETTER than none (1.9407, −2.8%)**,
+  where the earlier identical-config emb8 run gave 1.9690 (+1.5%).
+- **Run-to-run spread on zurich ≈ 4%** (1.8861 vs 1.9690, same config/seed; early-stopping
+  trajectories differed, 21 vs 12 epochs — GPU/bf16/Ray nondeterminism + the imbalanced
+  zurich val split found in §1). The honest zurich statement is therefore: **numeric
+  embedding has NO reliable effect on zurich (within ± run noise)** — not "hurts". Still a
+  Time-LLM-specific shortfall vs the LSTM's −20%, but the sign was noise.
+- Implication: multi-seed (or multi-restart) error bars are REQUIRED before any headline
+  claims; 1990's numeric gain (−11.7…−17.9% across arms) is well outside this spread,
+  zurich's is inside it.
 
 ## 2b. Decisive ablation — RESULT (2026-08-14, swiss-1990, fixed config, seed 2026)
 
