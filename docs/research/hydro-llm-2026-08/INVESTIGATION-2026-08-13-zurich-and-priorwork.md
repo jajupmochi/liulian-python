@@ -37,11 +37,36 @@ Measured checks (local, this session):
 - Conclusion: **the pipeline is correct.** The zurich reversal is a real result, not a
   wiring error.
 
-## 2. Small-embedding probe (step 2) — RUNNING
+## 2. Small-embedding probe (step 2) — RE-RUNNING after a config bug
 
-`search_spaces.v3emb_small.yaml` + `timellm_config_v3emb_small.yaml`: grid
-`embedding_size {1,2,4,8}` for zurich numeric_embedding (job 12218969, hydro-t0v3-zsmall).
-Tests whether an even narrower identity helps the small network. 🔵 result pending.
+First attempt (job 12222650) silently re-ran the {8,16,32} grid: the sed-style edit that
+created `timellm_config_v3emb_small.yaml` replaced the grid filename in a top-of-file
+COMMENT, not the real `search_space_file` key. Silver lining: it is an exact determinism
+reproduction of job C (best=8, denorm RMSE 1.9690). Fixed 2026-08-14 (verified through
+`load_config` → `resolve_search_space` = {1,2,4,8}); re-submitted as job 12284259. 🔵 pending.
+
+## 2b. Decisive ablation — RESULT (2026-08-14, swiss-1990, fixed config, seed 2026)
+
+`{pretrained, random-init} × {none, numeric emb16}`, matched pairs (same protocol, only
+backbone weights differ; random-init verified in the job log). Test denorm RMSE (°C):
+
+| backbone (frozen) | none | numeric emb16 | identity gain |
+|---|---|---|---|
+| pretrained GPT-2 | 1.8658 | 1.6471 | −11.7% |
+| **random-init GPT-2** | **1.8559** | **1.5241** | **−17.9%** |
+
+Reading (single seed, hedge accordingly):
+
+1. **Pretraining contributes nothing on either scheme** — the untrained backbone matches
+   the pretrained one on `none` (−0.5%) and clearly BEATS it on `numeric` (−7.5%).
+2. **The identity gain does not depend on the LLM's pretraining** — it is larger without
+   it. The gain comes from the trainable reprogramming/head capacity plus the additive
+   embedding, exactly Tan et al.'s "LLM is along for the ride" scenario, now measured on
+   our own data.
+3. The pretrained `none` cell 1.8658 exactly reproduces the v3 main-table `none`
+   (protocol identity check passed).
+4. Third arm (no-LLM bypass, `llm_layers=0`, config `timellm_config_nollm.yaml`) submitted
+   as job 12286183. 🔵 pending.
 
 ## 3. Prior-work investigation (step 3)
 
