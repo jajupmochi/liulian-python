@@ -106,6 +106,36 @@ stable; the numeric-cell ranking between arms needs seeds to firm up):
    pure overhead on this task.
 5. Matches Tan et al. (NeurIPS 2024) on their benchmark suite; now measured on ours.
 
+## 2d. LSTM through the SAME pipeline, SAME fixed protocol (2026-08-14, job 12342037)
+
+User request: rerun the LSTM identity comparison through the identical pipeline (same
+splits/loaders/denorm metrics, 30 epochs, patience 10, lr 1e-3, seed 2026, NO HPO) to
+(a) reproduce the prior-work direction and (b) test whether the LSTM-vs-TimeLLM gap was
+an HPO artifact. Test denorm RMSE (°C):
+
+| dataset | LSTM none | LSTM embedding | LSTM gain | Time-LLM gain (same protocol) |
+|---|---|---|---|---|
+| swiss-1990 | 1.6371 | 1.3061 | **−20.2%** | −11.7…−15.1% |
+| swiss-2010 | 1.6736 | 1.4043 | **−16.1%** | −6.3% |
+| swiss-zurich | 1.5645 | 1.3302 | **−15.0%** | ≈0 (noise band) |
+
+Readings:
+
+1. **HPO is NOT the explanation (H3 rejected).** With zero tuning, the LSTM identity gain
+   (−15…−20%) fully reproduces. The companion HPO run (job 12342038) will quantify any
+   extra tuning bump, but the gap to Time-LLM is architectural, not a tuning artifact.
+2. **The small LSTM beats the 134M Time-LLM in EVERY cell** — including none vs none
+   (1.56–1.67 vs 1.84–1.94). The frozen-LLM pipeline pays a base-accuracy tax on top of
+   under-using identity.
+3. **Zurich confirmed identity-exploitable (−15.0% for LSTM)** under the exact same
+   protocol where Time-LLM gets ≈0. The Time-LLM-specific failure is now protocol-matched,
+   not an artifact of comparing across eras/harnesses.
+4. Direction fully consistent with Fankhauser/Bigler/Riesen (ANNPR 2024) and our ICPR
+   line: station embeddings reduce RMSE on all three datasets for recurrent models.
+5. Gain-shrink pattern: LSTM's identity gain is uniform across datasets; Time-LLM's decays
+   with dataset size/richness (−15% → −6% → 0). Consistent with the frozen-interface
+   bottleneck (H1) + overparameterized trainable head (H2) hypotheses.
+
 ## 3. Prior-work investigation (step 3)
 
 ### 3a. Our own LSTM reproduction (docs/research/paper-draft.md, n=3 ± std, same swiss data)
