@@ -136,6 +136,22 @@ Readings:
    with dataset size/richness (−15% → −6% → 0). Consistent with the frozen-interface
    bottleneck (H1) + overparameterized trainable head (H2) hypotheses.
 
+### 2d-bis. HPO companion run (job 12342038, 10 Ray samples/cell, 12h)
+
+| dataset | none HPO | emb HPO | gain (HPO) | gain (fixed) |
+|---|---|---|---|---|
+| swiss-1990 | 1.7231 | 1.2889 | −25.2% | −20.2% |
+| swiss-2010 | 1.6424 | 1.3681 | −16.7% | −16.1% |
+| swiss-zurich | 1.5527 | 1.3778 | −11.3% | −15.0% |
+
+- **HPO barely moves anything** (some cells HPO is even worse than the fixed config —
+  1990 none picked lr 1.2e-4 and lost to fixed lr 1e-3). H3 (HPO explains the LSTM-vs-
+  TimeLLM gap) is conclusively rejected in both directions.
+- HPO'd 1990 embedding cell (1.2889) closely reproduces the harness-era Table B' value
+  (1.294 ± 0.007) — cross-era consistency check passed.
+- Best embedding_size under HPO: 16 (1990), 9 (2010), 19 (zurich) — the LSTM happily uses
+  a ~16-dim identity even on zurich, where Time-LLM could not use any width at all.
+
 ## 3. Prior-work investigation (step 3)
 
 ### 3a. Our own LSTM reproduction (docs/research/paper-draft.md, n=3 ± std, same swiss data)
