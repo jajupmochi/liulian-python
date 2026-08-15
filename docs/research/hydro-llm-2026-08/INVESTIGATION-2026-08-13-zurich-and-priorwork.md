@@ -152,6 +152,25 @@ Readings:
 - Best embedding_size under HPO: 16 (1990), 9 (2010), 19 (zurich) — the LSTM happily uses
   a ~16-dim identity even on zurich, where Time-LLM could not use any width at all.
 
+## 2e. Text-content controls (2026-08-15, job 12402977; 1990, frozen pretrained GPT-2)
+
+`entity_description` prompt-richness arms, test denorm RMSE (°C), same fixed protocol:
+
+| arm | what the prompt carries | RMSE | vs none (1.8658) |
+|---|---|---|---|
+| default | authored CORRECT station text | 1.8537 | −0.65% |
+| shuffled | real texts, WRONG station (deranged) | 1.8628 | −0.16% |
+| symbol | meaningless unique code (zero semantics) | 1.8657 | −0.01% |
+| minimal | bare positional id | 1.8835 | +0.95% |
+
+Verdict: default ≈ shuffled ≈ symbol ≈ none, all within ±1% — at/below the measured
+run-to-run noise floor. **The frozen language pathway ignores the station text
+entirely: neither the CONTENT (default vs shuffled indistinguishable) nor even the
+DISTINCTNESS (symbol vs none indistinguishable) reaches the forecast.** This settles
+the user's Q2: the descriptions ARE station-distinguishing; the pathway is inert, so
+in the frozen (zero-shot) regime they cannot be used. Whether unfreezing wakes the
+pathway is exactly the LoRA 2×2 now running (jobs 12403669/12403670).
+
 ## 3. Prior-work investigation (step 3)
 
 ### 3a. Our own LSTM reproduction (docs/research/paper-draft.md, n=3 ± std, same swiss data)
