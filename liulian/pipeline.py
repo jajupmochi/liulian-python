@@ -115,7 +115,15 @@ def build_hpo_experiment_name(config: Dict[str, Any]) -> str:
     if extra:
         parts.append(extra)
     if not config.get('hpo_resume', False):
+        # Timestamp + short random suffix. Second-resolution timestamps COLLIDE when
+        # two concurrent jobs start a cell in the same second — measured 2026-08-15:
+        # SLURM jobs 12403669/12403670 both wrote …_20260815_212740 and the second
+        # writer silently overwrote the first's results.json. The suffix makes the
+        # name collision-proof while keeping the sortable timestamp prefix.
+        import uuid
+
         parts.append(datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
+        parts.append(uuid.uuid4().hex[:6])
     return '_'.join(parts)
 
 

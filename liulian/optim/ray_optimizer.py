@@ -852,6 +852,11 @@ class RayOptimizer(BaseOptimizer):
             if extra:
                 parts.append(extra)
             parts.append(ts)
+            # Same collision class as build_hpo_experiment_name (see pipeline.py):
+            # second-resolution names collide across concurrent jobs.
+            import uuid
+
+            parts.append(uuid.uuid4().hex[:6])
             exp_name = '_'.join(parts)
 
         # ── tune.run kwargs ─────────────────────────────────────────────
@@ -912,7 +917,7 @@ class RayOptimizer(BaseOptimizer):
         # metric_analysis[metric][mode] (same per-trial best) and best WEIGHTS
         # from get_best_checkpoint(trial, metric, mode) (the checkpoint of that
         # best epoch — we save one per epoch), so selection, reported number,
-        # and loaded weights all refer to the same epoch.
+        # and loaded weights all refer to the same epoch. todo: this may need verification.
         best_trial = analysis.get_best_trial(metric, mode, scope='all')
         if best_trial is None:
             raise ValueError('No trials found in Ray Tune analysis.')
