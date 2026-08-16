@@ -9,12 +9,23 @@ from typing import Any, Dict
 
 
 def timestamp_id() -> str:
-    """Return a compact timestamp string suitable for directory or run naming.
+    """Return a compact, collision-proof timestamp string for directory naming.
+
+    Second-resolution timestamps COLLIDE when two concurrent jobs start a run in
+    the same second (measured 2026-08-15: SLURM jobs 12403669/12403670 both wrote
+    ``…_20260815_212740`` and the second silently overwrote the first's
+    results.json). A short random suffix keeps the sortable timestamp prefix
+    while making the name unique. This is the naming source for Experiment
+    artifact dirs (``experiment.py`` ``run_id``); ``pipeline.py``'s
+    ``build_hpo_experiment_name`` and the ray_optimizer fallback carry the same
+    fix.
 
     Returns:
-        A string like ``20260206_143021``.
+        A string like ``20260206_143021_a1b2c3``.
     """
-    return datetime.now().strftime('%Y%m%d_%H%M%S')
+    import uuid
+
+    return datetime.now().strftime('%Y%m%d_%H%M%S') + '_' + uuid.uuid4().hex[:6]
 
 
 def ensure_dir(path: str) -> str:

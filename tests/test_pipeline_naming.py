@@ -20,3 +20,17 @@ def test_name_keeps_sortable_prefix():
     assert parts[0] == 'd' and parts[1] == 'm'
     assert len(parts[-1]) == 6, 'expected 6-hex collision suffix'
     assert len(parts[-2]) == 6 and parts[-2].isdigit(), 'expected HHMMSS before suffix'
+
+
+def test_timestamp_id_same_second_distinct():
+    """timestamp_id is the Experiment artifact-dir naming source (experiment.py
+    run_id) — the surface that actually collided on 2026-08-15. The first fix
+    round patched only build_hpo_experiment_name; extension-job dirs (2026-08-16)
+    still had bare-second names, proving this second surface needed the fix too."""
+    from liulian.utils.helpers import timestamp_id
+
+    ids = {timestamp_id() for _ in range(20)}
+    assert len(ids) == 20, 'same-second timestamp_ids must not collide'
+    sample = next(iter(ids))
+    parts = sample.split('_')
+    assert len(parts) == 3 and len(parts[2]) == 6, sample
