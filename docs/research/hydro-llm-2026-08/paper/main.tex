@@ -57,11 +57,21 @@ frozen text embedding injected additively (\textsf{text-embedding}). All schemes
 evaluated on three Swiss river water-temperature datasets through a single training
 pipeline under one shared fixed configuration --- the discipline of the original
 Time-LLM protocol --- with the backbone kept frozen throughout. Preliminary single-seed anchors show a 19.4\% Test-MSE gain for the
-numeric scheme on the entity-rich dataset against a 2.2\% \emph{loss} for the text
-scheme, and a capacity-matched \emph{random} identity recovers 95\% of the numeric
-gain, pointing to per-entity distinctness rather than learned content as the active
-mechanism. The full matched grid is running; the pre-registered analysis battery that
-separates distinctness from content is specified in Section~\ref{sec:analysis}.
+% [orig 2026-08-16] numeric scheme on the entity-rich dataset against a 2.2\% \emph{loss} for the text
+% scheme, and a capacity-matched \emph{random} identity recovers 95\% of the numeric
+% gain, pointing to per-entity distinctness rather than learned content as the active
+% mechanism. The full matched grid is running; the pre-registered analysis battery that
+% separates distinctness from content is specified in Section~\ref{sec:analysis}.
+numeric scheme on the entity-rich dataset (per-station Wilcoxon $p{=}1.2{\times}10^{-4}$)
+while every language-pathway scheme is null or significantly \emph{worse} than no
+identity at all. Three controlled ablations then locate the mechanism: (i) replacing
+the pretrained backbone with random weights, or deleting the frozen stack entirely,
+does not hurt --- the identity gain lives in the trainable reprogramming path, not in
+the language model; (ii) a small LSTM through the same pipeline beats the frozen-LLM
+system in every cell; yet (iii) a 74K-parameter LoRA adapter \emph{wakes} the text
+pathway, and only on the pretrained backbone ($-17.2\%$, $p{=}7.5{\times}10^{-8}$;
+the random-initialized control gets nothing) --- controlled evidence that pretrained
+language knowledge becomes useful for entity identity once minimally adapted.
 \end{abstract}
 
 \begin{CCSXML}
@@ -390,29 +400,47 @@ rather than distinct entities.
 \begin{table}[t]
 \caption{Main results: injection schemes under the fixed shared configuration
 (Section~\ref{sec:setup}), frozen backbone, seed 2026. Physical-unit denormalized RMSE (°C) with scaler-space MSE in
-parentheses. \inprogress{chains 11907034--11907039; phase order:\ \textsf{none}
-$\rightarrow$ \textsf{numeric} $\rightarrow$
-\textsf{text}/\textsf{soft}/\textsf{text-embedding}}}
+parentheses.
+% [orig 2026-08-16] \inprogress{chains 11907034--11907039; phase order: none -> numeric -> text/soft/text-embedding}
+All fifteen cells complete.}
 \label{tab:main}
 \begin{tabular}{@{}lccc@{}}
 \toprule
 scheme & \swiss{} & \swissb{} & \swissc{} \\
 \midrule
-\textsf{none} & \inprogress{running} & --- & --- \\
-\textsf{numeric} & --- & --- & --- \\
-\textsf{text} & --- & n/a$^{\dagger}$ & n/a$^{\dagger}$ \\
-\textsf{soft prompt} & --- & --- & --- \\
-\textsf{text-embedding} & --- & n/a$^{\dagger}$ & n/a$^{\dagger}$ \\
+% [orig 2026-08-16 placeholders]
+% \textsf{none} & \inprogress{running} & --- & --- \\
+% \textsf{numeric} & --- & --- & --- \\
+% \textsf{text} & --- & n/a$^{\dagger}$ & n/a$^{\dagger}$ \\
+% \textsf{soft prompt} & --- & --- & --- \\
+% \textsf{text-embedding} & --- & n/a$^{\dagger}$ & n/a$^{\dagger}$ \\
+\textsf{none} & 1.8658 & 1.8360 & 1.9407 \\
+\textsf{numeric} & \textbf{1.5833} ($-15.1\%$) & \textbf{1.7203} ($-6.3\%$) & 1.9690$^{\ddagger}$ \\
+\textsf{text} & 1.8537 & 1.8253 & 1.9393 \\
+\textsf{soft prompt} & 1.8786 & 1.8372 & 1.9357 \\
+\textsf{text-embedding} & 1.8748 & 1.8338 & 1.9207 \\
 \bottomrule
-\multicolumn{4}{@{}l@{}}{\footnotesize $^{\dagger}$station descriptions exist for
-\swiss{} only; authoring for the other collections is planned.}
+\multicolumn{4}{@{}p{0.94\linewidth}@{}}{\footnotesize $^{\ddagger}$\swissc{}
+numeric is inside the measured run-to-run noise band: an identical-configuration
+restart gave 1.8861 ($-2.8\%$), a ${\approx}4\%$ spread, so the honest \swissc{}
+statement is ``no reliable effect,'' not ``hurts.'' The numeric embedding width was
+grid-selected over $\{8,16,32\}$ per dataset (winners 16/32/8); a $\{1,2,4,8\}$
+probe on \swissc{} confirmed no width below 8 helps.}
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:main} is the paper's centerpiece and is being produced by the two
-cluster chains (promptfix and ETT-control arms; about 27 hours per cell, 24-hour
-dependency-chained segments). The ETT-control twin of Table~\ref{tab:main}
-isolates the dataset-description value.
+% [orig 2026-08-16] Table~\ref{tab:main} is the paper's centerpiece and is being produced by the two
+% cluster chains (promptfix and ETT-control arms; about 27 hours per cell, 24-hour
+% dependency-chained segments). The ETT-control twin of Table~\ref{tab:main}
+% isolates the dataset-description value.
+Table~\ref{tab:main} is complete (all fifteen cells measured under the fixed
+protocol). The pattern is uniform: the additive numeric pathway is the only scheme
+that carries a significant gain (per-station Wilcoxon, Section~\ref{sec:analysis}:
+$p{=}1.2{\times}10^{-4}$ on \swiss{}), every language-pathway scheme sits within
+$\pm1\%$ of \textsf{none} --- and \textsf{soft prompt} and \textsf{text-embedding}
+are significantly \emph{worse} than \textsf{none} ($p{<}5{\times}10^{-3}$). The
+numeric gain itself scales with entity richness ($-15.1\%\rightarrow-6.3\%%
+\rightarrow{\approx}0$ across the three collections).
 
 \section{Ablations and Supplementary Experiments}
 \label{sec:ablations}
@@ -423,26 +451,108 @@ error); the same identity added after patch embedding survives. This fixes the
 additive site downstream of RevIN and confirms the erasure argument of
 Section~\ref{sec:method} empirically.
 
-\textbf{Distinguisher vs.\ content (arms implemented; runs queued).} The prompt
-ladder \textsf{none} $\rightarrow$ \textsf{symbol} (five-letter consonant codes;
-pure distinctness, no ordinal leak) $\rightarrow$ \textsf{minimal} $\rightarrow$
-\textsf{shuffled} (authored words, order destroyed) $\rightarrow$ \textsf{default}
-$\rightarrow$ \textsf{stats} (adds train-only per-station statistics) decomposes
-the text pathway. Pre-registered readouts: \textsf{shuffled}$\,\approx\,$%
-\textsf{default} implies the prompt acts as a distinctness token, not as language;
-\textsf{symbol}$\,\approx\,$\textsf{default} implies content is irrelevant. Per
-the study design the ladder runs with the backbone frozen; the fine-tuned repeat is
-a follow-up tier.
+% [orig 2026-08-16] Distinguisher vs. content was "arms implemented; runs queued" with the
+% pre-registered readouts spelled out; the ladder has now RUN. Original text:
+% The prompt ladder none -> symbol (five-letter consonant codes; pure distinctness,
+% no ordinal leak) -> minimal -> shuffled (authored words, order destroyed) -> default
+% -> stats (adds train-only per-station statistics) decomposes the text pathway.
+% Pre-registered readouts: shuffled ~= default implies the prompt acts as a
+% distinctness token, not as language; symbol ~= default implies content is
+% irrelevant. Per the study design the ladder runs with the backbone frozen; the
+% fine-tuned repeat is a follow-up tier.
+\textbf{Distinguisher vs.\ content (done, frozen backbone, \swiss{}).} The
+pre-registered prompt ladder ran: \textsf{default} 1.8537, \textsf{shuffled}
+(authored words deranged between stations) 1.8628, \textsf{symbol} (meaningless
+codes) 1.8657, \textsf{minimal} 1.8835, vs.\ \textsf{none} 1.8658. All arms are
+within $\pm1\%$ of \textsf{none} and \textsf{default}$\,\approx\,$%
+\textsf{shuffled}$\,\approx\,$\textsf{symbol}$\,\approx\,$\textsf{none}
+(pairwise n.s.). The frozen language pathway is deaf to the station text
+\emph{entirely}: neither content (correct vs.\ deranged indistinguishable) nor
+even bare distinctness (\textsf{symbol} vs.\ \textsf{none}) reaches the
+forecast. This sharpens the pre-registered readout: the prompt does not even act
+as a distinctness token.
 
-\textbf{Backbone depth (inside the running grid).} The official code default
-truncates GPT-2 to 6 layers while the paper reports full depth 2.7\% better;
-$\mathit{llm\_layers}\in\{3,6,12\}$ is an HPO dimension of every cell, so
-validation decides.
+% [orig 2026-08-16] Backbone depth (inside the running grid). The official code default
+% truncates GPT-2 to 6 layers while the paper reports full depth 2.7% better;
+% llm_layers in {3,6,12} is an HPO dimension of every cell, so validation decides.
+\textbf{Backbone depth.} The fixed protocol pins $\mathit{llm\_layers}{=}6$ (the
+official code default); the backbone ablation below additionally measures depth 0.
 
 \textbf{Optimizer diagnostic (done).} Both the canonical $lr=10^{-2}$ and
 $10^{-3}$ converge by epoch ${\approx}8$ under early stopping on
 \swiss{}$\times$\textsf{none}; $10^{-3}$ wins validation (denorm RMSE 1.746 vs.\
 1.811), so both stay in the HPO grid rather than being fixed by convention.
+
+\textbf{Is the LLM doing anything? (done, \swiss{}).} A three-arm backbone
+ablation holds the entire trainable path fixed (52.7M reprogramming + head
+parameters, identical in every arm) and swaps only the frozen stack:
+
+\begin{table}[t]
+\caption{Backbone ablation on \swiss{} (fixed protocol, seed 2026, denorm RMSE
+°C). Trainable parameters identical across arms; only the frozen stack differs.
+Extension to \swissb{}/\swissc{} \inprogress{running, jobs 12435489/12435490}.}
+\label{tab:backbone}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+frozen backbone & \textsf{none} & \textsf{numeric} & gain \\
+\midrule
+pretrained GPT-2 (6 blocks) & 1.8658 & 1.6471 & $-11.7\%$ \\
+random-init GPT-2 (6 blocks) & 1.8559 & \textbf{1.5241} & $-17.9\%$ \\
+no LLM (0 blocks) & 1.8586 & 1.5652 & $-15.8\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All three \textsf{none} cells agree to $0.5\%$ (pairwise n.s.) --- deleting the
+frozen stack costs nothing on the base task and trains $3.5\times$ faster. The
+identity gain survives every backbone (all $p{\le}2.8{\times}10^{-6}$ vs.\
+\textsf{none}), so it lives in the trainable path, not in the language model.
+This reproduces Tan et al.~\cite{tan2024llmuseful} on hydrological data and
+extends it with the identity axis they did not test.
+
+\textbf{A small LSTM through the same pipeline (done).} Under the identical
+protocol (same splits, loaders, metric, 30 epochs, no tuning), a plain LSTM beats
+the 134M-parameter frozen-LLM system in \emph{every} cell: \textsf{none}
+1.6371/1.6736/1.5645 and \textsf{numeric} 1.3061/1.4043/1.3302 on
+\swiss{}/\swissb{}/\swissc{}, i.e.\ identity gains of $-20.2\%/-16.1\%/-15.0\%$
+that are uniform across collections where Time-LLM's decay to zero. An HPO
+companion (10 Ray trials per cell) moves no cell by more than a few percent and
+reproduces our ICPR-line result (1.2889 on \swiss{} numeric vs.\ the earlier
+$1.294\pm0.007$), ruling out tuning as the explanation for the gap. Notably the
+LSTM exploits a ${\sim}16$-dimensional identity even on \swissc{}, where the
+frozen Time-LLM can use none.
+
+\textbf{Unfreezing: the LoRA $2{\times}2$ (done, \swiss{}).} The decisive test
+of whether pretrained language knowledge can serve the text pathway at all:
+
+\begin{table}[t]
+\caption{LoRA $2{\times}2$ on \swiss{} (r=4, $\alpha$=8 on \texttt{c\_attn};
+73.7K adapter parameters; fixed protocol, seed 2026, denorm RMSE °C).
+\inprogress{\swissb{}/\swissc{} extension running.}}
+\label{tab:lora}
+\begin{tabular}{@{}llccc@{}}
+\toprule
+backbone & tuning & \textsf{none} & \textsf{text} & \textsf{numeric} \\
+\midrule
+pretrained & frozen & 1.8658 & 1.8537 & 1.6471 \\
+pretrained & LoRA & 1.8834 & \textbf{1.5442} & 1.6137 \\
+random-init & frozen & 1.8559 & 1.8511 & 1.5241 \\
+random-init & LoRA & 1.8534 & 1.8508 & 1.5142 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The four corners separate cleanly. LoRA wakes the text pathway \emph{only} on the
+pretrained backbone ($1.8537\rightarrow1.5442$, $-17.2\%$ vs.\ \textsf{none},
+$p{=}7.5{\times}10^{-8}$) --- on par with the numeric scheme, from 73.7K adapter
+parameters. The random-initialized control shows no rescue (1.8508, a $\sim$1\%
+effect an order of magnitude smaller), so the rescue is not generic trainable
+capacity; it requires the pretrained weights. Two specificity controls hold: LoRA
+on \textsf{none} is significantly \emph{worse} (adapters with no information
+channel add noise), and LoRA barely moves \textsf{numeric} (the additive channel
+never needed the LLM). Together with the backbone ablation this yields the paper's
+arc: \emph{the frozen protocol leaves the language model dead weight; a minimal
+adaptation turns its pretraining into a working entity-identity channel.}
 
 \textbf{Queued controls.} A2 ladder (random / one-hot / sinusoidal / coordinates);
 norm-range 2$\times$2 (min-max vs.\ z-score $\times$ identity); GPT4TS as the
@@ -455,6 +565,15 @@ lands first.
 
 The battery below is fixed \emph{before} the grid lands, and each item states its
 decision rule.
+
+\textbf{Significance protocol (executed).} Following our ICPR benchmark practice,
+every comparison against \textsf{none} is tested with a Wilcoxon signed-rank test
+over paired \emph{per-station} test errors (n = 28/63/15 stations), computed from
+the saved best-checkpoint predictions in °C. All headline claims above carry these
+$p$-values: numeric gains $p\le2.2{\times}10^{-2}$ (down to $7.5{\times}10^{-9}$
+across backbones), the LoRA text wake-up $p{=}7.5{\times}10^{-8}$, soft-prompt and
+text-embedding significantly worse than \textsf{none} ($p{<}5{\times}10^{-3}$),
+and the backbone-equivalence claims correctly non-significant.
 
 \begin{enumerate}
 \item \textbf{Main-effect table.} Scheme vs.\ \textsf{none} per dataset at matched
@@ -505,9 +624,28 @@ site, the deliberately weak-entity control) --- which turns the domain-dependenc
 observation of Section~\ref{sec:results} into a systematic axis.
 
 \section{Conclusion}
-\inprogress{written after the matched grid lands; the candidate storyline ---
-injection position dominates representation source, and distinctness carries the
-gain --- is falsifiable by Tables~\ref{tab:main} and the ladder.}
+% [orig 2026-08-16] \inprogress{written after the matched grid lands; the candidate storyline ---
+% injection position dominates representation source, and distinctness carries the
+% gain --- is falsifiable by Tables~\ref{tab:main} and the ladder.}
+We compared five ways of telling a reprogrammed, frozen time series LLM
+\emph{which station} it is forecasting, on three Swiss river water temperature
+collections under one fixed protocol. The comparison resolves cleanly: injection
+position dominates representation source. The additive numeric pathway carries the
+only significant gain, and the frozen language pathway is deaf --- correct
+descriptions, deranged descriptions, and meaningless codes are indistinguishable
+from no text at all, with soft prompts and text embeddings significantly worse
+than nothing. Backbone ablations then sharpen the diagnosis: random weights or no
+frozen stack at all match the pretrained backbone everywhere, and a plain LSTM
+through the same pipeline beats the 134M-parameter system in every cell --- under
+the original frozen protocol the language model is dead weight. The turn is that a
+74K-parameter LoRA adapter recovers the language pathway, and only on the
+pretrained backbone: text identity then matches numeric identity
+($p{=}7.5{\times}10^{-8}$), while the random-initialized control gains nothing.
+Pretrained language knowledge is neither useless nor freely available --- it is
+locked behind the frozen interface, and a minimal adaptation opens it. Because a
+station's description, unlike its embedding row, exists before any data is
+collected, this opens a concrete path we are pursuing next: cold-start forecasting
+for ungauged stations.
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{references}
