@@ -357,3 +357,39 @@ Sharpened claims the p-values enable:
    information channel to exploit add noise.
 5. Backbone equivalences (random-init none / no-LLM none vs pretrained none)
    remain n.s., as an equivalence claim should be.
+
+## 2h. Zurich extension — the zurich anomaly RESOLVED (2026-08-16, job 12435490)
+
+All 10 extension cells on zurich (fixed protocol, seed 2026, denorm RMSE degC;
+mapping verified from the job log's config-load sequence, 5 RANDOM-INIT + 6 LoRA
+prints). Wilcoxon = per-station paired test vs the v3 none baseline (n=15,
+rank-consistency rho=0.996):
+
+| backbone | tuning | none | text | numeric |
+|---|---|---|---|---|
+| pretrained | frozen (v3) | 1.9407 | 1.9393 (n.s.) | 1.8861-1.9690 (noise band) |
+| pretrained | LoRA | 1.9368 (n.s.) | 1.8198 (p=8.5e-4) | 1.8246 (p=2.6e-3) |
+| random-init | frozen | - | 1.9041 (p=1.2e-3) | **1.7417 (p=6.1e-5)** |
+| random-init | LoRA | 1.9094 (p=6.1e-4) | **1.7548 (p=6.1e-5)** | **1.7568 (p=6.1e-5)** |
+| no-LLM | frozen | 1.9468 (SIG worse) | - | 1.8763 (p=2.2e-2) |
+
+Findings:
+
+1. **The zurich anomaly is RESOLVED: the pretrained backbone was the blocker.**
+   Random-init + frozen numeric = 1.7417 (-10.3% vs none, p=6.1e-5) on the exact
+   dataset where pretrained-frozen numeric showed ~0. The identity signal was
+   always exploitable (the LSTM said so); the pretrained language geometry
+   specifically prevented the frozen path from using it on this small collection.
+2. **Everything works on zurich once you leave the pretrained-frozen regime** —
+   random backbone (frozen or LoRA) and pretrained+LoRA all deliver -6..-10%.
+3. **Cross-dataset nuance for the LoRA story (honest reporting required):** on
+   1990 the text wake-up REQUIRED pretraining (random+LoRA text was a ~1% effect);
+   on zurich random+LoRA text (-0.172/station) matches or beats pretrained+LoRA
+   text (-0.141). The "pretraining required" claim is dataset-dependent: on the
+   smallest collection an adaptable random backbone suffices, consistent with
+   text acting as a distinctness token there rather than as language.
+4. **Statistical caveat:** per-station Wilcoxon treats the single training run as
+   fixed; it does NOT capture the measured ~4% run-to-run band on zurich.
+   Zurich-specific headlines need restart replicates before publication.
+5. Naming-collision fix round 2: extension dirs revealed the first fix missed the
+   actual artifact-dir source (helpers.timestamp_id); fixed + regression test.
