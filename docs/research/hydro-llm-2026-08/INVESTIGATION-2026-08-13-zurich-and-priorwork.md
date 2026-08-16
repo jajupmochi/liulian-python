@@ -171,6 +171,44 @@ the user's Q2: the descriptions ARE station-distinguishing; the pathway is inert
 in the frozen (zero-shot) regime they cannot be used. Whether unfreezing wakes the
 pathway is exactly the LoRA 2×2 now running (jobs 12403669/12403670).
 
+## 2f. LoRA 2×2 — THE TURN (2026-08-16, jobs 12403669/12403670; 1990, fixed protocol)
+
+LoRA: peft r=4 α=8 on c_attn, 73.7K trainable adapter params (verified in both logs),
+backbone base weights frozen. Test denorm RMSE (°C), seed 2026:
+
+| backbone | tuning | none | text (entity_description) | numeric emb16 |
+|---|---|---|---|---|
+| pretrained | frozen | 1.8658 | 1.8537 | 1.6471 |
+| pretrained | **LoRA** | 1.8834 | **1.5442 (−17.2% vs none)** | 1.6137 |
+| random-init | frozen | 1.8559 | 🔵 running (ep8 ≈1.8525, flat) | 1.5241 |
+| random-init | **LoRA** | 1.8534 | **1.8508 (no gain)** | 1.5142 |
+
+(Provenance: the two `none` cells collided on a same-second timestamped artifact dir —
+both jobs started cell 1 at 21:27:40 and shared `…_212740`, second writer overwrote the
+first. Both values were recovered from the per-epoch job logs; the log parser was
+validated cell-by-cell against the four surviving results.json (exact match). Pipeline
+fix needed: artifact dir names need a jobid/pid suffix.)
+
+Findings — the pre-registered positive signature FIRED (single seed, hedge accordingly):
+
+1. **LoRA wakes the text pathway, but ONLY on the pretrained backbone**: text goes
+   1.8537 (frozen, inert) → **1.5442** (−17.2% vs none), now on par with numeric
+   identity — from 73.7K adapter params.
+2. **The random-init control separates cleanly**: random+LoRA+text = 1.8508 ≈ its none
+   (1.8534). Zero rescue. So the rescue is NOT generic trainable capacity — it requires
+   the pretrained language weights. **This is genuine, controlled evidence that the
+   LLM's pretraining is USEFUL for the text-identity channel once minimally adapted.**
+3. **Specificity controls hold**: LoRA on `none` changes nothing (1.8834/1.8534 vs
+   frozen 1.8658/1.8559) — LoRA is not a generic booster; and LoRA barely moves
+   `numeric` (additive channel never needed the LLM).
+4. Revised through-line: the LLM is NOT dead weight after all — it is dead weight in
+   the ORIGINAL Time-LLM frozen protocol. A 73.7K-param adaptation unlocks the language
+   channel that the frozen protocol leaves deaf. The user's LoRA instinct was right;
+   my predicted null was wrong on the pretrained side (the control side confirmed).
+5. Best cells overall are still numeric (random+LoRA 1.5142 / random frozen 1.5241),
+   but text+LoRA (1.5442) is now within ~2% of them — and text has the unique
+   cold-start/ungauged-station upside that numeric structurally lacks.
+
 ## 3. Prior-work investigation (step 3)
 
 ### 3a. Our own LSTM reproduction (docs/research/paper-draft.md, n=3 ± std, same swiss data)
