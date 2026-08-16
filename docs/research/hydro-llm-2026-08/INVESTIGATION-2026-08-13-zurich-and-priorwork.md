@@ -180,7 +180,7 @@ backbone base weights frozen. Test denorm RMSE (°C), seed 2026:
 |---|---|---|---|---|
 | pretrained | frozen | 1.8658 | 1.8537 | 1.6471 |
 | pretrained | **LoRA** | 1.8834 | **1.5442 (−17.2% vs none)** | 1.6137 |
-| random-init | frozen | 1.8559 | 🔵 running (ep8 ≈1.8525, flat) | 1.5241 |
+| random-init | frozen | 1.8559 | 1.8511 (no gain) | 1.5241 |
 | random-init | **LoRA** | 1.8534 | **1.8508 (no gain)** | 1.5142 |
 
 (Provenance: the two `none` cells collided on a same-second timestamped artifact dir —
