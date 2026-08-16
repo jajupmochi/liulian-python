@@ -55,29 +55,6 @@ def _load_cell(art_dir: Path):
     )
 
 
-def _station_scalers(dataset_name: str):
-    """Rebuild the dataset exactly as training did; return {station_id: (mn, mx)}."""
-    from liulian.config import load_config
-    from liulian.pipeline import build_dataset
-
-    cfg = load_config(
-        yaml_path=str(REPO / 'experiments/hydro_llm/configs/timellm_config.yaml'),
-        cli_overrides={'data': dataset_name, 'identifier_mode': 'none',
-                       'num_workers': 0, 'hpo': False},
-    )
-    ds = build_dataset(cfg)
-    scalers = {}
-    ent = ds.station_scaler
-    for sid in ds.station_ids:
-        key = str(sid)
-        # EntityScaler.inverse_transform_entity is the exact per-entity inverse the
-        # pipeline itself uses; probe it on 0 and 1 to recover (mn, mx).
-        lo = float(ent.inverse_transform_entity(np.array([0.0]), key)[0])
-        hi = float(ent.inverse_transform_entity(np.array([1.0]), key)[0])
-        scalers[key] = (lo, hi)
-    return scalers
-
-
 def _per_station_metrics(preds, trues, ents):
     """Per-station (deg C) metrics; returns dict sid -> (rmse, mae) plus overall rmse."""
     out = {}
