@@ -311,3 +311,49 @@ prompt-pathway and zurich findings.
 **Bottom line:** run the pretrained/random-init/no-LLM ablation FIRST (decisive, cheap), then
 LoRA WITH its random-init control (complementary), then the mechanistic probes. Be prepared to
 report that the LLM contributes little — the data so far leans that way.
+
+## 2g. Per-station Wilcoxon significance (2026-08-16, ICPR scheme, swiss-1990)
+
+Method = the ICPR/benchmark notebook's scheme: per-station test RMSE/MAE pairs
+(n=28 stations), `scipy.stats.wilcoxon` signed-rank, computed by
+`scripts/compute_significance.py` on the saved inference-path predictions
+(predictions.npz, best checkpoint; already in deg C). The inference path is
+systematically offset from the recorded eval-path metrics (2.0703 vs 1.8658 on the
+none cell) but tracks them with Spearman rho = 0.996 across the 18 cells, so paired
+per-station tests on this footing are valid. All cells vs the v3 `none` baseline:
+
+| cell | RMSE (infer path) | median per-station delta | p(RMSE) | verdict |
+|---|---|---|---|---|
+| numeric grid emb16 | 1.7562 | -0.142 | 1.2e-04 | SIG better |
+| numeric fixed emb16 | 1.8338 | -0.052 | 2.2e-02 | SIG better |
+| text frozen | 2.0569 | -0.006 | 1.2e-01 | n.s. |
+| soft_prompt | 2.0819 | +0.015 | 7.2e-04 | **SIG worse** |
+| text_embedding | 2.0763 | +0.012 | 4.8e-03 | **SIG worse** |
+| text shuffled | 2.0590 | +0.000 | 4.8e-01 | n.s. |
+| text symbol | 2.0688 | +0.002 | 9.4e-01 | n.s. |
+| text minimal | 2.0895 | +0.012 | 7.2e-04 | SIG worse |
+| random-init none | 2.0579 | -0.010 | 9.5e-02 | n.s. (equiv. to pretrained) |
+| random-init numeric | 1.6833 | -0.204 | 3.7e-08 | SIG better |
+| no-LLM none | 2.0612 | -0.006 | 1.3e-01 | n.s. (equiv.) |
+| no-LLM numeric | 1.7339 | -0.131 | 2.8e-06 | SIG better |
+| LoRA-pretrained none | 2.0920 | +0.022 | 9.4e-06 | **SIG worse** |
+| **LoRA-pretrained text** | **1.7183** | **-0.133** | **7.5e-08** | **SIG better** |
+| LoRA-pretrained numeric | 1.7879 | -0.066 | 9.7e-04 | SIG better |
+| LoRA-random text | 2.0498 | -0.016 | 1.4e-02 | SIG better (tiny) |
+| LoRA-random numeric | 1.6716 | -0.201 | 7.5e-09 | SIG better |
+| random-frozen text | 2.0508 | -0.019 | 5.6e-03 | SIG better (tiny) |
+
+Sharpened claims the p-values enable:
+
+1. Every numeric-embedding gain is significant at p <= 2e-2 (down to 7.5e-09).
+2. The LoRA text wake-up is significant at p = 7.5e-08, and its magnitude (median
+   -0.133 degC/station) is ~8x the tiny text effects on non-pretrained backbones
+   (-0.016/-0.019, which do reach p<0.05 but are ~1% effects). The qualitative
+   2x2 conclusion stands with a refinement: text carries a SMALL benefit even
+   without pretraining, and a LARGE one only with pretrained-plus-LoRA.
+3. soft_prompt and text_embedding are not just null — they are significantly
+   WORSE than none (p<5e-3): the frozen language pathway can actively hurt.
+4. LoRA on none is significantly WORSE (p=9.4e-06): adapters without an
+   information channel to exploit add noise.
+5. Backbone equivalences (random-init none / no-LLM none vs pretrained none)
+   remain n.s., as an equivalence claim should be.
