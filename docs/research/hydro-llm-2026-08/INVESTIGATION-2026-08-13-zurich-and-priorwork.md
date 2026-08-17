@@ -393,3 +393,33 @@ Findings:
    Zurich-specific headlines need restart replicates before publication.
 5. Naming-collision fix round 2: extension dirs revealed the first fix missed the
    actual artifact-dir source (helpers.timestamp_id); fixed + regression test.
+
+## 2i. 2010 extension (2026-08-17, job 12435489 TIMEOUT at 24h -> 6/10 cells; remainder job 12484889)
+
+LoRA cells complete (mapping from config-load order; new dirs carry the uuid suffix
+— naming fix round 2 confirmed live). Denorm RMSE degC; Wilcoxon vs v3 none (n=63,
+rank-consistency rho=0.988):
+
+| backbone | tuning | none | text | numeric |
+|---|---|---|---|---|
+| pretrained | frozen (v3) | 1.8360 | 1.8253 (n.s.) | 1.7203 (p=6.5e-4) |
+| pretrained | LoRA | 1.8403 (SIG worse) | **1.6932 (p=1.1e-3)** | 1.7661 (p=3.3e-2) |
+| random-init | LoRA | 1.8118 | 1.8200 (~= its none) | **1.6079 (p=7.5e-11)** |
+
+Findings:
+
+1. **2010 REPLICATES the 1990 LoRA pattern exactly**: text wake-up only on the
+   pretrained backbone (1.6932, -7.8% vs its none — better than frozen numeric);
+   random+LoRA text (1.8200) is indistinguishable from its own none (1.8118) —
+   the vs-baseline significance of both cells reflects the generally better
+   random backbone, not a text effect.
+2. So across the three collections: **pretraining is REQUIRED for the text
+   wake-up on both entity-rich sets (1990, 2010 — 2/2); only tiny/noisy zurich
+   deviates** (where an adaptable random backbone suffices). The paper claim is
+   now "on entity-rich collections", with the zurich nuance reported.
+3. **random-init numeric is the best cell on every dataset** (1.5142/1.6079/
+   1.7568 with LoRA; 1.5241/-/1.7417 frozen): the pretrained weights tax the
+   numeric channel universally.
+4. loraPre_none SIG worse replicates on 2010 (adapter-noise specificity control).
+5. 2010 rndfrz (frozen randinit text+numeric) + nollm cells: job 12484889 running
+   (first job hit the 24h wall; --resume skips the 6 ok cells).
