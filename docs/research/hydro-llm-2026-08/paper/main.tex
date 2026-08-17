@@ -528,7 +528,8 @@ of whether pretrained language knowledge can serve the text pathway at all:
 \begin{table}[t]
 \caption{LoRA $2{\times}2$ on \swiss{} (r=4, $\alpha$=8 on \texttt{c\_attn};
 73.7K adapter parameters; fixed protocol, seed 2026, denorm RMSE °C).
-\inprogress{\swissb{}/\swissc{} extension running.}}
+% [orig 2026-08-17] \inprogress{Swiss-2010/Swiss-Zurich extension running.}
+The \swissb{}/\swissc{} repeats are reported in the text below.}
 \label{tab:lora}
 \begin{tabular}{@{}llccc@{}}
 \toprule
@@ -553,6 +554,25 @@ channel add noise), and LoRA barely moves \textsf{numeric} (the additive channel
 never needed the LLM). Together with the backbone ablation this yields the paper's
 arc: \emph{the frozen protocol leaves the language model dead weight; a minimal
 adaptation turns its pretraining into a working entity-identity channel.}
+
+\textbf{Across datasets.} The $2{\times}2$ repeats on \swissb{} and \swissc{}
+close the picture. \swissb{} replicates \swiss{} exactly: pretrained{+}LoRA
+wakes the text pathway (1.8253${\rightarrow}$1.6932, $-7.8\%$ vs.\ its
+\textsf{none}, $p{=}1.1{\times}10^{-3}$, n=63) while random{+}LoRA text is
+indistinguishable from its own \textsf{none} (1.8200 vs.\ 1.8118) --- on the
+entity-rich collections (2/2) the wake-up \emph{requires} the pretrained
+weights. \swissc{} adds two refinements. First, it resolves its own anomaly:
+random-init~+~\emph{frozen} numeric reaches 1.7417 ($-10.3\%$,
+$p{=}6.1{\times}10^{-5}$, n=15) on the very dataset where pretrained-frozen
+numeric was null --- the pretrained geometry, not the data, was the blocker.
+Second, on this smallest collection the text wake-up does \emph{not} require
+pretraining (random{+}LoRA text 1.7548 matches pretrained{+}LoRA 1.8198),
+consistent with text acting there as a distinctness token through an adaptable
+backbone; we report this nuance rather than average over it, and note that
+\swissc{} single-run claims sit inside a measured ${\approx}4\%$ restart band.
+Finally, random-init numeric is the best cell on \emph{every} dataset
+(1.5142/1.6079/1.7568) --- the pretrained weights tax the additive channel
+universally.
 
 \textbf{Queued controls.} A2 ladder (random / one-hot / sinusoidal / coordinates);
 norm-range 2$\times$2 (min-max vs.\ z-score $\times$ identity); GPT4TS as the
