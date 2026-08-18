@@ -133,6 +133,59 @@ def cmd_test(args):
             print('WARNING: npz ordering does not track recorded ordering — treat p-values as suspect.')
 
 
+def cmd_coldstart(args):
+    """Cold-start readout: per-cell test RMSE split into SEEN vs HELD-OUT stations.
+
+    The held-out stations produced no training windows, so only identity
+    representations that are MEANINGFUL for an unseen station (coordinates, text)
+    can help there; a learned/one-hot/random embedding row for a held-out station
+    was never trained and should be no better (often worse) than \\textsf{none}.
+    """
+    from scipy.stats import wilcoxon
+
+    held = {str(s) for s in args.holdout}
+
+    def decode(path):
+        preds, trues, ents, rec, ds_name = _load_cell(Path(path))
+        if ds_name != args.dataset:
+            raise SystemExit(f'{path}: dataset {ds_name} != --dataset {args.dataset}')
+        per, _ = _per_station_metrics(preds, trues, ents)
+        return per
+
+    base = decode(args.baseline)
+    seen_ids = sorted(set(base) - held)
+    held_ids = sorted(set(base) & held)
+    if not held_ids:
+        raise SystemExit(f'none of {sorted(held)} present in predictions; check --holdout')
+    print(f'baseline none: {args.baseline}')
+    print(f'  seen n={len(seen_ids)}  held-out n={len(held_ids)}: {held_ids}')
+    print()
+    print(f'{"cell":26s} {"seen RMSE":>10s} {"held RMSE":>10s} {"held vs none":>13s} {"p(held)":>9s}')
+
+    def group_rmse(per, ids):
+        # pool per-station RMSE by mean (each station weighted equally)
+        vals = [per[s][0] for s in ids if s in per]
+        return sum(vals) / len(vals) if vals else float('nan')
+
+    base_seen = group_rmse(base, seen_ids)
+    base_held = group_rmse(base, held_ids)
+    print(f'{"none (baseline)":26s} {base_seen:10.4f} {base_held:10.4f} {"--":>13s} {"--":>9s}')
+    for spec in args.cells:
+        label, _, path = spec.partition('=')
+        per = decode(path)
+        s_rmse = group_rmse(per, seen_ids)
+        h_rmse = group_rmse(per, held_ids)
+        # paired Wilcoxon on held-out stations vs the none baseline
+        pairs = [(per[s][0], base[s][0]) for s in held_ids if s in per and s in base]
+        if len(pairs) >= 6:
+            _, p_h = wilcoxon([a for a, b in pairs], [b for a, b in pairs])
+            p_str = f'{p_h:.2e}'
+        else:
+            p_str = f'n={len(pairs)}'
+        d_held = h_rmse - base_held
+        print(f'{label:26s} {s_rmse:10.4f} {h_rmse:10.4f} {d_held:+13.4f} {p_str:>9s}')
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     sub = ap.add_subparsers(dest='cmd', required=True)
@@ -141,8 +194,13 @@ def main():
     t.add_argument('--dataset', required=True)
     t.add_argument('--baseline', required=True, help='artifact dir of the none cell')
     t.add_argument('--cells', nargs='+', required=True, help='label=artifact_dir ...')
+    c = sub.add_parser('coldstart')
+    c.add_argument('--dataset', required=True)
+    c.add_argument('--baseline', required=True, help='artifact dir of the none cell')
+    c.add_argument('--holdout', nargs='+', required=True, help='held-out station ids')
+    c.add_argument('--cells', nargs='+', required=True, help='label=artifact_dir ...')
     args = ap.parse_args()
-    {'scan': cmd_scan, 'test': cmd_test}[args.cmd](args)
+    {'scan': cmd_scan, 'test': cmd_test, 'coldstart': cmd_coldstart}[args.cmd](args)
 
 
 if __name__ == '__main__':

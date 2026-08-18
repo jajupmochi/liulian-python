@@ -218,6 +218,7 @@ def build_dataset(config: Dict[str, Any]) -> Any:
             graph_mode=config['graph_mode'],
             graphlet_num_hops=config['graphlet_num_hops'],
             max_samples=config.get('max_samples'),
+            holdout_stations=config.get('holdout_stations'),
         )
 
     elif data_name in _CSV_DATASET_MAP:

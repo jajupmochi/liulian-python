@@ -17,8 +17,9 @@ Provides configurable handling for:
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Dict, Mapping, Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -28,6 +29,8 @@ from liulian.data.scalers import EntityScaler
 from liulian.data.spec import TopologySpec
 from liulian.data.st.spatialtempodataset import SpatialTempoDataset
 from liulian.data.ts.timeseriesdataset import TimeSeriesDataset, TimeSeriesSplit
+
+logger = logging.getLogger(__name__)
 
 
 class SwissRiverDataset(SpatialTempoDataset):
@@ -131,10 +134,23 @@ class SwissRiverDataset(SpatialTempoDataset):
         graph_mode: str = 'none',
         graphlet_num_hops: int = 1,
         max_samples: Optional[int] = None,
+        holdout_stations: Optional[Sequence[str]] = None,
         backend: str | ArrayBackend = 'numpy',
     ) -> None:
         self.data_name = data_name
         self.split_mode = split_mode
+        # Cold-start / ungauged-station holdout (2026-08-18). Station ids listed
+        # here are REMOVED from the train and val windows but KEPT in the test
+        # windows; station_ids stays FULL so entity indices, num_entities, and
+        # the one-hot/embedding slot count are unchanged (a held-out station's
+        # numeric row is simply never trained — that is the point of the
+        # comparison). Regime A ("new station has its own short history"): the
+        # per-station scaler is still fit on the station's train-range data, so
+        # normalization uses the station's own statistics, which a freshly
+        # instrumented station would have. Selection/stratification is done at
+        # config-authoring time (project rule 3: data lives in config), so this
+        # takes an explicit, reproducible list rather than a fraction+seed.
+        self.holdout_stations: frozenset[str] = frozenset(str(s) for s in (holdout_stations or []))
         self.train_split = train_split
         self.scaler_type = scaler_type.strip().lower()
         self.graphlet_num_hops = graphlet_num_hops
@@ -179,6 +195,21 @@ class SwissRiverDataset(SpatialTempoDataset):
         self.graph_name = self._file_map[data_name]['graph_name']
         # todo: check if we need to use the original read_graph() to get station ids instead:
         self.station_ids = self._infer_station_ids(train_df)
+
+        # Validate holdout ids against the real station list — a typo must fail
+        # loudly, never silently hold out nothing.
+        if self.holdout_stations:
+            unknown = self.holdout_stations - set(self.station_ids)
+            if unknown:
+                raise ValueError(
+                    f'holdout_stations contains ids not in {data_name}: '
+                    f'{sorted(unknown)}; available: {self.station_ids}'
+                )
+            if len(self.holdout_stations) >= len(self.station_ids):
+                raise ValueError(
+                    f'holdout_stations ({len(self.holdout_stations)}) would leave no '
+                    f'training station (of {len(self.station_ids)}).'
+                )
 
         # --- Normalization -----------------------------------------------
         # EntityScaler handles per-entity fit/transform/inverse,
@@ -464,8 +495,24 @@ class SwissRiverDataset(SpatialTempoDataset):
         df = self._split_frames[split_name]
         graphlet_map = self._graphlet_neighbor_map() if self.graph_mode == 'graphlet_features' else {}
 
+        # Cold-start holdout: held-out stations contribute NO train/val windows
+        # but ARE evaluated at test. station_ids stays full so entity indices and
+        # num_entities are unchanged; only which stations produce windows differs.
+        if self.holdout_stations and split_name in ('train', 'val'):
+            stations = [s for s in self.station_ids if s not in self.holdout_stations]
+            logger.info(
+                '[coldstart] %s split: %d/%d stations (held out %d: %s)',
+                split_name,
+                len(stations),
+                len(self.station_ids),
+                len(self.holdout_stations),
+                sorted(self.holdout_stations),
+            )
+        else:
+            stations = list(self.station_ids)
+
         parts: list[TimeSeriesSplit] = []
-        for station in self.station_ids:
+        for station in stations:
             station_df = self._make_station_frame(df, station, graphlet_neighbors=graphlet_map.get(station))
             predicted_cols = [col for col in station_df.columns if col.endswith('_wt_hat')]
             ds_station = TimeSeriesDataset(
