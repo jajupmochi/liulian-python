@@ -483,3 +483,22 @@ cannot. Design (user-approved, regime A first):
     while RMSE(learnable/onehot/random) >= RMSE(none), then meaningful-for-unseen
     identity (language/space) enables ungauged-station forecasting where lookup
     identity cannot. Regime B (regional normalization, strict PUB) is the follow-up.
+
+### 3a. Cold-start controls (job 12698799 done; regime A, 1990, 6/28 held out)
+
+Live confirmation the holdout fired on cluster ("[coldstart] train split: 22/28
+stations, held out 6"). Per-station RMSE (degC), seen (n=22) vs held-out (n=6):
+
+| arm | seen RMSE | held-out RMSE | held vs none |
+|---|---|---|---|
+| none | 1.9594 | 2.1048 | -- |
+| numeric learnable | 1.6340 (seen -16.6%) | 2.6485 (held **+25.8% WORSE**) | +0.544 |
+| one-hot | 1.8895 | 2.1727 (+3.2% worse) | +0.068 |
+
+Pre-registered prediction CONFIRMED for the lookup-identity controls: learned /
+one-hot identity gives a large gain on SEEN stations but HURTS on held-out
+stations (the untrained embedding row / one-hot-consuming weight is a random map
+for an unseen station). learnable is the sharpest: -16.6% seen, +25.8% held.
+held-out p-values are n.s. at n=6 (Wilcoxon floor 0.031, high inter-station
+variance) — directional, needs restarts. The decisive arms (coordinates,
+text+LoRA — can they BEAT none on held-out?) are in job 12698800 (running).
