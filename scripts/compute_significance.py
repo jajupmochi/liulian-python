@@ -159,6 +159,13 @@ def cmd_coldstart(args):
         raise SystemExit(f'none of {sorted(held)} present in predictions; check --holdout')
     print(f'baseline none: {args.baseline}')
     print(f'  seen n={len(seen_ids)}  held-out n={len(held_ids)}: {held_ids}')
+    # Wilcoxon has a hard p-floor for tiny n: two-sided min p = 2 / 2**n_held.
+    # With 6 held-out stations the smallest reachable p is ~0.031, so a
+    # "significant" held-out result is weak evidence — say so rather than let a
+    # reader over-trust it. Restart replicates are the real fix.
+    p_floor = 2.0 / (2 ** len(held_ids))
+    print(f'  NOTE: held-out Wilcoxon p-floor = {p_floor:.3g} (n={len(held_ids)}); '
+          f'treat held-out significance as directional, confirm with restarts.')
     print()
     print(f'{"cell":26s} {"seen RMSE":>10s} {"held RMSE":>10s} {"held vs none":>13s} {"p(held)":>9s}')
 
