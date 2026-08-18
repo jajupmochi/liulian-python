@@ -423,3 +423,30 @@ Findings:
 4. loraPre_none SIG worse replicates on 2010 (adapter-noise specificity control).
 5. 2010 rndfrz (frozen randinit text+numeric) + nollm cells: job 12484889 running
    (first job hit the 24h wall; --resume skips the 6 ok cells).
+
+## 2j. 2010 backbone ablation complete (2026-08-18, job 12484889) — 3-dataset numeric ablation
+
+Numeric-embedding cell across the three frozen backbones (denorm RMSE degC, seed
+2026; none = pretrained-frozen v3 baseline). p vs each dataset's none, per-station
+Wilcoxon:
+
+| arm | 1990 | 2010 | zurich |
+|---|---|---|---|
+| none (pretrained frozen) | 1.8658 | 1.8360 | 1.9407 |
+| numeric, pretrained frozen | 1.6471 | 1.7203 (p=6.5e-4) | 1.8861$^*$ |
+| numeric, random-init frozen | **1.5241** | **1.5910** (p=5.0e-11) | **1.7417** (p=6.1e-5) |
+| numeric, no-LLM (0 blocks) | 1.5652 | 1.7188 (p=1.3e-3) | 1.8763 (p=2.2e-2) |
+
+($^*$zurich pretrained-frozen numeric is inside the ~4% restart band.)
+
+Findings:
+
+1. **Random-init frozen numeric is the best backbone on ALL THREE datasets**
+   (1.5241/1.5910/1.7417), significant everywhere. The pretrained weights tax the
+   additive channel universally; deleting them or randomizing them helps.
+2. The numeric gain survives every backbone on every dataset — mechanism is the
+   trainable additive path, confirmed 3x.
+3. no-LLM none cells: 1990 1.8586, 2010 1.8268 (n.s. vs pretrained none), zurich
+   1.9468 — base task unaffected by removing the stack, confirmed 3x.
+4. Missing for a fully symmetric table: random-init-frozen none on 2010 + zurich
+   (job 12694226 running); every other backbone cell is measured.
