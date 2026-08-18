@@ -448,8 +448,12 @@ Findings:
    trainable additive path, confirmed 3x.
 3. no-LLM none cells: 1990 1.8586, 2010 1.8268 (n.s. vs pretrained none), zurich
    1.9468 — base task unaffected by removing the stack, confirmed 3x.
-4. Missing for a fully symmetric table: random-init-frozen none on 2010 + zurich
-   (job 12694226 running); every other backbone cell is measured.
+4. Random-init-frozen none COMPLETE (job 12694226): 2010 = 1.8173, zurich =
+   1.9225. Three-arm none agreement per dataset: 1990 {1.8658/1.8559/1.8586} span
+   0.5%; 2010 {1.8360/1.8173/1.8268} span 1.0%; zurich {1.9407/1.9225/1.9468} span
+   1.3%. So "none is backbone-invariant" holds to ~1% (well inside the zurich ~4%
+   restart band), not the 0.5% the 1990-only view suggested — the paper prose is
+   corrected to "to ~1%".
 
 ## 3. Cold-start / ungauged-station experiment (design + launched 2026-08-18)
 
