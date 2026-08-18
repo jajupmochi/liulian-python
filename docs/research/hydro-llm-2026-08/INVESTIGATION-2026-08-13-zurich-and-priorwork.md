@@ -450,3 +450,32 @@ Findings:
    1.9468 — base task unaffected by removing the stack, confirmed 3x.
 4. Missing for a fully symmetric table: random-init-frozen none on 2010 + zurich
    (job 12694226 running); every other backbone cell is measured.
+
+## 3. Cold-start / ungauged-station experiment (design + launched 2026-08-18)
+
+The paper's forward-looking claim: a station's DESCRIPTION (and its COORDINATES)
+exist before any data is collected, unlike its learned embedding row. So text and
+coordinates could forecast an UNSEEN station where numeric identity structurally
+cannot. Design (user-approved, regime A first):
+
+- **Data-layer knob** (`holdout_stations`, swiss_river.py): held-out stations
+  produce no train/val windows but are evaluated at test; station_ids stays full
+  (index/num_entities unchanged); regime A = the held-out station's own train-range
+  history normalizes it. 3 regression tests; verified train=22/test=28 on 1990.
+- **Holdout** (6/28, stratified across both disjoint basins + river size +
+  alpine/urban): 2174 Rhone/Chancy, 2143 Rhein/Rekingen, 2018 Reuss/Mellingen,
+  2044 Thur/Andelfingen, 2109 Luetschine/Gsteig (alpine), 2135 Aare/Bern (urban).
+- **6 arms** (jobs 12698799/12698800): none, numeric learnable, one-hot, random,
+  coordinates, text+LoRA.
+- **Pre-registered readout** (compute_significance.py coldstart, seen vs held-out):
+  * learnable / one-hot / random SHOULD fail on held-out stations (their row/column
+    is never trained -> at test it is an untrained random map). These are the
+    "structurally cannot cold-start" controls (the user's one-hot-slot design).
+  * coordinates CAN generalize (continuous feature, projection trained on other
+    stations' coords interpolates to a new coord) -- the classic PUB path.
+  * text+LoRA CAN generalize IF the language grounding transfers to an unseen
+    description -- the paper's distinctive claim.
+  * Decision rule: if held-out RMSE(text+LoRA) and/or RMSE(coordinates) < RMSE(none)
+    while RMSE(learnable/onehot/random) >= RMSE(none), then meaningful-for-unseen
+    identity (language/space) enables ungauged-station forecasting where lookup
+    identity cannot. Regime B (regional normalization, strict PUB) is the follow-up.
