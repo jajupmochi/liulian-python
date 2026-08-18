@@ -502,3 +502,35 @@ for an unseen station). learnable is the sharpest: -16.6% seen, +25.8% held.
 held-out p-values are n.s. at n=6 (Wilcoxon floor 0.031, high inter-station
 variance) — directional, needs restarts. The decisive arms (coordinates,
 text+LoRA — can they BEAT none on held-out?) are in job 12698800 (running).
+
+### 3b. Cold-start FULL 6 arms (1990) + a data-hunger confound on the text arm
+
+Per-station RMSE (degC), seen (n=22) vs held-out (n=6), job 12698799+12698800:
+
+| arm | seen RMSE | held-out RMSE | held vs none |
+|---|---|---|---|
+| none | 1.9594 | 2.1048 | -- |
+| numeric learnable | 1.6340 | 2.6485 | +0.544 (WORSE) |
+| numeric random | 1.7766 | 2.3553 | +0.251 (WORSE) |
+| one-hot | 1.8895 | 2.1727 | +0.068 (worse) |
+| coordinates | 1.9458 | 2.1582 | +0.053 (worse) |
+| text+LoRA | 1.9475 | 2.0927 | -0.012 (n.s.) |
+
+Clean result for the LOOKUP-identity controls: learnable/random/one-hot all HURT
+held-out stations (untrained row/column); learnable worst (+0.544). But two arms
+that could generalize did NOT clearly help: coordinates ~0, text+LoRA -0.6% n.s.
+
+**Confound found (root-caused, not patched):** the text+LoRA arm barely helped on
+SEEN stations either (-0.6%), unlike the main run's -18.6% on the same 22 stations.
+The holdout mechanism is CORRECT (train samples 128832 = 163968 x 22/28 exactly;
+config diff = only the holdout line). The cause is real data-hunger: dropping
+6/28 (-21%) training stations collapsed the LoRA text pathway (val_mse full-data
+0.0075 -> held-out-run 0.0134, ~= its own none), so it never learned even on
+retained stations. none is unaffected (seen-22 2.0556 vs main 2.0596). So the
+1990 cold-start CANNOT test text generalization (the pathway was inert on trained
+stations); the lookup-identity controls stand.
+
+**Fix (launched):** cold-start on swiss-2010 (63 stations, hold out 10 = -16%),
+so text/coords can still train. Arms none/learnable/coordinates/text+LoRA.
+Also a caveat for the MAIN LoRA claim: the -17% text wake-up needed all 28
+stations; it is data-hungry, worth stating.
