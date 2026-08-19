@@ -215,6 +215,27 @@ class Model(nn.Module):
             self.register_buffer('transparent_feat', feat)
             self.transparent_proj = nn.Linear(feat.shape[1], int(configs.d_model))
 
+        # Fair-injection rescale (2026-08-19): the transparent additive paths
+        # (onehot / sinusoidal / coordinates) inject `transparent_proj(feat)` and
+        # are compared against the LEARNABLE `entity_embedding` path, which starts
+        # near norm sqrt(d_model) because nn.Embedding inits ~N(0,1). The default
+        # nn.Linear init makes the transparent injection ~4x WEAKER (measured on
+        # swiss-1990: onehot per-station init norm 0.89 vs embedding 3.44), so the
+        # transparent identity is handicapped and under-learned (val stuck ~0.012
+        # vs learnable 0.0076) — it silently loses the comparison for a reason
+        # that has nothing to do with the identity's information content. Rescale
+        # the projection so its INITIAL per-station injection norm matches
+        # sqrt(d_model), putting all additive identity sources on equal footing.
+        if self.transparent_proj is not None:
+            with torch.no_grad():
+                out = self.transparent_proj(self.transparent_feat)  # (n, d_model)
+                cur = out.norm(dim=1).mean().clamp_min(1e-6)
+                target = float(configs.d_model) ** 0.5
+                scale = target / cur
+                self.transparent_proj.weight.mul_(scale)
+                if self.transparent_proj.bias is not None:
+                    self.transparent_proj.bias.mul_(scale)
+
         # Level-A `soft_prompt` (LEARNED identity, PREFIX position): a per-entity
         # block of learnable continuous tokens prepended to the LLM input sequence.
         # This is the "learned × prefix" cell of the representation×position 2x2 —

@@ -590,3 +590,39 @@ class TestRandomInitBackbone:
         assert not torch.allclose(wr, wp), 'random-init equals pretrained'
         assert wr.std() < 0.05 < wp.std(), 'random-init should have the small default-init std'
         assert not rand.llm_model.h[0].attn.c_attn.weight.requires_grad, 'backbone must stay frozen'
+
+
+class TestTransparentInjectionScale:
+    """Fair-injection rescale (2026-08-19): onehot/sinusoidal/coordinates additive
+    identity must start at ~sqrt(d_model) per-station injection norm, matching the
+    canonical learnable d_model-embedding. Bug found via cold-start: default Linear
+    init made onehot inject ~4x weaker (0.89 vs 3.44), so it never learned the
+    identity (val stuck 0.012 vs learnable 0.0076) and lost the comparison for a
+    reason unrelated to the identity's information."""
+
+    @staticmethod
+    def _cfg(mode):
+        from types import SimpleNamespace
+        return SimpleNamespace(
+            task_name='long_term_forecast', seq_len=24, pred_len=7, label_len=0,
+            enc_in=1, dec_in=1, c_out=1, d_model=32, d_ff=32, n_heads=4,
+            e_layers=1, d_layers=1, dropout=0.1, patch_len=8, stride=4,
+            llm_model='GPT2', llm_dim=768, llm_layers=2, llm_tuning='frozen',
+            prompt_domain=0, content='', factor=1, embed='timeF', freq='d',
+            output_attention=False, activation='gelu', identifier_mode=mode,
+            num_entities=28, sinusoidal_dim=16,
+        )
+
+    @pytest.mark.slow
+    def test_onehot_and_sinusoidal_inject_at_sqrt_dmodel(self):
+        import math
+        import torch
+        from liulian.models.torch.timellm import Model
+
+        target = math.sqrt(32)
+        for mode in ('onehot_embedding', 'sinusoidal_embedding'):
+            m = Model(self._cfg(mode))
+            with torch.no_grad():
+                out = m.transparent_proj(m.transparent_feat)  # (28, 32)
+            norm = out.norm(dim=1).mean().item()
+            assert abs(norm - target) < 0.05 * target, (mode, norm, target)
