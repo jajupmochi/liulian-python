@@ -534,3 +534,45 @@ stations); the lookup-identity controls stand.
 so text/coords can still train. Arms none/learnable/coordinates/text+LoRA.
 Also a caveat for the MAIN LoRA claim: the -17% text wake-up needed all 28
 stations; it is data-hungry, worth stating.
+
+### 3c. Cold-start on 2010 (63 stations, hold out 10) — text+LoRA still collapses
+
+Seen (n=53) vs held-out (n=10), per-station RMSE degC (jobs 12844414/12844415):
+
+| arm | seen RMSE | held-out RMSE | held vs none |
+|---|---|---|---|
+| none | 1.9686 | 1.9764 | -- |
+| numeric learnable | 1.7742 (seen -9.9%) | 2.1130 (held **+6.9% WORSE**) | +0.137 |
+| coordinates | 1.9715 (~0) | 1.9671 (-0.5%) | n.s. |
+| text+LoRA | 1.9617 (-0.3%) | 1.9669 (-0.5%) | n.s. |
+
+**text+LoRA collapsed AGAIN** despite only -16% training stations (val_mse 0.0141
+= none, vs MAIN 2010 textlora val 0.0118 / test 1.6932). So the collapse is NOT
+simple data quantity (53 stations is plenty) — the LoRA text wake-up does not
+survive ANY station holdout, on either dataset (1990 22/28 AND 2010 53/63). It
+plateaus at the none val from epoch 1 (not early stopping).
+
+**Honest conclusions:**
+
+1. **Cold-start core result (clean, REPLICATED on both datasets):** lookup /
+   numeric identity (learnable, one-hot, random) trains well on SEEN stations but
+   HURTS ungauged/held-out stations (learnable held: 1990 +25.8%, 2010 +6.9%) —
+   the per-station parameter is untrained for an unseen station, so it is a
+   random map. No lookup identity solves cold-start.
+2. **Coordinates are inert** through the frozen Time-LLM (seen ~0, held ~0),
+   consistent with the main finding that only ADDITIVE NUMERIC identity moves the
+   frozen model; coordinates neither help seen nor generalize.
+3. **text+LoRA fragility (new, important):** the -17%/-7.8% wake-up does NOT
+   survive a station holdout on either dataset. Its cold-start generalization is
+   therefore UNTESTABLE in this setup, and the fragility itself is a caveat on
+   the main LoRA claim: the wake-up needs the full station set, suggesting it is
+   closer to fitting the specific training stations than to a generalizable
+   language grounding. This is honest and worth stating; it does NOT overturn the
+   in-distribution LoRA result (still a real, significant −17%) but bounds its
+   interpretation.
+4. So the paper's forward-looking cold-start claim is NOT "text generalizes to
+   ungauged stations" (unsupported) but the sharper, defensible: "lookup identity
+   structurally cannot serve ungauged stations (it hurts), and even the adapted
+   language pathway does not transfer under holdout — ungauged-station identity
+   remains open." Regime B (regional norm) would not change this (the pathway
+   never trains).
