@@ -576,3 +576,26 @@ plateaus at the none val from epoch 1 (not early stopping).
    language pathway does not transfer under holdout — ungauged-station identity
    remains open." Regime B (regional norm) would not change this (the pathway
    never trains).
+
+### 3d. BUG found (user-flagged): transparent identity injected ~4x too weak
+
+The user rejected the cold-start onehot result ("one-hot cannot be that bad on
+TRAINING stations") — correctly. Root cause (measured swiss-1990, init per-station
+injection norm): learnable embedding 3.44, random 3.11, but **onehot 0.89**
+(~4x weaker). nn.Embedding inits ~N(0,1); the transparent path's nn.Linear
+default init is far smaller, so onehot/sinusoidal/coordinates started with a ~4x
+weaker additive identity and never learned it (val stuck 0.012 vs learnable
+0.0076) — losing every comparison for a reason unrelated to the identity's
+information. Fix (commit): rescale transparent_proj at init so per-station
+injection norm = sqrt(d_model), matching the canonical nn.Embedding(n,d_model).
+Regression test added.
+
+Scope: only onehot/sinusoidal/coordinates_embedding were affected. The MAIN
+results table and all ablations (none/learnable/random/text/soft_prompt/
+text_embedding, backbone ablation, LoRA 2x2) never used transparent_proj and are
+unaffected. But §3a-3c cold-start conclusions for onehot AND coordinates are
+INVALID pending rerun (learnable/random cold-start stand; text+LoRA collapse is a
+separate, non-transparent phenomenon but re-examined too). Reruns launched:
+full-data 1990 onehot/coords (validate the fix: onehot val should now ~0.0076)
++ injection-matched cold-start (emb32 so learnable/random also inject at
+sqrt(32)): jobs 12933798/12933799.
