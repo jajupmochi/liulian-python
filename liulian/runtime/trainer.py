@@ -562,11 +562,14 @@ class ForecastTrainer:
         model.train()
 
         def _weighted_mean(pairs: list[tuple[float, int]]) -> float:
-            """Compute sample-weighted average of per-batch metrics.
+            """Compute the sample-weighted average of a per-batch metric.
 
-            This is equivalent to computing the metric globally over all
-            concatenated predictions (as done by TSL), rather than giving
-            equal weight to each batch regardless of its size.
+            For a LINEAR-in-the-mean metric (MSE, MAE) this equals the pooled
+            metric computed over all concatenated predictions. For a NONLINEAR
+            metric (RMSE = sqrt(mean), NSE) it does NOT: by Jensen,
+            mean_b(sqrt(MSE_b)) != sqrt(mean_b(MSE_b)), so a batch-averaged RMSE
+            is biased LOW and depends on batch size. RMSE is therefore pooled
+            below from the (correctly pooled) MSE, not taken from this average.
             """
             if not pairs:
                 return float('nan')
@@ -581,6 +584,16 @@ class ForecastTrainer:
         if denorm_collected:
             for name, values in denorm_collected.items():
                 result[f'denorm_{name}'] = _weighted_mean(values)
+
+        # POOLED RMSE (2026-08-20 fix, found by a 10-way audit): RMSE must be the
+        # sqrt of the POOLED MSE, never the sample-weighted mean of per-batch
+        # RMSEs (which is Jensen-biased low ~10% and batch-size-dependent). MSE
+        # is linear so its weighted mean IS the pooled MSE; recompute RMSE from
+        # it whenever both are present, for the normalized and denorm metrics.
+        for _rmse_key, _mse_key in (('rmse', 'mse'), ('denorm_rmse', 'denorm_mse')):
+            if _rmse_key in result and _mse_key in result:
+                _m = result[_mse_key]
+                result[_rmse_key] = float(np.sqrt(_m)) if _m == _m and _m >= 0 else float('nan')
         return result
 
     # ------------------------------------------------------------------
