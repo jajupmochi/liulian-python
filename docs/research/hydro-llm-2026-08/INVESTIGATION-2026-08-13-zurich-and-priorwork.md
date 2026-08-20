@@ -628,3 +628,27 @@ CORRECTED conclusions (supersede §3a/§3b/§3c onehot & coordinates numbers):
    transfers to ungauged stations. n=6 held-out is underpowered (learnable held
    flipping between emb16/emb32 proves single-run + small-n instability); a clean
    claim needs the 2010 (n=10) rerun with the fix + restarts.
+
+### 4. IA3 vs LoRA — does the text wake-up need capacity or just steering? (2026-08-20, 1990)
+
+IA3 (Liu et al. 2022): element-wise multiplicative rescale of K/V/FFN, 10.8K
+trainable params (vs LoRA's 73.7K additive low-rank). Same 2x2 {pretrained,
+random-init} x {none, text, numeric}, fixed protocol, pooled RMSE °C. New runs use
+the pooled-RMSE trainer fix (denorm_rmse == sqrt(denorm_mse)):
+
+| backbone | tuning | text val_mse | text wakes? |
+|---|---|---|---|
+| pretrained | IA3 | 0.01354 (≈ none 0.01337) | **NO** |
+| random-init | IA3 | 0.01300 (≈ none 0.01298) | **NO** |
+| pretrained | LoRA (§2f) | ~0.0079 (half of none) | YES (−17%) |
+| random-init | LoRA | ≈ none | no |
+
+**Finding: IA3 does NOT wake the text pathway on either backbone; only LoRA does
+(pretrained only).** So the LoRA text wake-up requires LoRA's ADDITIVE low-rank
+capacity — IA3's tiny multiplicative gating is insufficient to route the station
+description into the forecast. The wake-up is capacity-dependent, not achievable
+by minimal steering of pretrained activations. (numeric under IA3 still works,
+pooled 1.6607 — the additive embedding trains regardless of the LLM tuning,
+confirming the numeric channel never needed the LLM.) Sharpens the §2f LoRA
+result: the "pretrained knowledge is useful once adapted" claim is specifically
+about LoRA-scale additive adaptation. pretrained-IA3 numeric cell still running.
