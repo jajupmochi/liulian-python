@@ -599,3 +599,32 @@ separate, non-transparent phenomenon but re-examined too). Reruns launched:
 full-data 1990 onehot/coords (validate the fix: onehot val should now ~0.0076)
 + injection-matched cold-start (emb32 so learnable/random also inject at
 sqrt(32)): jobs 12933798/12933799.
+
+### 3e. Cold-start CORRECTED after the injection fix (emb32, matched scale)
+
+Fix validated: full-data 1990 onehot val_mse 0.0093 (was stuck ~0.012); cold-start
+onehot now MATCHES learnable. Injection-matched cold-start (emb32, all additive
+arms at sqrt(32)), seen n=22 / held-out n=6, per-station RMSE degC:
+
+| arm | val_mse | seen RMSE | held-out RMSE (vs none) |
+|---|---|---|---|
+| none | -- | 1.9594 | 2.1048 |
+| learnable(emb32) | 0.00759 | 1.6330 (-16.7%) | 2.0659 (-1.8%, n.s.) |
+| onehot(FIXED) | 0.00765 | 1.6200 (-17.3%) | 2.1833 (+3.7%, n.s.) |
+| random | 0.00978 | 1.7946 (-8.4%) | 2.1450 (+1.9%, n.s.) |
+| coordinates | 0.01219 | 1.9411 (-0.9%) | 2.2728 (+8%, n.s.) |
+
+CORRECTED conclusions (supersede §3a/§3b/§3c onehot & coordinates numbers):
+
+1. **onehot now matches learnable on SEEN** (val 0.00765 vs 0.00759, seen -17.3%
+   vs -16.7%) — the injection-scale bug fully explained the earlier onehot "-3.6%"
+   anomaly. The user's objection was correct.
+2. **The dramatic "learnable +25.8% WORSE on held-out" (emb16) was inflated by the
+   emb16 projection amplifying the untrained held-out embedding row.** With emb32
+   (no projection) the untrained row is ~N(0,1) noise and is roughly neutral
+   (-1.8%). Honest held-out picture: NO identity scheme significantly helps
+   ungauged stations (all n.s. at n=6), but none dramatically hurts either.
+3. Robust statement: identity gains are IN-DISTRIBUTION; no scheme demonstrably
+   transfers to ungauged stations. n=6 held-out is underpowered (learnable held
+   flipping between emb16/emb32 proves single-run + small-n instability); a clean
+   claim needs the 2010 (n=10) rerun with the fix + restarts.
