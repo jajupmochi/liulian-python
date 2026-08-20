@@ -626,3 +626,32 @@ class TestTransparentInjectionScale:
                 out = m.transparent_proj(m.transparent_feat)  # (28, 32)
             norm = out.norm(dim=1).mean().item()
             assert abs(norm - target) < 0.05 * target, (mode, norm, target)
+
+
+class TestIA3Tuning:
+    """IA3 (2026-08-20): element-wise rescale PEFT, the low-capacity contrast to
+    LoRA. Base must stay frozen; only IA3 vectors train (~10K, far fewer than
+    LoRA's 73.7K)."""
+
+    @staticmethod
+    def _cfg():
+        from types import SimpleNamespace
+        return SimpleNamespace(
+            task_name='long_term_forecast', seq_len=24, pred_len=7, label_len=0,
+            enc_in=1, dec_in=1, c_out=1, d_model=32, d_ff=32, n_heads=4,
+            e_layers=1, d_layers=1, dropout=0.1, patch_len=8, stride=4,
+            llm_model='GPT2', llm_dim=768, llm_layers=2, llm_tuning='ia3',
+            prompt_domain=0, content='', factor=1, embed='timeF', freq='d',
+            output_attention=False, activation='gelu', identifier_mode='none',
+            num_entities=28,
+        )
+
+    @pytest.mark.slow
+    def test_ia3_trains_only_adapters_base_frozen(self):
+        from liulian.models.torch.timellm import Model
+        m = Model(self._cfg())
+        trainable = [n for n, p in m.llm_model.named_parameters() if p.requires_grad]
+        assert trainable, 'IA3 should leave some trainable params'
+        assert all('ia3' in n.lower() for n in trainable), f'non-IA3 param trainable: {trainable[:3]}'
+        n = sum(p.numel() for p in m.llm_model.parameters() if p.requires_grad)
+        assert 0 < n < 60000, f'IA3 param count {n} should be «LoRA 73.7K'

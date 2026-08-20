@@ -545,8 +545,31 @@ class Model(nn.Module):
                 f'[timellm] llm_tuning=lora: r={lora_cfg.r} alpha={lora_cfg.lora_alpha} '
                 f'trainable={format_param_count(_n_lora)}'
             )
+        elif self.llm_tuning == 'ia3':
+            # IA3 (Infused Adapter, Liu et al. 2022): learns 3 element-wise
+            # RESCALING vectors (key, value, FFN) that MULTIPLY the frozen
+            # activations — near-zero added params, no low-rank UPDATE. The
+            # sharpest contrast to LoRA: if IA3 also wakes the text pathway on
+            # the pretrained backbone, the wake-up is minimal steering of
+            # pretrained knowledge, not added capacity. GPT-2 target/feedforward
+            # modules per peft's convention.
+            try:
+                from peft import IA3Config, get_peft_model
+            except ImportError as exc:
+                raise ImportError("llm_tuning='ia3' requires peft. Install it: pip install peft.") from exc
+            ia3_cfg = IA3Config(
+                target_modules=list(getattr(configs, 'ia3_target_modules', ['c_attn', 'mlp.c_proj'])),
+                feedforward_modules=list(getattr(configs, 'ia3_feedforward_modules', ['mlp.c_proj'])),
+            )
+            self.llm_model = get_peft_model(self.llm_model, ia3_cfg)
+            from liulian.utils.format import format_param_count
+
+            _n_ia3 = sum(p.numel() for p in self.llm_model.parameters() if p.requires_grad)
+            print(
+                f'[timellm] llm_tuning=ia3: trainable={format_param_count(_n_ia3)} (element-wise rescale, no low-rank update)'
+            )
         elif self.llm_tuning != 'frozen':
-            raise ValueError(f'unknown llm_tuning={self.llm_tuning!r}; expected frozen/ln_only/lora')
+            raise ValueError(f'unknown llm_tuning={self.llm_tuning!r}; expected frozen/ln_only/lora/ia3')
 
         if configs.prompt_domain:
             self.description = configs.content
