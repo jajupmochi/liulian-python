@@ -94,7 +94,7 @@ PLANNED_A1: tuple[str, ...] = ('coords',)
 #: Orthogonal axis: LLM trainability (A1.1 is lora). All three implemented + verified.
 #: lora needs the `peft` package (installed locally 2026-08-03); a cluster lora sweep needs
 #: peft synced there too (raises a clear ImportError otherwise).
-IMPLEMENTED_TUNING: tuple[str, ...] = ('frozen', 'ln_only', 'lora')
+IMPLEMENTED_TUNING: tuple[str, ...] = ('frozen', 'ln_only', 'lora', 'ia3')
 PLANNED_TUNING: tuple[str, ...] = ()
 
 #: Orthogonal axis: base LLM backbone (as in the original Time-LLM paper). GPT2 + BERT
