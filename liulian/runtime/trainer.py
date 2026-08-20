@@ -594,6 +594,17 @@ class ForecastTrainer:
             if _rmse_key in result and _mse_key in result:
                 _m = result[_mse_key]
                 result[_rmse_key] = float(np.sqrt(_m)) if _m == _m and _m >= 0 else float('nan')
+            elif _rmse_key in result:
+                # Can't pool RMSE without the pooled MSE — do not silently ship a
+                # batch-averaged RMSE. Warn loudly so the caller adds 'mse' to the
+                # metric set (the pipeline's default set includes it).
+                logger.warning(
+                    '%s requested without %s: RMSE cannot be pooled and remains a '
+                    'batch-averaged (Jensen-biased) value; add %s to the metric set.',
+                    _rmse_key,
+                    _mse_key,
+                    _mse_key,
+                )
         return result
 
     # ------------------------------------------------------------------
