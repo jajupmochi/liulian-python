@@ -4,7 +4,7 @@ embedding_size: 16
 # MODERN-BACKBONE config (2026-08-21): Qwen3.5-2B-Base (2026-03, newest small
 # dense Qwen with a public checkpoint) via the generic HF branch. llm_dim is
 # auto-read from the model config (2048); 6-layer truncation mirrors GPT-2.
-llm_model_id: Qwen/Qwen3.5-2B-Base
+llm_model_id: Qwen/Qwen3-1.7B-Base   # Qwen3.5-2B tried 2026-08-24: its gated-delta-rule attention (torch path) OOMs 4090 at batch 32 and runs 55min/epoch at batch 8 (27h/cell, unrunnable); Qwen3 uses standard attention
 
 # Swiss River — Time-LLM (frozen GPT-2 reprogramming), MAIN PIPELINE version
 #
