@@ -652,3 +652,40 @@ pooled 1.6607 — the additive embedding trains regardless of the LLM tuning,
 confirming the numeric channel never needed the LLM.) Sharpens the §2f LoRA
 result: the "pretrained knowledge is useful once adapted" claim is specifically
 about LoRA-scale additive adaptation. pretrained-IA3 numeric cell still running.
+
+## 5. Modern-comparison batch (2026-08-24, goal phase 1)
+
+### 5a. Chronos-2 zero-shot TSFM baseline (job 13767888) — DONE
+amazon/chronos-2 (2025-10, GIFT-Eval-class TSFM), zero-shot on our EXACT test
+windows, pooled denorm RMSE degC: **1990 2.998 / 2010 2.906 / zurich 3.011** —
+far behind every in-domain trained model (best cells ~1.5-1.9, LSTM ~1.45-1.56
+batch-avg era). Modern zero-shot TSFM is no free lunch on this domain; secured
+as the modern-SOTA reference row.
+
+### 5b. GPT4TS v3 (job 13767098) — the second LLM-adapt paradigm, 6 cells DONE
+GPT4TS/OneFitsAll (LN+positional finetuning paradigm, GPT-2 backbone), same v3
+fixed protocol, pooled RMSE degC:
+
+| dataset | none | numeric | gain |
+|---|---|---|---|
+| 1990 | 2.1271 | 1.6584 | -22.0% |
+| 2010 | 2.0792 | 1.7622 | -15.2% |
+| zurich | 2.2696 | 1.8882 | **-16.8%** |
+
+1. **Additive numeric identity generalizes across the LLM-adapt paradigm**
+   (reprogramming-frozen AND LN-finetuned): big significant-scale gains on all
+   three datasets.
+2. **GPT4TS unlocks zurich (-16.8%) where frozen Time-LLM got ~0** — converging
+   evidence for the pretrained-frozen-bottleneck diagnosis: even LN-level
+   finetuning of the backbone suffices to route identity on the small dataset
+   (consistent with random-init-frozen -10.3% and LoRA results).
+3. GPT4TS none cells are slightly WORSE than Time-LLM none (2.13/2.08/2.27 vs
+   2.07/2.05/2.22) — neither paradigm beats the plain LSTM.
+
+### 5c. Qwen3.5 feasibility note
+Qwen3.5-2B-Base (2026-03) integrated via the new generic HF backbone branch and
+smoke-tested locally, but its gated-delta-rule linear attention (torch fallback
+path, no fused kernel) OOMs a 24GB 4090 at batch 32 and runs ~55min/epoch at
+batch 8 (~27h/cell) — infeasible on the free tier. Recorded as an honest
+hardware-feasibility data point; the modern-backbone runs use Qwen3-1.7B-Base
+(2025-04, standard attention, full batch-32 protocol). Jobs 13768924/13768925.
