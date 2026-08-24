@@ -98,8 +98,10 @@ def main() -> None:
     flush()
 
     pooled = float(np.sqrt(se / n))
+    # n counts individual VALUES (windows x horizon); tgts is cleared by flush(),
+    # so window count must come from n / pred_len (pred_len=7 in this protocol).
     print(f'{args.dataset} {args.model} zero-shot: pooled denorm RMSE = {pooled:.4f} degC '
-          f'(windows n={n // tgts[0].shape[0] if tgts else n}, stations={len(per_station)})')
+          f'(values n={n}, stations={len(per_station)})')
     for sid in sorted(per_station):
         s = per_station[sid]
         print(f'  station {sid}: rmse={np.sqrt(s[0] / s[1]):.4f}')
