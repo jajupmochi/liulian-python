@@ -182,6 +182,17 @@ class SwissRiverDataset(SpatialTempoDataset):
                 'graph': 'graph_zurich.pth',
                 'graph_name': 'zurich',
             },
+            # CAMELS-CH-Chem 42-station daily water temperature (1981-2020), built by
+            # scripts/build_camels_chem_dataset.py. SAME BAFU network as the swiss-river
+            # collections (34/42 gauges overlap) — a longer-window/more-stations
+            # robustness set, NOT an independent external dataset. No graph file: any
+            # graph_mode other than 'none' fails loudly on the missing .pth.
+            'camels-chem': {
+                'train': 'camels-chem_train.csv',
+                'test': 'camels-chem_test.csv',
+                'graph': 'graph_camels-chem.pth',
+                'graph_name': 'camels-chem',
+            },
         }
 
         if data_name not in self._file_map:
