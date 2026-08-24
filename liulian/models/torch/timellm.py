@@ -104,6 +104,20 @@ class Model(nn.Module):
         self.seq_len = configs.seq_len
         self.d_ff = configs.d_ff
         self.top_k = 5
+        # Generic-HF backbones (llm_model='HF'): llm_dim MUST come from the
+        # model's own config (hidden_size), and it is consumed BEFORE the
+        # backbone branch runs (d_llm here; soft_prompt/text_proj below), so
+        # pre-resolve it now. AutoConfig is a cheap metadata fetch.
+        if getattr(configs, 'llm_model', None) == 'HF':
+            from transformers import AutoConfig
+
+            _repo = getattr(configs, 'llm_model_id', None)
+            if not _repo:
+                raise ValueError("llm_model='HF' requires configs.llm_model_id (a HuggingFace repo id).")
+            _pre_cfg = AutoConfig.from_pretrained(_repo, trust_remote_code=True)
+            if hasattr(_pre_cfg, 'text_config'):
+                _pre_cfg = _pre_cfg.text_config
+            configs.llm_dim = int(_pre_cfg.hidden_size)
         self.d_llm = configs.llm_dim
         self.patch_len = configs.patch_len
         self.stride = configs.stride
@@ -443,6 +457,68 @@ class Model(nn.Module):
                     trust_remote_code=True,
                     local_files_only=False,
                 )
+
+        elif configs.llm_model == 'HF':
+            # GENERIC HF backbone (2026-08-21, modern-backbone study): load ANY
+            # HuggingFace causal-LM/base model by repo id from configs.llm_model_id
+            # (e.g. 'Qwen/Qwen3.5-2B-Base', 'Qwen/Qwen3-1.7B-Base',
+            # 'meta-llama/Llama-3.2-1B'). llm_dim is read from the model config
+            # (hidden_size), NOT from configs — so swapping models is config-only.
+            # llm_layers truncates the stack like the GPT2 branch; llm_random_init
+            # builds the same architecture untrained (the ablation control).
+            from transformers import AutoConfig, AutoModel, AutoTokenizer
+
+            _repo = getattr(configs, 'llm_model_id', None)
+            if not _repo:
+                raise ValueError("llm_model='HF' requires configs.llm_model_id (a HuggingFace repo id).")
+            self.llm_config = AutoConfig.from_pretrained(_repo, trust_remote_code=True)
+            # Multimodal wrappers (e.g. Qwen3.5 VL-style) nest the text config;
+            # unwrap it so hidden_size/num_hidden_layers refer to the TEXT stack.
+            if hasattr(self.llm_config, 'text_config'):
+                self.llm_config = self.llm_config.text_config
+            self.llm_config.num_hidden_layers = configs.llm_layers
+            self.llm_config.output_attentions = True
+            self.llm_config.output_hidden_states = True
+            configs.llm_dim = int(self.llm_config.hidden_size)  # authoritative
+            if bool(getattr(configs, 'llm_random_init', False)):
+                self.llm_model = AutoModel.from_config(self.llm_config, trust_remote_code=True)
+                print(
+                    f'[timellm] HF backbone {_repo}: RANDOM INIT (untrained, frozen) '
+                    f'hidden={self.llm_config.hidden_size}'
+                )
+            else:
+                try:
+                    self.llm_model = AutoModel.from_pretrained(
+                        _repo,
+                        cache_dir=self.cache_dir,
+                        trust_remote_code=True,
+                        local_files_only=True,
+                        config=self.llm_config,
+                    )
+                except Exception as e:
+                    print(f'Local HF model {_repo} not found ({e}); downloading...')
+                    self.llm_model = AutoModel.from_pretrained(
+                        _repo,
+                        cache_dir=self.cache_dir,
+                        trust_remote_code=True,
+                        local_files_only=False,
+                        config=self.llm_config,
+                    )
+            try:
+                self.tokenizer = AutoTokenizer.from_pretrained(
+                    _repo,
+                    trust_remote_code=True,
+                    local_files_only=True,
+                )
+                _raise_if_degenerate_vocab(self.tokenizer)
+            except Exception as e:
+                print(f'Local HF tokenizer {_repo} not found ({e}); downloading...')
+                self.tokenizer = AutoTokenizer.from_pretrained(
+                    _repo,
+                    trust_remote_code=True,
+                    local_files_only=False,
+                )
+            print(f'[timellm] HF backbone: {_repo} hidden={self.llm_config.hidden_size} layers={configs.llm_layers}')
 
         elif configs.llm_model == 'QWEN':
             from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer

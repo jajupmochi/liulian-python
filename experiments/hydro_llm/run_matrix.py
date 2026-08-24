@@ -101,7 +101,7 @@ PLANNED_TUNING: tuple[str, ...] = ()
 #: verified locally (build+forward). LLAMA weights are cached on the CLUSTER since
 #: 2026-08-04 (huggyllama/llama-7b, loads OK) — the branch stays PLANNED here only until a
 #: cluster LLAMA cell is smoke-verified. BERT weights still need a cluster sync.
-IMPLEMENTED_BACKBONES: tuple[str, ...] = ('GPT2', 'BERT')
+IMPLEMENTED_BACKBONES: tuple[str, ...] = ('GPT2', 'BERT', 'HF')
 PLANNED_BACKBONES: tuple[str, ...] = ('LLAMA',)
 
 DATASETS: tuple[str, ...] = ('swiss-river-1990', 'swiss-river-2010', 'swiss-river-zurich')

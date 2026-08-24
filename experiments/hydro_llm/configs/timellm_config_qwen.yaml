@@ -1,0 +1,170 @@
+# MODERN-BACKBONE config (2026-08-21): Qwen3.5-2B-Base (2026-03, newest small
+# dense Qwen with a public checkpoint) via the generic HF branch. llm_dim is
+# auto-read from the model config (2048); 6-layer truncation mirrors GPT-2.
+llm_model_id: Qwen/Qwen3.5-2B-Base
+
+# Swiss River — Time-LLM (frozen GPT-2 reprogramming), MAIN PIPELINE version
+#
+# This is the pipeline-native counterpart of the standalone harness config
+# (configs/swiss_river.yaml). It exists so Time-LLM runs through the SAME
+# liulian.pipeline path as LSTM/PatchTST/DLinear, which is what lets their
+# numbers be compared without an architecture mismatch.
+#
+# Hyper-parameters below are copied from the harness config so the two paths
+# are compared like-for-like. The go/no-go check for this migration is whether
+# `identifier_mode: none` here reproduces the harness's published
+# MSE 0.01457 +- 0.00022 (n=3, seeds 2021/2022/2023).
+#
+# Usage:
+#   liulian run experiments/hydro_llm/configs/timellm_config.yaml
+#   python experiments/entity_identifier/run.py --models timellm --modes none
+
+# ── General ─────────────────────────────────────────────────────────────
+model: timellm
+# bf16 MIXED precision, matching Time-LLM-official exactly: their runs go through
+# `accelerate launch --mixed_precision bf16` (scripts/TimeLLM_ETTh1.sh L14) +
+# ds_config_zero2.json {"bf16":{"enabled":true,"auto_cast":true}} — compute in
+# bfloat16, fp32 master weights, no GradScaler. Implemented as torch.autocast in
+# ForecastTrainer (or handed to accelerate when use_accelerator=true).
+# CLUSTER SYNC RULE: apply only at a Tier boundary — never mid-tier, or cells of
+# the same comparison would mix precisions (same policy as search-space edits).
+precision: bf16
+# ── Parallelization (designed, INERT — do not enable inside Ray HPO) ─────
+# Time-LLM's tool is HF Accelerate + DeepSpeed ZeRO-2. Wired in
+# liulian/runtime/accelerator.py + trainer; OFF by default. Reserved for
+# single-run big-model cells (LLAMA arm / post-HPO retrain) launched via
+# `accelerate launch` OUTSIDE Ray — Ray parallelizes across trials and does
+# not compose with accelerate's multi-process launch (see 01-ARCHITECTURE-SPEC §6.5).
+# use_accelerator: true
+# deepspeed_config: experiments/hydro_llm/configs/ds_config_zero2.json
+# 2026 = the project matrix standard (matrix.DEFAULT_SEEDS, default_config.yaml).
+# Time-LLM must share this seed with LSTM/PatchTST/DLinear or the cross-model
+# comparison is unfair (research-critic Q3). The published Time-LLM harness cells
+# used seed 2021 (n=3: 2021/2022/2023); that number is a separate reproduction
+# reference, not the value that belongs in this project's unified model table.
+seed: 2026
+quick_test: false
+eval_only: false
+
+# ── Data ────────────────────────────────────────────────────────────────
+data: swiss-river-1990            # swiss-river-1990 | swiss-river-2010 | swiss-river-zurich
+seq_len: 90
+pred_len: 7
+label_len: 0
+features: M
+train_split: 0.8
+max_samples: null
+
+# ── Task & mode ─────────────────────────────────────────────────────────
+task: forecast
+# per_entity: one shared model, each sample is one station's window. This is the
+# same construction the Time-LLM harness uses (a ConcatDataset of per-station
+# windowed datasets), which is why the two paths are expected to agree.
+split_mode: per_entity
+scaler: minmax                    # matches the harness/LSTM swiss setting
+use_current_x: true
+short_subsequence_method: drop
+
+# ── Identity ────────────────────────────────────────────────────────────
+# none | entity_description (text) | embedding (numeric) | random_embedding (capacity control)
+identifier_mode: none
+id_injection: model
+embedding_size: 16                # = d_model; the embedding is added to patch embeddings
+num_embeddings: null              # auto-detected from the dataset
+
+# ── Model architecture (mirrors configs/swiss_river.yaml) ───────────────
+enc_in: 1                         # one series per sample (per-station univariate)
+dec_in: 1
+c_out: 1
+# Model-capacity HPs: Time-LLM authors' canonical values (ETTh1 script: d_model 32, d_ff 128).
+# These are the HPO CENTER, not fixed finals — the timellm_swiss search space tunes around them.
+# Superseded the deprecated harness's arbitrary small values (16/32).
+d_model: 32                       # authors' canonical (was 16, from the deprecated harness)
+d_ff: 128                         # authors' canonical (was 32); head_nf = d_ff * patch_nums
+n_heads: 8
+e_layers: 2
+d_layers: 1
+patch_len: 16                     # SHARED with PatchTST (fair cross-model comparison)
+stride: 8                         # SHARED with PatchTST
+dropout: 0.1
+embed: timeF
+activation: gelu
+output_attention: false
+moving_avg: 25
+# factor is a DEAD knob for Time-LLM (Informer ProbSparse leftover; unused in timellm.py). Kept
+# only so the ETT-style config schema validates; changing it has ZERO effect.
+factor: 1
+
+# ── LLM backbone ────────────────────────────────────────────────────────
+llm_model: HF          # generic HF branch (modern-backbone study 2026-08-21)
+llm_dim: 768
+llm_layers: 6
+# 1 => the dataset description comes from dataset/prompt_bank/<key>.txt (authored swiss
+# water-temperature text, P3 variant — see docs/research/hydro-llm-2026-08/02-PROMPT-DESIGN.md).
+# 0 was a BUG for swiss: it used Time-LLM's hardcoded ETT (electricity) description.
+prompt_domain: 1
+# llm_tuning: frozen              # PLANNED: frozen | ln_only | lora (see timellm.py:334)
+
+# ── Training ────────────────────────────────────────────────────────────
+train_epochs: 30                  # final runs use early stopping; the epoch diagnostic overrides to 100
+# batch_size SHARED with LSTM/PatchTST swiss (both 32) for a fair cross-model comparison.
+# Was 8 (deprecated harness); Time-LLM authors' ETTh1 used 24 — 32 aligns the model families.
+batch_size: 32
+eval_batch_size: 32
+learning_rate: 0.01               # Time-LLM authors' canonical (was 0.001); HPO tunes {1e-3,1e-2}
+patience: 10
+freq: d                           # swiss data is DAILY (harness used d). NOTE: timellm/gpt4ts use
+                                  # x_mark only for the entity id, so freq is inert here — set for
+                                  # correctness/alignment, not because it changes results.
+loss: MSE
+lradj: type1
+pct_start: 0.2
+use_amp: false
+
+# ── HPO (Ray Tune) ───────────────────────────────────────────────────
+# Per-experiment search GRID file (what to tune, which ranges). Omit the key to
+# fall back to the project default liulian/optim/search_spaces.yaml; a set-but-
+# missing path raises loudly. Grid vs execution split: grid lives in that file,
+# execution settings are the hpo_* keys below.
+search_space_file: experiments/hydro_llm/configs/search_spaces.yaml
+
+# Pinned EXPLICITLY (project rule 3: config-externalized, front-end-editable). Before
+# 2026-08-07 these came invisibly from DEFAULT_CONFIG in liulian/config.py; values below
+# equal the ones the Tier-0 cluster runs actually used (verified in job 11623379's log:
+# "HPO enabled: samples=24 ... resources_per_trial={cpu:1,gpu:0.25}").
+#
+# `hpo` (on/off) is deliberately NOT set here — run_matrix's --phase owns it
+# (dry/smoke/dev=off, full=on); writing `hpo: true` here would force HPO even in
+# dev/smoke phases. The search GRID is separate: liulian/optim/search_spaces.yaml
+# (model_spaces.timellm_swiss + identifier_spaces), resolved by resolve_search_space().
+hpo_num_samples: 30           # default sweep budget. The gpu-partition wall is a HARD 24h
+                              # (sinfo-measured 2026-08-07; a 96h request is rejected), but the
+                              # budget spans sbatch requeues: --resume + Ray Tune resume continue
+                              # partial cells across 24h segments (afterany-chained jobs), so the
+                              # trial count is not capped by one segment. CLI --hpo-num-samples /
+                              # sbatch HPO_NUM_SAMPLES still wins. NOTE: comparisons within one
+                              # tier must share ONE budget — the running Tier-0 stays 24 via CLI.
+hpo_scheduler: asha           # ASHA early-stops bad trials
+hpo_grace_period: 5           # min epochs before ASHA may stop a trial
+hpo_reduction_factor: 1.5
+hpo_resources_cpu: 1
+hpo_resources_gpu: 0.25       # 4 concurrent trials per GPU (timellm swiss fits 4x in 24 GB)
+hpo_max_concurrent: null      # null = let Ray derive it from the gpu fraction
+hpo_save_checkpoints: true    # REQUIRED: the post-HPO retrain loads the best trial checkpoint
+                              # (false caused "Best checkpoint not found", job 11579994)
+hpo_local_mode: false
+
+# ── Evaluation ──────────────────────────────────────────────────────────
+eval_denorm: true
+metrics: mse,mae,rmse
+
+# ── System ──────────────────────────────────────────────────────────────
+# null => use the DEFAULT HF cache (~/.cache/huggingface), which holds the LLM weights on
+# both local and cluster. The project default (config.py: <project>/cache) is only populated
+# locally, so forcing it made the cluster GPT2Model load fail ("no model.safetensors").
+cache_dir: null
+num_workers: 4
+checkpoints: ./checkpoints/
+itr: 1
+percent: 100
+des: swiss_river_timellm
