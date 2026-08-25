@@ -104,7 +104,7 @@ PLANNED_TUNING: tuple[str, ...] = ()
 IMPLEMENTED_BACKBONES: tuple[str, ...] = ('GPT2', 'BERT', 'HF')
 PLANNED_BACKBONES: tuple[str, ...] = ('LLAMA',)
 
-DATASETS: tuple[str, ...] = ('swiss-river-1990', 'swiss-river-2010', 'swiss-river-zurich')
+DATASETS: tuple[str, ...] = ('swiss-river-1990', 'swiss-river-2010', 'swiss-river-zurich', 'camels-chem')
 DEFAULT_SEEDS: tuple[int, ...] = (2026,)
 #: run-control phases (dry=list only; smoke/dev=no HPO; full=Ray Tune HPO).
 _PHASES: tuple[str, ...] = ('dry', 'smoke', 'dev', 'full')
