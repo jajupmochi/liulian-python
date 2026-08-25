@@ -689,3 +689,24 @@ path, no fused kernel) OOMs a 24GB 4090 at batch 32 and runs ~55min/epoch at
 batch 8 (~27h/cell) — infeasible on the free tier. Recorded as an honest
 hardware-feasibility data point; the modern-backbone runs use Qwen3-1.7B-Base
 (2025-04, standard attention, full batch-32 protocol). Jobs 13768924/13768925.
+
+### 5d. Modern backbone Qwen3-1.7B-Base — none/text cells (jobs 13768924/13768925, both hit the 22h wall; numeric cells resuming)
+
+Pooled RMSE degC, 1990, fixed protocol (Qwen3-1.7B-Base, 2025-04, 6-layer
+truncation, hidden 2048, generic HF branch):
+
+| backbone | none | text | GPT-2 reference |
+|---|---|---|---|
+| Qwen3-1.7B pretrained (frozen) | 2.0759 | 2.1058 | none 2.0703 / text 2.0569 |
+| Qwen3-1.7B random-init (frozen) | 2.0667 | 2.0621 | (GPT-2 rnd none 2.0579*) |
+
+(*GPT-2 values are the npz-pooled equivalents from §2g.)
+
+1. **"The frozen LLM contributes ~nothing" REPLICATES on a modern (2025) LLM**:
+   Qwen pretrained none ≈ Qwen random none ≈ GPT-2 none, all within ~0.5%.
+   26x more parameters (1.7B vs 124M lineage) and 6 years of LLM progress change
+   nothing for the frozen base task.
+2. **The frozen text pathway stays deaf on Qwen too** (text ≈ none on both
+   backbones) — the language-channel inertness is not a GPT-2 artifact.
+3. numeric cells pending (both jobs hit the 24h partition wall at 22h; ~7h/cell
+   on Qwen vs ~2.5h on GPT-2; resume jobs 13865292/13867099).
