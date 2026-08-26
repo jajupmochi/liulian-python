@@ -710,3 +710,39 @@ truncation, hidden 2048, generic HF branch):
    backbones) — the language-channel inertness is not a GPT-2 artifact.
 3. numeric cells pending (both jobs hit the 24h partition wall at 22h; ~7h/cell
    on Qwen vs ~2.5h on GPT-2; resume jobs 13865292/13867099).
+
+### 5e. Fixups batch (job 13769551) — symmetric backbone table + corrected 2010 cold-start
+
+**Backbone table, now width-symmetric (ALL arms fixed emb16, pooled RMSE degC):**
+
+| numeric emb16 | 1990 | 2010 | zurich |
+|---|---|---|---|
+| pretrained frozen | 1.8338 | **2.0237** (new) | **2.0968** (new) |
+| random-init frozen | 1.6833 | 1.7718 | 1.9043 |
+| no-LLM | 1.7339 | 1.9369 | 2.1133 |
+
+Audit issue C resolved by DATA, not caption-wording: at matched width the
+pretrained backbone loses to random-init on all three datasets, and the gap
+GROWS (2010: 12.4% — the grid-selected emb32 cell had been flattering the
+pretrained arm). "Pretrained weights tax the additive channel" is now
+width-controlled on 3/3 datasets. (Also: 2010 width-dependence is steep —
+fixed emb16 pretrained is only -1.2% vs none, vs -6.7% at grid emb32.)
+
+**2010 cold-start with the injection fix (n=10 held out, seen n=53):**
+
+| arm | seen RMSE | held RMSE | held vs none |
+|---|---|---|---|
+| none | 1.9686 | 1.9764 | -- |
+| onehot (FIXED) | 1.8472 (-6.2%) | 2.0184 (+2.1%) | n.s. |
+| coordinates (FIXED) | 1.9504 (-0.9%) | **1.9463 (-1.5%)** | p=0.105 (directional) |
+
+1. onehot now genuinely works on SEEN stations (-6.2%; pre-fix it was a broken
+   -0.9%) and still fails held-out — the "lookup identity cannot cold-start"
+   conclusion re-confirmed with a FAIR injection.
+2. coordinates: first directionally-positive held-out signal of any arm
+   (-1.5%, p=0.105, underpowered n=10). Honest statement: still no significant
+   cold-start scheme; coordinates is the only arm whose held-out sign is
+   favorable — consistent with spatial interpolation being the right kind of
+   "meaningful for unseen stations" identity. Worth restarts before any claim.
+3. resolved_config.yaml provenance (audit issue E) confirmed working in these
+   artifacts (holdout flag read back from the artifact itself).
