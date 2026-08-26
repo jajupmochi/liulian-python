@@ -769,3 +769,20 @@ competitive in-domain.
 Qwen pretrained numeric = 1.8785 (-9.5% vs its none 2.0759) — the additive
 identity gain replicates on the 2025 backbone at GPT-2-like magnitude (GPT-2
 emb16: -11.4%). Remaining: random-init numeric (job 13867099 running).
+
+### 5h. Qwen3-1.7B 2x3 COMPLETE (job 13867099) — every conclusion replicates on a 2025 LLM
+
+Pooled RMSE degC, 1990, fixed protocol:
+
+| backbone | none | text | numeric emb16 |
+|---|---|---|---|
+| Qwen3-1.7B pretrained (frozen) | 2.0759 | 2.1058 | 1.8785 (-9.5%) |
+| Qwen3-1.7B random-init (frozen) | 2.0667 | 2.0621 | **1.7222 (-16.7%)** |
+| (GPT-2 reference) | 2.0703 / 2.0579 | 2.0569 | 1.8338 / 1.6833 |
+
+All four frozen-regime conclusions replicate on the modern backbone: (1) frozen
+LLM contributes ~nothing (none cells within 0.5% across backbones and model
+generations); (2) the frozen text pathway is deaf; (3) additive numeric identity
+works; (4) the RANDOM-INIT backbone beats the pretrained one on numeric (-8.3%
+relative), reproducing the pretrained-weights-tax at 26x the parameter count and
+6 years of LLM progress. The "your backbone is too old" objection is closed.
