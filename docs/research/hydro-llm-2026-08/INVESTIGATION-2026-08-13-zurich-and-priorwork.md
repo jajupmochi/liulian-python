@@ -746,3 +746,26 @@ fixed emb16 pretrained is only -1.2% vs none, vs -6.7% at grid emb32.)
    "meaningful for unseen stations" identity. Worth restarts before any claim.
 3. resolved_config.yaml provenance (audit issue E) confirmed working in these
    artifacts (holdout flag read back from the artifact itself).
+
+### 5f. camels-chem external-window robustness set (job 13865291) — three pillars replicate
+
+camels-chem (42 BAFU stations, 1981-2012 train / 2013-2020 test — same network
+as swiss-river, LONGER window; honestly scoped as robustness, not independence).
+Pooled RMSE degC, v3 fixed protocol:
+
+| scheme | RMSE | vs none |
+|---|---|---|
+| none | 2.2537 | -- |
+| numeric emb16 | 2.1382 | **-5.1%** |
+| text (frozen) | 2.2813 | +1.2% (deaf) |
+| Chronos-2 zero-shot | 4.1065 | +82% (far behind) |
+
+All three pillars replicate on the fourth dataset: additive numeric identity
+helps, the frozen language pathway is deaf, and zero-shot modern TSFM is not
+competitive in-domain.
+
+### 5g. Qwen3-1.7B numeric (job 13865292): modern backbone 2x3 nearly complete
+
+Qwen pretrained numeric = 1.8785 (-9.5% vs its none 2.0759) — the additive
+identity gain replicates on the 2025 backbone at GPT-2-like magnitude (GPT-2
+emb16: -11.4%). Remaining: random-init numeric (job 13867099 running).
