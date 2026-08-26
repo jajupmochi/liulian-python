@@ -649,8 +649,11 @@ protocol and windows).
 HuggingFace backbone branch, Qwen3-1.7B (26$\times$ more parameters than the
 GPT-2 stack, hidden 2048) replicates the frozen-LLM null on \swiss{}: pretrained
 \textsf{none} 2.0759 vs.\ random-init 2.0667 vs.\ GPT-2 2.0703 --- all within
-$0.5\%$; the frozen text pathway stays deaf (2.1058/2.0621); and the additive
-numeric gain appears at GPT-2-like magnitude ($-9.5\%$ pretrained). Six years of
+$0.5\%$; the frozen text pathway stays deaf (2.1058/2.0621); the additive
+numeric gain appears at GPT-2-like magnitude ($-9.5\%$ pretrained); and the
+random-init backbone again beats the pretrained one on \textsf{numeric}
+(1.7222 vs.\ 1.8785, $-16.7\%$ vs.\ its \textsf{none}) --- the
+pretrained-weights tax reproduces at $26\times$ the parameter count. Six years of
 LLM progress change nothing about the frozen-interface conclusions. (Qwen3.5-2B,
 2026, was integrated but its linear-attention torch path is infeasible on a
 24\,GB GPU --- an honest hardware note, not a scientific exclusion.)
