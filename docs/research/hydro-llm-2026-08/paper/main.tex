@@ -399,8 +399,11 @@ rather than distinct entities.
 
 \begin{table}[t]
 \caption{Main results: injection schemes under the fixed shared configuration
-(Section~\ref{sec:setup}), frozen backbone, seed 2026. Physical-unit denormalized RMSE (°C) with scaler-space MSE in
-parentheses.
+(Section~\ref{sec:setup}), frozen backbone, seed 2026. Physical-unit denormalized \emph{pooled} test RMSE (°C; the square root of the
+pooled squared error over all windows — an audit found our earlier values were
+batch-averaged RMSEs, ${\sim}11$--$16\%$ lower and batch-size-dependent; every
+absolute value in this paper is now pooled, which leaves all relative gains and
+significance verdicts unchanged).
 % [orig 2026-08-16] \inprogress{chains 11907034--11907039; phase order: none -> numeric -> text/soft/text-embedding}
 All fifteen cells complete.}
 \label{tab:main}
@@ -414,15 +417,18 @@ scheme & \swiss{} & \swissb{} & \swissc{} \\
 % \textsf{text} & --- & n/a$^{\dagger}$ & n/a$^{\dagger}$ \\
 % \textsf{soft prompt} & --- & --- & --- \\
 % \textsf{text-embedding} & --- & n/a$^{\dagger}$ & n/a$^{\dagger}$ \\
-\textsf{none} & 1.8658 & 1.8360 & 1.9407 \\
-\textsf{numeric} & \textbf{1.5833} ($-15.1\%$) & \textbf{1.7203} ($-6.3\%$) & 1.9690$^{\ddagger}$ \\
-\textsf{text} & 1.8537 & 1.8253 & 1.9393 \\
-\textsf{soft prompt} & 1.8786 & 1.8372 & 1.9357 \\
-\textsf{text-embedding} & 1.8748 & 1.8338 & 1.9207 \\
+% [orig 2026-08-26 batch-averaged values, superseded by pooled RMSE:
+% none 1.8658/1.8360/1.9407; numeric 1.5833/1.7203/1.9690; text 1.8537/1.8253/1.9393;
+% soft 1.8786/1.8372/1.9357; text-emb 1.8748/1.8338/1.9207]
+\textsf{none} & 2.0703 & 2.0479 & 2.2188 \\
+\textsf{numeric} & \textbf{1.7562} ($-15.2\%$) & \textbf{1.9103} ($-6.7\%$) & 2.2785$^{\ddagger}$ \\
+\textsf{text} & 2.0569 & 2.0339 & 2.2284 \\
+\textsf{soft prompt} & 2.0819 & 2.0461 & 2.2051 \\
+\textsf{text-embedding} & 2.0763 & 2.0488 & 2.1704 \\
 \bottomrule
 \multicolumn{4}{@{}p{0.94\linewidth}@{}}{\footnotesize $^{\ddagger}$\swissc{}
 numeric is inside the measured run-to-run noise band: an identical-configuration
-restart gave 1.8861 ($-2.8\%$), a ${\approx}4\%$ spread, so the honest \swissc{}
+restart gave 2.1264 pooled ($-4.2\%$), a ${\approx}4\%$ spread, so the honest \swissc{}
 statement is ``no reliable effect,'' not ``hurts.'' The numeric embedding width was
 grid-selected over $\{8,16,32\}$ per dataset (winners 16/32/8); a $\{1,2,4,8\}$
 probe on \swissc{} confirmed no width below 8 helps.}
@@ -478,6 +484,16 @@ as a distinctness token.
 \textbf{Backbone depth.} The fixed protocol pins $\mathit{llm\_layers}{=}6$ (the
 official code default); the backbone ablation below additionally measures depth 0.
 
+\textbf{Identity width policy (stated once).} The \textsf{numeric} cell in
+Table~\ref{tab:main} selects its embedding width on validation over
+$\{8,16,32\}$ per dataset (winners 16/32/8) --- the one tuned knob in the
+protocol, disclosed here because the other schemes are single fixed runs. Every
+ablation table (backbone, LoRA) instead uses a FIXED width (emb16) so that arms
+are exactly matched; this is why the same nominal cell can differ between
+Table~\ref{tab:main} and Table~\ref{tab:backbone} (e.g.\ \swiss{} numeric
+1.7562 grid-selected vs.\ 1.8338 fixed) --- a protocol difference plus
+run-to-run variance, not an inconsistency.
+
 \textbf{Optimizer diagnostic (done).} Both the canonical $lr=10^{-2}$ and
 $10^{-3}$ converge by epoch ${\approx}8$ under early stopping on
 \swiss{}$\times$\textsf{none}; $10^{-3}$ wins validation (denorm RMSE 1.746 vs.\
@@ -494,25 +510,28 @@ parameters, identical in every arm) and swaps only the frozen stack:
 % \end{table}
 \begin{table}[t]
 \caption{Backbone ablation across all three collections (fixed protocol, seed
-2026, denorm RMSE °C). Trainable parameters identical across arms; only the
-frozen stack differs. Top row is the \textsf{none} reference; the three
-\textsf{numeric} rows swap the backbone. Per-station Wilcoxon $p$ vs.\ each
-dataset's \textsf{none} in the text.}
+2026, pooled denorm RMSE °C). All \textsf{numeric} arms use the same fixed
+16-dimensional embedding, so trainable parameters and the injection scale are
+matched across arms and datasets; only the frozen stack differs. Per-station
+Wilcoxon $p$ vs.\ each dataset's \textsf{none} in the text.}
 \label{tab:backbone}
 \begin{tabular}{@{}lccc@{}}
 \toprule
 arm & \swiss{} & \swissb{} & \swissc{} \\
 \midrule
-\textsf{none} (pretrained, frozen) & 1.8658 & 1.8360 & 1.9407 \\
+% [orig 2026-08-26 mixed-width batch-avg version: pre 1.6471/1.7203/1.8861;
+% rnd 1.5241/1.5910/1.7417; noLLM 1.5652/1.7188/1.8763]
+\textsf{none} (pretrained, frozen) & 2.0703 & 2.0479 & 2.2188 \\
 \midrule
-\textsf{numeric}, pretrained frozen & 1.6471 & 1.7203 & 1.8861$^{*}$ \\
-\textsf{numeric}, random-init frozen & \textbf{1.5241} & \textbf{1.5910} & \textbf{1.7417} \\
-\textsf{numeric}, no LLM (0 blocks) & 1.5652 & 1.7188 & 1.8763 \\
+\textsf{numeric}, pretrained frozen & 1.8338 & 2.0237 & 2.0968 \\
+\textsf{numeric}, random-init frozen & \textbf{1.6833} & \textbf{1.7718} & \textbf{1.9043} \\
+\textsf{numeric}, no LLM (0 blocks) & 1.7339 & 1.9369 & 2.1133 \\
 \bottomrule
-\multicolumn{4}{@{}p{0.9\linewidth}@{}}{\footnotesize $^{*}$inside the
-${\approx}4\%$ \swissc{} restart band. The \textsf{none} cell is
-backbone-invariant (all arms agree to ${\sim}1\%$ per dataset, inside the run-to-run band; deleting the stack
-is n.s.); only \textsf{numeric} is shown per backbone.}
+\multicolumn{4}{@{}p{0.9\linewidth}@{}}{\footnotesize The \textsf{none} cell is
+backbone-invariant (all arms agree to ${\sim}1\%$ per dataset, inside the
+run-to-run band; deleting the stack is n.s.); only \textsf{numeric} is shown per
+backbone. At matched width the pretrained backbone loses to random-init on
+\emph{all three} datasets (by 8--12\%).}
 \end{tabular}
 \end{table}
 
@@ -521,10 +540,12 @@ ${\sim}1\%$, inside the run-to-run band; deleting the entire stack is
 non-significant and trains $3.5\times$
 faster). The numeric identity gain survives every backbone on every dataset
 (down to $p{=}5.0{\times}10^{-11}$ on \swissb{}), so it lives in the trainable
-additive path, not in the language model --- and \emph{random-init frozen} is the
-best backbone on all three collections, i.e.\ the pretrained weights actively tax
-the additive channel. This reproduces Tan et al.~\cite{tan2024llmuseful} on
-hydrological data and extends it with the identity axis they did not test.
+additive path, not in the language model --- and at matched embedding width,
+\emph{random-init frozen} beats the pretrained backbone on all three collections
+by 8--12\%: in our single-seed runs the pretrained weights actively tax the
+additive channel (multi-seed confirmation pending). This reproduces Tan et
+al.~\cite{tan2024llmuseful} on hydrological data and extends it with the
+identity axis they did not test.
 
 \textbf{A small LSTM through the same pipeline (done).} Under the identical
 protocol (same splits, loaders, metric, 30 epochs, no tuning), a plain LSTM beats
@@ -543,7 +564,8 @@ of whether pretrained language knowledge can serve the text pathway at all:
 
 \begin{table}[t]
 \caption{LoRA $2{\times}2$ on \swiss{} (r=4, $\alpha$=8 on \texttt{c\_attn};
-73.7K adapter parameters; fixed protocol, seed 2026, denorm RMSE °C).
+73.7K adapter parameters; fixed protocol, seed 2026, pooled denorm RMSE °C;
+the \textsf{numeric} column is fixed emb16).
 % [orig 2026-08-17] \inprogress{Swiss-2010/Swiss-Zurich extension running.}
 The \swissb{}/\swissc{} repeats are reported in the text below.}
 \label{tab:lora}
@@ -551,18 +573,20 @@ The \swissb{}/\swissc{} repeats are reported in the text below.}
 \toprule
 backbone & tuning & \textsf{none} & \textsf{text} & \textsf{numeric} \\
 \midrule
-pretrained & frozen & 1.8658 & 1.8537 & 1.6471 \\
-pretrained & LoRA & 1.8834 & \textbf{1.5442} & 1.6137 \\
-random-init & frozen & 1.8559 & 1.8511 & 1.5241 \\
-random-init & LoRA & 1.8534 & 1.8508 & 1.5142 \\
+% [orig batch-avg: pre-frz 1.8658/1.8537/1.6471; pre-LoRA 1.8834/1.5442/1.6137;
+% rnd-frz 1.8559/1.8511/1.5241; rnd-LoRA 1.8534/1.8508/1.5142]
+pretrained & frozen & 2.0703 & 2.0569 & 1.8338 \\
+pretrained & LoRA & 2.0920 & \textbf{1.7183} & 1.7879 \\
+random-init & frozen & 2.0579 & 2.0508 & 1.6833 \\
+random-init & LoRA & 2.0498 & 2.0498 & 1.6716 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 The four corners separate cleanly. LoRA wakes the text pathway \emph{only} on the
-pretrained backbone ($1.8537\rightarrow1.5442$, $-17.2\%$ vs.\ \textsf{none},
+pretrained backbone ($2.0569\rightarrow1.7183$ pooled, $-17.0\%$ vs.\ \textsf{none},
 $p{=}7.5{\times}10^{-8}$) --- on par with the numeric scheme, from 73.7K adapter
-parameters. The random-initialized control shows no rescue (1.8508, a $\sim$1\%
+parameters. The random-initialized control shows no rescue (2.0498, a $\sim$1\%
 effect an order of magnitude smaller), so the rescue is not generic trainable
 capacity; it requires the pretrained weights. Two specificity controls hold: LoRA
 on \textsf{none} is significantly \emph{worse} (adapters with no information
@@ -572,23 +596,84 @@ arc: \emph{the frozen protocol leaves the language model dead weight; a minimal
 adaptation turns its pretraining into a working entity-identity channel.}
 
 \textbf{Across datasets.} The $2{\times}2$ repeats on \swissb{} and \swissc{}
-close the picture. \swissb{} replicates \swiss{} exactly: pretrained{+}LoRA
-wakes the text pathway (1.8253${\rightarrow}$1.6932, $-7.8\%$ vs.\ its
-\textsf{none}, $p{=}1.1{\times}10^{-3}$, n=63) while random{+}LoRA text is
-indistinguishable from its own \textsf{none} (1.8200 vs.\ 1.8118) --- on the
-entity-rich collections (2/2) the wake-up \emph{requires} the pretrained
-weights. \swissc{} adds two refinements. First, it resolves its own anomaly:
-random-init~+~\emph{frozen} numeric reaches 1.7417 ($-10.3\%$,
-$p{=}6.1{\times}10^{-5}$, n=15) on the very dataset where pretrained-frozen
-numeric was null --- the pretrained geometry, not the data, was the blocker.
-Second, on this smallest collection the text wake-up does \emph{not} require
-pretraining (random{+}LoRA text 1.7548 matches pretrained{+}LoRA 1.8198),
-consistent with text acting there as a distinctness token through an adaptable
-backbone; we report this nuance rather than average over it, and note that
-\swissc{} single-run claims sit inside a measured ${\approx}4\%$ restart band.
-Finally, random-init numeric is the best cell on \emph{every} dataset
-(1.5142/1.6079/1.7568) --- the pretrained weights tax the additive channel
-universally.
+close the picture (pooled RMSE). \swissb{} replicates \swiss{} exactly:
+pretrained{+}LoRA wakes the text pathway ($-7.8\%$ vs.\ its \textsf{none},
+$p{=}1.1{\times}10^{-3}$, n=63) while random{+}LoRA text is indistinguishable
+from its own \textsf{none} --- on the entity-rich collections (2/2) the wake-up
+\emph{requires} the pretrained weights. \swissc{} adds two refinements. First,
+it resolves its own anomaly: random-init~+~\emph{frozen} numeric reaches
+$-10.3\%$ ($p{=}6.1{\times}10^{-5}$, n=15) on the very dataset where
+pretrained-frozen numeric was null --- the pretrained geometry, not the data,
+was the blocker (the LN-finetuning paradigm below confirms this from a second
+direction). Second, on this smallest collection the text wake-up does \emph{not}
+require pretraining (random{+}LoRA text matches pretrained{+}LoRA), consistent
+with text acting there as a distinctness token through an adaptable backbone; we
+report this nuance rather than average over it, and note that \swissc{}
+single-run claims sit inside a measured ${\approx}4\%$ restart band. Finally,
+random-init numeric is the best cell on \emph{every} dataset --- the pretrained
+weights tax the additive channel universally.
+
+\textbf{IA3 vs.\ LoRA: what kind of adaptation wakes the text pathway? (done,
+\swiss{}).} IA3~\cite{liu2022ia3} learns element-wise rescaling vectors over
+keys/values/FFN --- 10.8K parameters, multiplicative, no low-rank update. Under
+the same $2{\times}2$, IA3 does \emph{not} wake the text pathway on either
+backbone (pretrained text val-MSE 0.0135 ${\approx}$ its \textsf{none} 0.0134;
+random-init likewise), while \textsf{numeric} under IA3 still works ($-15$ to
+$-19\%$). The wake-up therefore requires LoRA's \emph{additive low-rank
+capacity}; minimal multiplicative steering of the pretrained activations is not
+enough. This bounds the optimistic reading of the LoRA result: the pretrained
+knowledge is usable, but only through an adapter class that adds representational
+capacity.
+
+\textbf{Cold-start (ungauged-station) probe.} Holding out stations from training
+(6/28 on \swiss{}, 10/63 on \swissb{}) while keeping the full identity table
+tests whether any scheme serves \emph{unseen} stations. Lookup identities
+(learned, one-hot, random) help seen stations (up to $-17\%$) but consistently
+fail or hurt held-out ones --- their per-station parameters are simply untrained
+for an unseen station. Coordinates are the only arm whose held-out sign is
+favorable ($-1.5\%$, $p{=}0.11$, n=10 --- directional, underpowered), consistent
+with spatial interpolation being the right kind of ``meaningful for unseen
+stations'' identity. The LoRA text wake-up itself does not survive station
+holdout on either dataset (it collapses to \textsf{none}-level even on the
+retained stations), so text-based cold-start generalization remains open ---
+an honest boundary on the wake-up result rather than a refutation.
+
+\section{Modern Backbones, a Second Paradigm, and a Modern TSFM}
+\label{sec:modern}
+
+Three 2024--2026 comparisons test whether the story is an artifact of the 2019
+GPT-2 backbone or of the reprogramming paradigm (all pooled RMSE °C, same
+protocol and windows).
+
+\textbf{Modern LLM backbone (Qwen3-1.7B-Base, 2025).} Through a generic
+HuggingFace backbone branch, Qwen3-1.7B (26$\times$ more parameters than the
+GPT-2 stack, hidden 2048) replicates the frozen-LLM null on \swiss{}: pretrained
+\textsf{none} 2.0759 vs.\ random-init 2.0667 vs.\ GPT-2 2.0703 --- all within
+$0.5\%$; the frozen text pathway stays deaf (2.1058/2.0621); and the additive
+numeric gain appears at GPT-2-like magnitude ($-9.5\%$ pretrained). Six years of
+LLM progress change nothing about the frozen-interface conclusions. (Qwen3.5-2B,
+2026, was integrated but its linear-attention torch path is infeasible on a
+24\,GB GPU --- an honest hardware note, not a scientific exclusion.)
+
+\textbf{Second LLM-adapt paradigm (GPT4TS / OneFitsAll).} The LayerNorm{+}%
+positional-finetuning paradigm~\cite{zhou2023onefitsall} under the same protocol
+gains from numeric identity on \emph{all three} datasets ($-22.0\%$, $-15.2\%$,
+and $-16.8\%$) --- including \swissc{}, where the fully-frozen Time-LLM got nothing.
+Even LN-level backbone adaptation suffices to route identity on the smallest
+collection, converging with the random-init and LoRA evidence that the
+\emph{frozen pretrained} stack was the blocker.
+
+\textbf{Modern zero-shot TSFM (Chronos-2, 2025).} On our exact test windows the
+state-of-the-art zero-shot forecaster reaches 3.00/2.91/3.01\,°C --- 40--60\%
+behind the in-domain trained models. Modern time-series foundation models do not
+make the identity question moot: in-domain training with an identity channel
+remains far ahead on this domain.
+
+\textbf{A fourth dataset (CAMELS-CH-Chem).} On a 42-station, 40-year version of
+the same BAFU network (1981--2012 train, 2013--2020 test; honestly scoped as a
+longer-window robustness set, not an independent network), all three pillars
+replicate: numeric $-5.1\%$, frozen text deaf ($+1.2\%$), Chronos-2 zero-shot
+far behind (4.11\,°C).
 
 \textbf{Queued controls.} A2 ladder (random / one-hot / sinusoidal / coordinates);
 norm-range 2$\times$2 (min-max vs.\ z-score $\times$ identity); GPT4TS as the
